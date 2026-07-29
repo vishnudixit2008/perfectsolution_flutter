@@ -19,6 +19,7 @@ import '../features/requests/view_models/requests_view_model.dart';
 import '../features/purchases/view_models/purchases_view_model.dart';
 import '../features/dashboard/view_models/recent_sales_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
+import '../shared/update_dialog.dart';
 
 import '../../data/services/user_permission_service.dart';
 import '../../data/models/app_user.dart';
@@ -33,6 +34,14 @@ class MainNavigationContainer extends StatefulWidget {
 }
 
 class _MainNavigationContainerState extends State<MainNavigationContainer> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateDialog.showIfNeeded(context);
+    });
+  }
+
   final List<Widget> _views = [
     const CallsView(),
     const InwardRepairsView(),

@@ -1,0 +1,89 @@
+name: Automated Multi-Platform Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build & Release (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: android
+            os: ubuntu-latest
+            build_cmd: flutter build apk --release
+            artifact_path: build/app/outputs/flutter-apk/app-release.apk
+            asset_name: ShopManagement-Android.apk
+
+          - target: windows
+            os: windows-latest
+            build_cmd: flutter build windows --release
+            artifact_path: build/windows/x64/runner/Release/
+            asset_name: ShopManagement-Windows.zip
+
+          - target: macos
+            os: macos-latest
+            build_cmd: flutter build macos --release
+            artifact_path: build/macos/Build/Products/Release/
+            asset_name: ShopManagement-macOS.zip
+
+          - target: web
+            os: ubuntu-latest
+            build_cmd: flutter build web --release
+            artifact_path: build/web
+            asset_name: web-build
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java SDK
+        if: matrix.target == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Run Verification Tests
+        run: flutter test
+
+      - name: Build Target Artifact
+        run: ${{ matrix.build_cmd }}
+
+      - name: Package Windows Zip
+        if: matrix.target == 'windows'
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ShopManagement-Windows.zip
+
+      - name: Package macOS Zip
+        if: matrix.target == 'macos'
+        run: zip -r ShopManagement-macOS.zip build/macos/Build/Products/Release/
+
+      - name: Upload Artifacts to GitHub Release
+        if: matrix.target != 'web'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.target == 'android' && 'build/app/outputs/flutter-apk/app-release.apk' || '' }}
+            ${{ matrix.target == 'windows' && 'ShopManagement-Windows.zip' || '' }}
+            ${{ matrix.target == 'macos' && 'ShopManagement-macOS.zip' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy Web to GitHub Pages
+        if: matrix.target == 'web'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
