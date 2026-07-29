@@ -1,0 +1,405 @@
+class FieldPermission {
+  final bool visible;
+  final bool creatable;
+  final bool editable;
+
+  const FieldPermission({
+    this.visible = true,
+    this.creatable = true,
+    this.editable = true,
+  });
+
+  factory FieldPermission.allTrue() =>
+      const FieldPermission(visible: true, creatable: true, editable: true);
+  factory FieldPermission.createOnly() =>
+      const FieldPermission(visible: true, creatable: true, editable: false);
+  factory FieldPermission.readOnly() =>
+      const FieldPermission(visible: true, creatable: false, editable: false);
+  factory FieldPermission.hidden() =>
+      const FieldPermission(visible: false, creatable: false, editable: false);
+
+  factory FieldPermission.fromJson(Map<String, dynamic> json) {
+    return FieldPermission(
+      visible: json['visible'] ?? true,
+      creatable: json['creatable'] ?? true,
+      editable: json['editable'] ?? true,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'visible': visible,
+      'creatable': creatable,
+      'editable': editable,
+    };
+  }
+
+  FieldPermission copyWith({
+    bool? visible,
+    bool? creatable,
+    bool? editable,
+  }) {
+    return FieldPermission(
+      visible: visible ?? this.visible,
+      creatable: creatable ?? this.creatable,
+      editable: editable ?? this.editable,
+    );
+  }
+}
+
+class AppUser {
+  final String email;
+  final String name;
+  final String role; // 'admin' | 'employee'
+  final bool isActive;
+  final Map<String, bool> pageAccess;
+  final Map<String, bool> actionAccess; // Legacy / fallback global action access
+  final Map<String, Map<String, bool>> pageActionAccess;
+  final Map<String, Map<String, FieldPermission>> fieldAccess;
+
+  AppUser({
+    required this.email,
+    required this.name,
+    required this.role,
+    this.isActive = true,
+    required this.pageAccess,
+    required this.actionAccess,
+    Map<String, Map<String, bool>>? pageActionAccess,
+    Map<String, Map<String, FieldPermission>>? fieldAccess,
+  })  : pageActionAccess = pageActionAccess ?? _defaultPageActionAccess(),
+        fieldAccess = fieldAccess ?? _defaultFieldAccess();
+
+  static const List<String> permanentAdminEmails = [
+    'perfectsolutionnoida@gmail.com',
+    'vishnudixit2008@gmail.com',
+  ];
+
+  static bool isPermanentAdmin(String email) =>
+      permanentAdminEmails.contains(email.toLowerCase().trim());
+
+  bool get isAdmin => role.toLowerCase() == 'admin' || isPermanentAdmin(email);
+
+  static const List<String> modules = [
+    'inward',
+    'calls',
+    'replacements',
+    'requests',
+    'purchases',
+    'sales',
+    'pricelist',
+    'settings',
+  ];
+
+  static const Map<String, String> moduleLabels = {
+    'inward': 'Inward Repairs',
+    'calls': 'Calls / Enquiries',
+    'replacements': 'Replacements',
+    'requests': 'Requests / Pre-Orders',
+    'purchases': 'Purchases & Stock-In',
+    'sales': 'Sales & POS Invoicing',
+    'pricelist': 'Pricelist Catalog',
+    'settings': 'Settings & Backup',
+  };
+
+  static const Map<String, Map<String, String>> moduleActions = {
+    'inward': {
+      'canAdd': 'Can Add New Inward Jobs',
+      'canEdit': 'Can Edit Repair Jobs',
+      'canDelete': 'Can Delete Repair Jobs',
+      'canPrint': 'Can Print / Share Receipt',
+      'canSendWhatsapp': 'Can Send WhatsApp Updates',
+      'canConvertToSale': 'Can Convert Job to POS Sale',
+      'canManageStatus': 'Can Change Repair Status',
+    },
+    'calls': {
+      'canAdd': 'Can Add New Calls',
+      'canEdit': 'Can Edit Calls',
+      'canDelete': 'Can Delete Calls',
+      'canTransferInward': 'Can Convert to Inward Job',
+      'canConvertToSale': 'Can Convert to POS Sale',
+      'canManageStatus': 'Can Change Call Status',
+    },
+    'replacements': {
+      'canAdd': 'Can Add Replacement Record',
+      'canEdit': 'Can Edit Replacement Record',
+      'canDelete': 'Can Delete Replacement Record',
+      'canManageStatus': 'Can Change Replacement Status',
+    },
+    'pricelist': {
+      'canAdd': 'Can Add Catalog Item',
+      'canEdit': 'Can Edit Catalog Item',
+      'canDelete': 'Can Delete Catalog Item',
+      'canExport': 'Can Export Catalog to Excel',
+    },
+    'sales': {
+      'canAdd': 'Can Perform POS Checkout',
+      'canEdit': 'Can Edit Sales Invoice',
+      'canDelete': 'Can Void / Delete Invoice',
+      'canPrint': 'Can Print A5 PDF Invoice',
+      'canApplyDiscount': 'Can Apply Checkout Discount',
+    },
+    'requests': {
+      'canAdd': 'Can Add Customer Request',
+      'canEdit': 'Can Edit Request',
+      'canDelete': 'Can Delete Request',
+      'canConvertToSale': 'Can Convert Request to Sale',
+      'canManageStatus': 'Can Change Request Status',
+    },
+    'purchases': {
+      'canAdd': 'Can Record Stock-In Purchase',
+      'canEdit': 'Can Edit Purchase Order',
+      'canDelete': 'Can Delete Purchase Order',
+      'canManageStatus': 'Can Confirm / Revert Purchase Status',
+    },
+    'settings': {
+      'canView': 'Can View Settings Screen',
+      'canManageUsers': 'Can Access User Management & Roles',
+      'canManageSync': 'Can Trigger Cloud Sync & Local Backups',
+    },
+  };
+
+  static const Map<String, Map<String, String>> moduleFields = {
+    'inward': {
+      'date': 'Date & Time',
+      'jobNo': 'Job Number',
+      'name': 'Customer Name',
+      'mobileNo': 'Mobile Number',
+      'devices': 'Device Specs / Brand',
+      'query': 'Customer Complaint / Issue',
+      'estimateItems': 'Repair Cost Estimates',
+      'purchasedFrom': 'Purchased Store Info',
+      'status': 'Job Status',
+      'notes': 'Internal Repair Notes',
+      'photo': 'Device Photos',
+    },
+    'calls': {
+      'date': 'Call Date',
+      'name': 'Customer Name',
+      'mobileNo': 'Mobile Number',
+      'address': 'Customer Address',
+      'query': 'Enquiry Query Details',
+      'assignedTo': 'Assigned Technician',
+      'estimate': 'Price Estimate',
+      'status': 'Call Status',
+      'photo1': 'Attachment Photo 1',
+      'photo2': 'Attachment Photo 2',
+      'notes': 'Technician Notes',
+    },
+    'replacements': {
+      'date': 'Record Date',
+      'jobNo': 'Job Code',
+      'name': 'Customer Name',
+      'mobileNo': 'Mobile Number',
+      'item': 'Replacement Part / Item',
+      'assignedTo': 'Assigned Tech',
+      'depositDate': 'Deposit Date',
+      'receiveDate': 'Receive Date',
+      'status': 'Warranty Claim Status',
+      'photo': 'Device Photo',
+    },
+    'pricelist': {
+      'item': 'Item / Product Name',
+      'category': 'Product Category',
+      'cashPrice': 'Cash / Base Price',
+      'inclGstPrice': 'Inclusive GST Price',
+      'itemDescription': 'Item Specifications',
+    },
+    'sales': {
+      'customerName': 'Customer Name',
+      'customerNumber': 'Mobile Number',
+      'paymentMode': 'Payment Mode (Cash/UPI/Card)',
+      'advance': 'Advance Paid',
+      'discount': 'Applied Discount',
+      'orderStatus': 'Order Fulfillment Status',
+    },
+    'requests': {
+      'date': 'Pre-Order Date',
+      'customerName': 'Customer Name',
+      'mobileNo': 'Mobile Number',
+      'item': 'Requested Special Item',
+      'advance': 'Advance Payment',
+      'estimate': 'Price Estimate',
+      'totalAmount': 'Total Quoted Amount',
+      'dealerName': 'Dealer / Vendor Sourced',
+      'status': 'Order Status',
+      'photo': 'Item Image',
+    },
+    'purchases': {
+      'date': 'Purchase Date',
+      'purchasedFrom': 'Supplier / Distributor',
+      'stockInItems': 'Inbound Stock Line Items',
+      'totalAmount': 'Total Shipment Bill Amount',
+      'status': 'Stock In Confirmation Status',
+      'notes': 'Shipment Notes',
+    },
+    'settings': {
+      'generalSettings': 'General Application Preferences',
+      'userManagement': 'User & Security Management',
+      'backupSync': 'Database & Cloud Backups',
+    },
+  };
+
+  static Map<String, Map<String, bool>> _defaultPageActionAccess() {
+    final Map<String, Map<String, bool>> access = {};
+    for (var mod in modules) {
+      final actions = moduleActions[mod] ?? {};
+      access[mod] = {for (var act in actions.keys) act: true};
+    }
+    return access;
+  }
+
+  static Map<String, Map<String, FieldPermission>> _defaultFieldAccess() {
+    final Map<String, Map<String, FieldPermission>> access = {};
+    for (var mod in modules) {
+      final fields = moduleFields[mod] ?? {};
+      access[mod] = {
+        for (var f in fields.keys) f: FieldPermission.allTrue(),
+      };
+    }
+    return access;
+  }
+
+  factory AppUser.defaultAdmin({
+    String email = 'perfectsolutionnoida@gmail.com',
+    String name = 'Perfect Solution Admin',
+  }) {
+    return AppUser(
+      email: email,
+      name: name,
+      role: 'admin',
+      isActive: true,
+      pageAccess: {for (var m in modules) m: true},
+      actionAccess: {
+        'canAdd': true,
+        'canEdit': true,
+        'canDelete': true,
+        'canDuplicate': true,
+        'canConvertToSale': true,
+        'canEnterInModule': true,
+        'canPrint': true,
+        'canExport': true,
+        'canManageStatuses': true,
+        'canApplyDiscount': true,
+      },
+      pageActionAccess: _defaultPageActionAccess(),
+      fieldAccess: _defaultFieldAccess(),
+    );
+  }
+
+  factory AppUser.defaultEmployee(String email, String name) {
+    return AppUser(
+      email: email,
+      name: name,
+      role: 'employee',
+      isActive: true,
+      pageAccess: {for (var m in modules) m: m != 'settings'},
+      actionAccess: {
+        'canAdd': true,
+        'canEdit': true,
+        'canDelete': false,
+        'canDuplicate': true,
+        'canConvertToSale': true,
+        'canEnterInModule': true,
+        'canPrint': true,
+        'canExport': false,
+        'canManageStatuses': false,
+        'canApplyDiscount': false,
+      },
+      pageActionAccess: {
+        for (var m in modules)
+          m: {
+            for (var act in (moduleActions[m] ?? {}).keys)
+              act: act != 'canDelete' && act != 'canManageUsers'
+          }
+      },
+      fieldAccess: _defaultFieldAccess(),
+    );
+  }
+
+  factory AppUser.fromJson(Map<String, dynamic> json) {
+    final rawPageActions = json['pageActionAccess'];
+    Map<String, Map<String, bool>> parsedPageActions = {};
+    if (rawPageActions is Map) {
+      rawPageActions.forEach((modKey, actMap) {
+        if (actMap is Map) {
+          parsedPageActions[modKey.toString()] =
+              Map<String, bool>.from(actMap);
+        }
+      });
+    }
+
+    final rawFieldAccess = json['fieldAccess'];
+    Map<String, Map<String, FieldPermission>> parsedFields = {};
+    if (rawFieldAccess is Map) {
+      rawFieldAccess.forEach((modKey, fieldMap) {
+        if (fieldMap is Map) {
+          final Map<String, FieldPermission> fMap = {};
+          fieldMap.forEach((fKey, fVal) {
+            if (fVal is Map) {
+              fMap[fKey.toString()] =
+                  FieldPermission.fromJson(Map<String, dynamic>.from(fVal));
+            }
+          });
+          parsedFields[modKey.toString()] = fMap;
+        }
+      });
+    }
+
+    return AppUser(
+      email: json['email'] ?? '',
+      name: json['name'] ?? '',
+      role: json['role'] ?? 'employee',
+      isActive: json['isActive'] ?? true,
+      pageAccess: Map<String, bool>.from(json['pageAccess'] ?? {}),
+      actionAccess: Map<String, bool>.from(json['actionAccess'] ?? {}),
+      pageActionAccess:
+          parsedPageActions.isEmpty ? _defaultPageActionAccess() : parsedPageActions,
+      fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> serializedFields = {};
+    fieldAccess.forEach((modKey, fMap) {
+      final Map<String, dynamic> fSerialized = {};
+      fMap.forEach((fKey, fPerm) {
+        fSerialized[fKey] = fPerm.toJson();
+      });
+      serializedFields[modKey] = fSerialized;
+    });
+
+    return {
+      'email': email,
+      'name': name,
+      'role': role,
+      'isActive': isActive,
+      'pageAccess': pageAccess,
+      'actionAccess': actionAccess,
+      'pageActionAccess': pageActionAccess,
+      'fieldAccess': serializedFields,
+    };
+  }
+
+  AppUser copyWith({
+    String? email,
+    String? name,
+    String? role,
+    bool? isActive,
+    Map<String, bool>? pageAccess,
+    Map<String, bool>? actionAccess,
+    Map<String, Map<String, bool>>? pageActionAccess,
+    Map<String, Map<String, FieldPermission>>? fieldAccess,
+  }) {
+    return AppUser(
+      email: email ?? this.email,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      isActive: isActive ?? this.isActive,
+      pageAccess: pageAccess ?? Map.from(this.pageAccess),
+      actionAccess: actionAccess ?? Map.from(this.actionAccess),
+      pageActionAccess: pageActionAccess ?? Map.from(this.pageActionAccess),
+      fieldAccess: fieldAccess ?? Map.from(this.fieldAccess),
+    );
+  }
+}
+

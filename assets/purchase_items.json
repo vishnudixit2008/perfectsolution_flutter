@@ -1,0 +1,5502 @@
+[
+  {
+    "line_id": "f79c3d34",
+    "purchase_id": "925ebe96",
+    "item_id": 32,
+    "item_name": "GRAPHICS CARD 2 GB CONSISTENT",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "96c23e6a",
+    "purchase_id": "925ebe96",
+    "item_id": 220,
+    "item_name": "Mouse Pade big size",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e240f645",
+    "purchase_id": "925ebe96",
+    "item_id": 294,
+    "item_name": "REF SSD 128 GB SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2cc9b553",
+    "purchase_id": "06b9b1d7",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dad874e5",
+    "purchase_id": "f632595b",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "35b369f8",
+    "purchase_id": "3d557924",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "536f9b81",
+    "purchase_id": "cc953be1",
+    "item_id": 210,
+    "item_name": "USB MOUSE DELL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "da9a1a20",
+    "purchase_id": "924a42fb",
+    "item_id": 403,
+    "item_name": "KEYBOARD PRODOT",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "be404e66",
+    "purchase_id": "01ade91c",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1a5c8e8f",
+    "purchase_id": "7d26b837",
+    "item_id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0fa0c9ec",
+    "purchase_id": "7d26b837",
+    "item_id": 156,
+    "item_name": "EPSON INK 003 COLOR",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "41477adb",
+    "purchase_id": "ae623846",
+    "item_id": 404,
+    "item_name": "HARD DISK 2 TB ELEMENT",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "10db77ed",
+    "purchase_id": "15263e4b",
+    "item_id": 388,
+    "item_name": "USB TO LAN CARD QUANTRON",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "77c26e62",
+    "purchase_id": "19d213e3",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "87aed574",
+    "purchase_id": "7317cdc5",
+    "item_id": 302,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "61d2cb51",
+    "purchase_id": "7317cdc5",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "37f3ab60",
+    "purchase_id": "7317cdc5",
+    "item_id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6274ca66",
+    "purchase_id": "caa7377a",
+    "item_id": 94,
+    "item_name": "CPU I3 7TH GEN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d9cccaa0",
+    "purchase_id": "0be65c94",
+    "item_id": 301,
+    "item_name": "SCREEN 15.6\" NORMAL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "27921d90",
+    "purchase_id": "0be65c94",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8d97964a",
+    "purchase_id": "c89d8a3a",
+    "item_id": 86,
+    "item_name": "TECHIE DP TO HDMI",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0951680a",
+    "purchase_id": "79d93730",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e84efa3d",
+    "purchase_id": "06b84eaa",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "993273bb",
+    "purchase_id": "06b84eaa",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fad5a29f",
+    "purchase_id": "93cadf15",
+    "item_id": 87,
+    "item_name": "TECHIE HDMI TO VGA",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "223b4fef",
+    "purchase_id": "93cadf15",
+    "item_id": 89,
+    "item_name": "TECHIE MINI DP TO VGA",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7c3bc410",
+    "purchase_id": "93cadf15",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "803bb295",
+    "purchase_id": "93cadf15",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f7f5f971",
+    "purchase_id": "1bd9dd40",
+    "item_id": 405,
+    "item_name": "REF SSD 256GB M.2",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d8ac37fd",
+    "purchase_id": "53e583d4",
+    "item_id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "84a850c5",
+    "purchase_id": "fe19a929",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 250.0,
+    "amount": 500.0
+  },
+  {
+    "line_id": "0ae781f4",
+    "purchase_id": "603a388c",
+    "item_id": 45,
+    "item_name": "680 BLACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "084d14dd",
+    "purchase_id": "603a388c",
+    "item_id": 46,
+    "item_name": "680 COLOUR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d3c4472d",
+    "purchase_id": "603a388c",
+    "item_id": 406,
+    "item_name": "CANON INK 70 BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c1a43d6a",
+    "purchase_id": "a835e64c",
+    "item_id": 164,
+    "item_name": "KeyBoard HP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f6e2b5b0",
+    "purchase_id": "a835e64c",
+    "item_id": null,
+    "item_name": "",
+    "custom_item_name": null,
+    "quantity": 0,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "514d51a2",
+    "purchase_id": "adf89863",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7058a4d5",
+    "purchase_id": "ac57de26",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "10fd9ffa",
+    "purchase_id": "597d3f0d",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "56cd6c5a",
+    "purchase_id": "89f5399a",
+    "item_id": 350,
+    "item_name": "512 GB SIMMTRONICS NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dc74c0ce",
+    "purchase_id": "0fe9b014",
+    "item_id": 349,
+    "item_name": "500 GB WD BLUE SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2a204b35",
+    "purchase_id": "6a15f242",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3816239d",
+    "purchase_id": "65e42c94",
+    "item_id": 205,
+    "item_name": "LED 19\" LG HDMI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "427ade68",
+    "purchase_id": "2872eeb6",
+    "item_id": 62,
+    "item_name": "HDD CASING DESKTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0030ede5",
+    "purchase_id": "26a176dc",
+    "item_id": 407,
+    "item_name": "C TO HDMI TECHI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "87de23e3",
+    "purchase_id": "b02ddb60",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0f202131",
+    "purchase_id": "8ebc9260",
+    "item_id": 290,
+    "item_name": "REF RAM 4 GB DDR3 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a5a66231",
+    "purchase_id": "48174663",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "26bcf371",
+    "purchase_id": "6bd9754e",
+    "item_id": 289,
+    "item_name": "REF RAM 2 GB DDR3 L",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0e0af1db",
+    "purchase_id": "f2243bc0",
+    "item_id": 295,
+    "item_name": "REF SSD 256GB NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "80902122",
+    "purchase_id": "d4ace357",
+    "item_id": 296,
+    "item_name": "REF SSD 256GB SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "aa540e6f",
+    "purchase_id": "08dd8c8b",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5d0c9580",
+    "purchase_id": "61eb843f",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "36234edc",
+    "purchase_id": "03747ac6",
+    "item_id": 60,
+    "item_name": "HDD CASING 2.0",
+    "custom_item_name": null,
+    "quantity": 15,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "969eb8a2",
+    "purchase_id": "03747ac6",
+    "item_id": 62,
+    "item_name": "HDD CASING DESKTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d1b1e539",
+    "purchase_id": "19f29455",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "60e6ae9e",
+    "purchase_id": "bc58be1c",
+    "item_id": 143,
+    "item_name": "Head Hp Gt50 Color",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bf7e1643",
+    "purchase_id": "ef83266b",
+    "item_id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "185d123e",
+    "purchase_id": "ef83266b",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e6b06a0a",
+    "purchase_id": "96f1881a",
+    "item_id": 2,
+    "item_name": "ADAPTOR ASUS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c3f8aa10",
+    "purchase_id": "0e3c703b",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "558728bb",
+    "purchase_id": "0d746969",
+    "item_id": 29,
+    "item_name": "SMPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e84e5f0c",
+    "purchase_id": "fe3d7a4c",
+    "item_id": 409,
+    "item_name": "LENOVO H110 HEADPHONE GAMING",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ee97c100",
+    "purchase_id": "98c2d443",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cf6c4bbf",
+    "purchase_id": "8782918f",
+    "item_id": 234,
+    "item_name": "Paper ream",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "048f2bdb",
+    "purchase_id": "b782f63e",
+    "item_id": 185,
+    "item_name": "128 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3b2c4e10",
+    "purchase_id": "12c42ab7",
+    "item_id": 291,
+    "item_name": "REF RAM 8 GB DDR3 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "38b0fd30",
+    "purchase_id": "f215411b",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cd979d0d",
+    "purchase_id": "f215411b",
+    "item_id": 374,
+    "item_name": "usb cable 1.5 mtr orginal",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ef84c55f",
+    "purchase_id": "67fd3916",
+    "item_id": 351,
+    "item_name": "512 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0486a92a",
+    "purchase_id": "841fa2ad",
+    "item_id": 370,
+    "item_name": "UPS BATTERY EXIDE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eaa040fb",
+    "purchase_id": "f281f8ba",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8237afb9",
+    "purchase_id": "de38f57f",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3d9bbae9",
+    "purchase_id": "422bd2f7",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0af7c6a9",
+    "purchase_id": "9fec96e3",
+    "item_id": 410,
+    "item_name": "LACARE 4G WIRELESS USB DONGLE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "681f6ed9",
+    "purchase_id": "09a31492",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "54707160",
+    "purchase_id": "f866fa8d",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "41d30e16",
+    "purchase_id": "2dd3f7d2",
+    "item_id": 411,
+    "item_name": "ACER ORIGINAL ADAPTOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 1700.0,
+    "amount": 1700.0
+  },
+  {
+    "line_id": "dc182b6f",
+    "purchase_id": "c216bbb5",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a9880dfa",
+    "purchase_id": "c7a03b57",
+    "item_id": 334,
+    "item_name": "MICE",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "493f9736",
+    "purchase_id": "9060931a",
+    "item_id": 49,
+    "item_name": "803 Black",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d912c546",
+    "purchase_id": "ef6713e2",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "83ba0f23",
+    "purchase_id": "d50ec14a",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f7dee754",
+    "purchase_id": "d50ec14a",
+    "item_id": 59,
+    "item_name": "CADY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "adb389bb",
+    "purchase_id": "d50ec14a",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c13931c3",
+    "purchase_id": "d31a58c6",
+    "item_id": 262,
+    "item_name": "REF ADAPTOR",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a6b5da78",
+    "purchase_id": "46cb2de3",
+    "item_id": 412,
+    "item_name": "TONER 181A",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b9371419",
+    "purchase_id": "f920d44d",
+    "item_id": 299,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "da82c4f9",
+    "purchase_id": "f920d44d",
+    "item_id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e29b9fc9",
+    "purchase_id": "f920d44d",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "873ad8c0",
+    "purchase_id": "d97ec1d0",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 11,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "26eacafc",
+    "purchase_id": "82ba0ac4",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 13,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c052ae38",
+    "purchase_id": "27ac9a31",
+    "item_id": 187,
+    "item_name": "64 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9ed8a66f",
+    "purchase_id": "5245376c",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5050e53e",
+    "purchase_id": "34c3dea2",
+    "item_id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c1bbf4cb",
+    "purchase_id": "4fdbf30a",
+    "item_id": 373,
+    "item_name": "Router UPS",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cb0bd30e",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 49,
+    "item_name": "803 Black",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2f095408",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 45,
+    "item_name": "680 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "34c8fada",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 44,
+    "item_name": "678 CARTRIDGE COLOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b9bec54d",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 55,
+    "item_name": "HP 46 BLACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8244b149",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 160,
+    "item_name": "Hp Ink BLACK GT53 XL",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b95e58c1",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 161,
+    "item_name": "Hp Ink COLOR GT52",
+    "custom_item_name": null,
+    "quantity": 15,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b58fc5d7",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 143,
+    "item_name": "Head Hp Gt50 Color",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "de95b225",
+    "purchase_id": "9ad35f8d",
+    "item_id": 367,
+    "item_name": "TONER 88A",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "61131d24",
+    "purchase_id": "9ad35f8d",
+    "item_id": 358,
+    "item_name": "12A Toner",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "acceaa1f",
+    "purchase_id": "9ad35f8d",
+    "item_id": 216,
+    "item_name": "MOUSE IVOOMI",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "94a16399",
+    "purchase_id": "9ad35f8d",
+    "item_id": 413,
+    "item_name": "MOUSE BLUETOOTH IVOOMI SHAKTI",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8b7512ff",
+    "purchase_id": "9ad35f8d",
+    "item_id": 414,
+    "item_name": "MOUSE ROBOT  IVOOMI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f414768d",
+    "purchase_id": "9ad35f8d",
+    "item_id": 415,
+    "item_name": "HDMI SWITCHER IVOOMI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7804342d",
+    "purchase_id": "9ad35f8d",
+    "item_id": 204,
+    "item_name": "LED 19\" IVOOMI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "587f7169",
+    "purchase_id": "9ad35f8d",
+    "item_id": 416,
+    "item_name": "KEYBOARD MECHANICAL TUCKER WHITE IVOOMI",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "491e2f4a",
+    "purchase_id": "6c2b3ab3",
+    "item_id": 417,
+    "item_name": "HP 47 COLOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8e93b165",
+    "purchase_id": "c0628234",
+    "item_id": 418,
+    "item_name": "SMPS 750 IVOOMI",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bb7da357",
+    "purchase_id": "1b384d75",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f1abdf04",
+    "purchase_id": "ab5a281e",
+    "item_id": 293,
+    "item_name": "REF SSD 128 GB M.2",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1422196e",
+    "purchase_id": "ab5a281e",
+    "item_id": 297,
+    "item_name": "REF SSD 512 NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8ac3de01",
+    "purchase_id": "6c5d2e27",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "24ce1eaa",
+    "purchase_id": "d0d00012",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "16922fb3",
+    "purchase_id": "c4dcd6aa",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7c9e0bc3",
+    "purchase_id": "0a06601d",
+    "item_id": 347,
+    "item_name": "480 GB WD GREEN SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "46615734",
+    "purchase_id": "02c34c1a",
+    "item_id": 149,
+    "item_name": "BROTHER INK BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d0e866af",
+    "purchase_id": "02c34c1a",
+    "item_id": 150,
+    "item_name": "BROTHER INK COLOR",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "55be3818",
+    "purchase_id": "659a7635",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ca1b3bb1",
+    "purchase_id": "659a7635",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4678cee9",
+    "purchase_id": "2d8ca691",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1e9ccc16",
+    "purchase_id": "8a85ee03",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "adcbaa25",
+    "purchase_id": "8a85ee03",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f4172089",
+    "purchase_id": "fe0aec67",
+    "item_id": 59,
+    "item_name": "CADY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "89941b98",
+    "purchase_id": "abe59c8c",
+    "item_id": 344,
+    "item_name": "256 GB SIMMTRONICS NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ebec63f5",
+    "purchase_id": "6ba13bda",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b0ba69cc",
+    "purchase_id": "30d0795e",
+    "item_id": 213,
+    "item_name": "Wireless Mouse HP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0c7ccc6b",
+    "purchase_id": "30d0795e",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3aff5319",
+    "purchase_id": "30d0795e",
+    "item_id": 262,
+    "item_name": "REF ADAPTOR",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2fb651b5",
+    "purchase_id": "30d0795e",
+    "item_id": 278,
+    "item_name": "Ref Screen 15.6 30 Pin Paper",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "41d2bddc",
+    "purchase_id": "d3f22fc1",
+    "item_id": 360,
+    "item_name": "CANON 337 TONER",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b407f33f",
+    "purchase_id": "d3f22fc1",
+    "item_id": 368,
+    "item_name": "TONER 925",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eff749cf",
+    "purchase_id": "e84077c7",
+    "item_id": 23,
+    "item_name": "Audio Cable",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d673b573",
+    "purchase_id": "e84077c7",
+    "item_id": 386,
+    "item_name": "USB HUB HONEYWELL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "67915f3d",
+    "purchase_id": "e84077c7",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "312fbb64",
+    "purchase_id": "e84077c7",
+    "item_id": 132,
+    "item_name": "Hdmi Cable 1.5 mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d34991c2",
+    "purchase_id": "8744f467",
+    "item_id": 60,
+    "item_name": "HDD CASING 2.0",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dafe82cb",
+    "purchase_id": "8744f467",
+    "item_id": 61,
+    "item_name": "HDD CASING 3.0",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a86bcd8e",
+    "purchase_id": "950a65d8",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9ede59ca",
+    "purchase_id": "6668dc53",
+    "item_id": 2,
+    "item_name": "ADAPTOR ASUS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fd3446c4",
+    "purchase_id": "b45817e4",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "314b6d0b",
+    "purchase_id": "23e9e5ee",
+    "item_id": 420,
+    "item_name": "DVR 8 CH. CP PLUS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f0d469b9",
+    "purchase_id": "33135364",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "308091df",
+    "purchase_id": "26862a82",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b5beb801",
+    "purchase_id": "407e6f49",
+    "item_id": 62,
+    "item_name": "HDD CASING DESKTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "89c5d0e4",
+    "purchase_id": "3d96f743",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d06c0c72",
+    "purchase_id": "fe23a1b7",
+    "item_id": 132,
+    "item_name": "Hdmi Cable 1.5 mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5cbb3aa0",
+    "purchase_id": "fe23a1b7",
+    "item_id": 378,
+    "item_name": "Usb Cable 1.5 mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "76162c7c",
+    "purchase_id": "fe23a1b7",
+    "item_id": 386,
+    "item_name": "USB HUB HONEYWELL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "75b52fe2",
+    "purchase_id": "a02dae56",
+    "item_id": 329,
+    "item_name": "QUICK HEAL INTERNET  SECURITY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "54c4e3b0",
+    "purchase_id": "fc343d3d",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a1d01774",
+    "purchase_id": "fc343d3d",
+    "item_id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "37a14c4d",
+    "purchase_id": "7077dc86",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e3465afc",
+    "purchase_id": "9d267a6b",
+    "item_id": 185,
+    "item_name": "128 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2adc5ffd",
+    "purchase_id": "fc343d3d",
+    "item_id": 426,
+    "item_name": "HP 47 BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "91626b47",
+    "purchase_id": "5d2f3fd9",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a96e3f55",
+    "purchase_id": "a9c3a42e",
+    "item_id": 370,
+    "item_name": "UPS BATTERY EXIDE",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "16f47ec3",
+    "purchase_id": "9485cf3c",
+    "item_id": 173,
+    "item_name": "KEYBOARD TVS GOLD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "590ff496",
+    "purchase_id": "b1f6e7d0",
+    "item_id": 426,
+    "item_name": "HP 47 BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a2b02b55",
+    "purchase_id": "0d571ccc",
+    "item_id": 407,
+    "item_name": "C TO HDMI TECHI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f60adc01",
+    "purchase_id": "b41f7979",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f6505cf1",
+    "purchase_id": "a895d738",
+    "item_id": 249,
+    "item_name": "HP 585 TANK PRINTER",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c9039f22",
+    "purchase_id": "c3fb3804",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7d5cdb8f",
+    "purchase_id": "514299ca",
+    "item_id": 141,
+    "item_name": "CANON CH 7 HEAD COLOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4a8d5c3b",
+    "purchase_id": "e8117302",
+    "item_id": 132,
+    "item_name": "Hdmi Cable 1.5 mtr",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eaf551ea",
+    "purchase_id": "6a72631b",
+    "item_id": 235,
+    "item_name": "PATCH CABLE 1 MTR",
+    "custom_item_name": null,
+    "quantity": 53,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e19bb914",
+    "purchase_id": "95c1f9cf",
+    "item_id": 11,
+    "item_name": "LENOVO ADAPTOR NEW PIN 65W",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ed7b1caf",
+    "purchase_id": "95c1f9cf",
+    "item_id": 427,
+    "item_name": "DELL BATTERY G91J0",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 3500.0,
+    "amount": 3500.0
+  },
+  {
+    "line_id": "71a08590",
+    "purchase_id": "69f1dd90",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6c3e6f9b",
+    "purchase_id": "c2e49b24",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "14ad9a0b",
+    "purchase_id": "1ba077f4",
+    "item_id": 396,
+    "item_name": "WEBCAM 1015",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "07c6fa0f",
+    "purchase_id": "921bbb15",
+    "item_id": 151,
+    "item_name": "CANON INK BOTTLE BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "10e986dc",
+    "purchase_id": "4797abfa",
+    "item_id": 23,
+    "item_name": "Audio Cable",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d0aca1ef",
+    "purchase_id": "07fb5da9",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9dbd8994",
+    "purchase_id": "8807cca4",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ecdb5494",
+    "purchase_id": "764a3c30",
+    "item_id": 209,
+    "item_name": "MOTHER BOARD H81",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7967c92f",
+    "purchase_id": "e4eaab87",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0bf858c6",
+    "purchase_id": "cb46683e",
+    "item_id": 130,
+    "item_name": "CPU FAN INTEL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3668c07a",
+    "purchase_id": "1fbb24b0",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bb62f744",
+    "purchase_id": "43da9768",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "307eb2c2",
+    "purchase_id": "43da9768",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8d1bde57",
+    "purchase_id": "43da9768",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5d498372",
+    "purchase_id": "43da9768",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e9bc2d90",
+    "purchase_id": "78671ee6",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8c3a3b20",
+    "purchase_id": "3d6e95b4",
+    "item_id": 29,
+    "item_name": "SMPS",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f09d3d74",
+    "purchase_id": "3d6e95b4",
+    "item_id": 28,
+    "item_name": "CABNET",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "61b5acf6",
+    "purchase_id": "3d6e95b4",
+    "item_id": 372,
+    "item_name": "Ups Microtek 650VA",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8f4d0cb4",
+    "purchase_id": "3d6e95b4",
+    "item_id": 428,
+    "item_name": "INTEX 450 WATT SMPS",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d992500e",
+    "purchase_id": "3d6e95b4",
+    "item_id": 429,
+    "item_name": "ZEBRONICS 18.5\" LED",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b9f3affa",
+    "purchase_id": "3d6e95b4",
+    "item_id": 430,
+    "item_name": "USB MOUSE INTEX",
+    "custom_item_name": null,
+    "quantity": 40,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2d9997c3",
+    "purchase_id": "901b28ac",
+    "item_id": 134,
+    "item_name": "Hdmi Cable 3 mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fbb6e915",
+    "purchase_id": "901b28ac",
+    "item_id": 214,
+    "item_name": "INTEX BLUETOOTH MOUSE FLOW",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "baa89cc7",
+    "purchase_id": "b4e7ba29",
+    "item_id": 295,
+    "item_name": "REF SSD 256GB NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b5509a99",
+    "purchase_id": "08bbc71a",
+    "item_id": 377,
+    "item_name": "Usb Cable 5 mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "858c3768",
+    "purchase_id": "d929c4ec",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "39f33ff9",
+    "purchase_id": "9833c80a",
+    "item_id": 135,
+    "item_name": "Hdmi Cable 5 mtr",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fb9277c4",
+    "purchase_id": "1be74f93",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3e42bb6a",
+    "purchase_id": "803e68aa",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c2a28e64",
+    "purchase_id": "803e68aa",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0f154e90",
+    "purchase_id": "803e68aa",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a246ec54",
+    "purchase_id": "961ad434",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c769be02",
+    "purchase_id": "8d678ae7",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "045f8de2",
+    "purchase_id": "f8a10c37",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7162ae28",
+    "purchase_id": "4f45e5b5",
+    "item_id": 395,
+    "item_name": "WEB CAM QUANTRON",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "148f3809",
+    "purchase_id": "9a7c185b",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e6b76ac6",
+    "purchase_id": "9a7c185b",
+    "item_id": 5,
+    "item_name": "Adaptor Dell 65W",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d3bdba36",
+    "purchase_id": "727a74dc",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "531c0e09",
+    "purchase_id": "727a74dc",
+    "item_id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e9ebfe2a",
+    "purchase_id": "73a16959",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "57b4955b",
+    "purchase_id": "913a379c",
+    "item_id": 344,
+    "item_name": "256 GB SIMMTRONICS NVME",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c07fef82",
+    "purchase_id": "913a379c",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 15,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cf3e7cea",
+    "purchase_id": "913a379c",
+    "item_id": 431,
+    "item_name": "128 GB NVME simmtronics",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dc2b169e",
+    "purchase_id": "913a379c",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a1e8ac5d",
+    "purchase_id": "a1afdee0",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ff4b941d",
+    "purchase_id": "5197f3bb",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "aaea64ae",
+    "purchase_id": "5197f3bb",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "337e9af5",
+    "purchase_id": "ac32b2f7",
+    "item_id": 130,
+    "item_name": "CPU FAN INTEL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9e8b3735",
+    "purchase_id": "ac32b2f7",
+    "item_id": 63,
+    "item_name": "HDD CASING NVME",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0d5194b1",
+    "purchase_id": "a9fd4eb4",
+    "item_id": 141,
+    "item_name": "CANON CH 7 HEAD COLOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c072764a",
+    "purchase_id": "b693b678",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5b77a753",
+    "purchase_id": "aa2bb4b8",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ae37d9c0",
+    "purchase_id": "626f91c3",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b9d87446",
+    "purchase_id": "06aa4f0b",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "16a4c062",
+    "purchase_id": "9c92927b",
+    "item_id": 151,
+    "item_name": "CANON INK BOTTLE BLACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "27a0589b",
+    "purchase_id": "c3c3e248",
+    "item_id": 140,
+    "item_name": "Canon BH-7 HEAD BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "55b67910",
+    "purchase_id": "c3c3e248",
+    "item_id": 141,
+    "item_name": "CANON CH 7 HEAD COLOR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "71679b84",
+    "purchase_id": "97caf64d",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2d38a49e",
+    "purchase_id": "97caf64d",
+    "item_id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a1701638",
+    "purchase_id": "cd46cc5f",
+    "item_id": 372,
+    "item_name": "Ups Microtek 650VA",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7820e46a",
+    "purchase_id": "5d10b982",
+    "item_id": 23,
+    "item_name": "Audio Cable",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7fc54841",
+    "purchase_id": "04a295f0",
+    "item_id": 68,
+    "item_name": "CP PLUS WIRELESS CAMERA 3MP",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "caab8884",
+    "purchase_id": "7ab821e1",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "924444c9",
+    "purchase_id": "2c066177",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "32817ed5",
+    "purchase_id": "cf736f86",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c4f1dc5e",
+    "purchase_id": "21ee6c81",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 6,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e6b281b1",
+    "purchase_id": "f5a6d4f4",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c66b3335",
+    "purchase_id": "7acd745c",
+    "item_id": 432,
+    "item_name": "R28 HP 840 G3 I5 6TH 8 TB RAM / 256 GB SSD / 14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eca0877a",
+    "purchase_id": "3d617338",
+    "item_id": 433,
+    "item_name": "R29 HP 830 G8 I5 11TH / 8 GB RAM / 512 GB SSD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "efa36810",
+    "purchase_id": "7a677f83",
+    "item_id": 434,
+    "item_name": "R30 DELL LATITUDE E6430 I5 3RD / 8 GB / 128",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b3822b82",
+    "purchase_id": "7a677f83",
+    "item_id": 435,
+    "item_name": "R31 DELL LATITUDE E6420 I5 2ND / 8 GB / 256",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cec4d8bd",
+    "purchase_id": "5e5eb5af",
+    "item_id": 130,
+    "item_name": "CPU FAN INTEL",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6887790f",
+    "purchase_id": "f92333c2",
+    "item_id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "616eb045",
+    "purchase_id": "20ef89cb",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "34ede884",
+    "purchase_id": "20ef89cb",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1e1ac8e7",
+    "purchase_id": "20ef89cb",
+    "item_id": 351,
+    "item_name": "512 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "74687cea",
+    "purchase_id": "aa45ad84",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "151fe104",
+    "purchase_id": "fbc085aa",
+    "item_id": 60,
+    "item_name": "HDD CASING 2.0",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bd1f74e4",
+    "purchase_id": "c5e3a2f6",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "df922e8b",
+    "purchase_id": "7f294ebd",
+    "item_id": 41,
+    "item_name": "CANON 745",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0b653da4",
+    "purchase_id": "7f294ebd",
+    "item_id": 40,
+    "item_name": "CANON 57S",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "23f64dc9",
+    "purchase_id": "f19baddf",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6ae052c4",
+    "purchase_id": "8549530b",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "659cc115",
+    "purchase_id": "8549530b",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9d8dd175",
+    "purchase_id": "8549530b",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "509dc767",
+    "purchase_id": "10b9862d",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d0e1a891",
+    "purchase_id": "10b9862d",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "16522653",
+    "purchase_id": "10b9862d",
+    "item_id": 429,
+    "item_name": "ZEBRONICS 18.5\" LED",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5e64c756",
+    "purchase_id": "10b9862d",
+    "item_id": 206,
+    "item_name": "LED LG 22\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a94f15ef",
+    "purchase_id": "10b9862d",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "969663dd",
+    "purchase_id": "7920f64b",
+    "item_id": 361,
+    "item_name": "TONER 110A",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "05f1db69",
+    "purchase_id": "7920f64b",
+    "item_id": null,
+    "item_name": "",
+    "custom_item_name": null,
+    "quantity": 0,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "30c26a78",
+    "purchase_id": "2df6608b",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ceaa5ba4",
+    "purchase_id": "334b4a59",
+    "item_id": 295,
+    "item_name": "REF SSD 256GB NVME",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "590b185c",
+    "purchase_id": "2961ad19",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "73e1540b",
+    "purchase_id": "d3b8e053",
+    "item_id": 143,
+    "item_name": "Head Hp Gt50 Color",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fd2906b3",
+    "purchase_id": "d3b8e053",
+    "item_id": 144,
+    "item_name": "Head Hp Gt51 Black",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b1407530",
+    "purchase_id": "d3b8e053",
+    "item_id": 43,
+    "item_name": "678 CARTRIDGE BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3d5a6626",
+    "purchase_id": "d3b8e053",
+    "item_id": 54,
+    "item_name": "HP 158X TONER",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a1b549be",
+    "purchase_id": "d3b8e053",
+    "item_id": 160,
+    "item_name": "Hp Ink BLACK GT53 XL",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "86f95676",
+    "purchase_id": "33b1d512",
+    "item_id": 438,
+    "item_name": "BULLET CAMERA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fb061509",
+    "purchase_id": "6b4d3b85",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bfa321c5",
+    "purchase_id": "66cbe597",
+    "item_id": 206,
+    "item_name": "LED LG 22\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7f23e532",
+    "purchase_id": "836d590e",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "feeb4507",
+    "purchase_id": "c0e30c81",
+    "item_id": 282,
+    "item_name": "REF RAM 4 GB DDR3 D",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "62fd05ae",
+    "purchase_id": "d8234214",
+    "item_id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1911ecba",
+    "purchase_id": "a3b94c36",
+    "item_id": 330,
+    "item_name": "QUICK HEAL TOTAL SECURITY",
+    "custom_item_name": null,
+    "quantity": 6,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6841d251",
+    "purchase_id": "92300932",
+    "item_id": 439,
+    "item_name": "R33 HP ELITEBOOK 840 G3 / I5 6TH / 8 GB RAM / 256 GB /  new battery",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 22000.0,
+    "amount": 22000.0
+  },
+  {
+    "line_id": "b2ff81ec",
+    "purchase_id": "92300932",
+    "item_id": 436,
+    "item_name": "R32 HP ELITEBOOK 830 G5 / I5 8TH / 8 GB RAM / 256 GB",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "23dfc73b",
+    "purchase_id": "259be7aa",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5a7882b1",
+    "purchase_id": "25354aa7",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "665ed499",
+    "purchase_id": "72769b06",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 6,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2003f268",
+    "purchase_id": "effc87f4",
+    "item_id": 5,
+    "item_name": "Adaptor Dell 65W",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8177429a",
+    "purchase_id": "3f4a103f",
+    "item_id": 358,
+    "item_name": "12A Toner",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "510e0a2a",
+    "purchase_id": "3f4a103f",
+    "item_id": 367,
+    "item_name": "TONER 88A",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "64db0c30",
+    "purchase_id": "bcc77077",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3a84cd45",
+    "purchase_id": "8825baf7",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "79914fe8",
+    "purchase_id": "8825baf7",
+    "item_id": null,
+    "item_name": "",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "565cadc0",
+    "purchase_id": "3d9c9515",
+    "item_id": 420,
+    "item_name": "DVR 8 CH. CP PLUS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "410ae854",
+    "purchase_id": "f7a76e56",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5cbb0974",
+    "purchase_id": "539b9aa9",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bc2e717a",
+    "purchase_id": "3dee5a83",
+    "item_id": 349,
+    "item_name": "500 GB WD BLUE SATA",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9bceb8ca",
+    "purchase_id": "ce380e9e",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "82867521",
+    "purchase_id": "090db6cd",
+    "item_id": 299,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6934b123",
+    "purchase_id": "d36d40e4",
+    "item_id": 440,
+    "item_name": "CPU I5 10TH",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2facc91e",
+    "purchase_id": "d36d40e4",
+    "item_id": 441,
+    "item_name": "MOTHER BOARD 410",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dc37c588",
+    "purchase_id": "245b682f",
+    "item_id": 51,
+    "item_name": "805 Black Cartridge",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "feca9d33",
+    "purchase_id": "245b682f",
+    "item_id": 52,
+    "item_name": "805 Color Cartridge",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1ab54724",
+    "purchase_id": "3bdff050",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5bec27c9",
+    "purchase_id": "3bdff050",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5ec418ab",
+    "purchase_id": "3bdff050",
+    "item_id": 206,
+    "item_name": "LED LG 22\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "903654b7",
+    "purchase_id": "9f1166b2",
+    "item_id": 438,
+    "item_name": "BULLET CAMERA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "596ab7da",
+    "purchase_id": "c9f55980",
+    "item_id": 373,
+    "item_name": "Router UPS",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6cbe2dc8",
+    "purchase_id": "165cd756",
+    "item_id": 299,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "73f1d133",
+    "purchase_id": "7a48aeab",
+    "item_id": 442,
+    "item_name": "RAM 8 GB DDR4 L CRUCIAL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c398b0bf",
+    "purchase_id": "381c66a4",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dd95bbf8",
+    "purchase_id": "381c66a4",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a72dc1ee",
+    "purchase_id": "381c66a4",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "66fd7c59",
+    "purchase_id": "00f23929",
+    "item_id": 443,
+    "item_name": "REF SCREEN 14\"30 PIN PAPER IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5e0b759d",
+    "purchase_id": "cc3ee5d6",
+    "item_id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a2c00e02",
+    "purchase_id": "ea673c45",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0a8f7499",
+    "purchase_id": "f827c1d7",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "949aebbf",
+    "purchase_id": "f827c1d7",
+    "item_id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "115ef90e",
+    "purchase_id": "4c7c1897",
+    "item_id": 67,
+    "item_name": "CCTV CABLE 90 Mtr",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a559fea6",
+    "purchase_id": "4c7c1897",
+    "item_id": 370,
+    "item_name": "UPS BATTERY EXIDE",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5531b848",
+    "purchase_id": "9e59f48c",
+    "item_id": 186,
+    "item_name": "32 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9d692c27",
+    "purchase_id": "9e59f48c",
+    "item_id": 187,
+    "item_name": "64 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d1966488",
+    "purchase_id": "cf58220f",
+    "item_id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "58648cd4",
+    "purchase_id": "9e59f48c",
+    "item_id": 257,
+    "item_name": "RAM 8 GB DDR3  LAPTOP  1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a657cf1e",
+    "purchase_id": "9e59f48c",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1d77262c",
+    "purchase_id": "9e59f48c",
+    "item_id": 261,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 3200",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8348bcc2",
+    "purchase_id": "b8aa7e89",
+    "item_id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4f75802e",
+    "purchase_id": "63d03b84",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 26,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e8f0d0b6",
+    "purchase_id": "3f611921",
+    "item_id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eb96667a",
+    "purchase_id": "4e57c2b3",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ec342ed9",
+    "purchase_id": "71c969f6",
+    "item_id": 133,
+    "item_name": "Hdmi Cable 10 mtr",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "265d1e53",
+    "purchase_id": "ceb29a1e",
+    "item_id": 229,
+    "item_name": "Climping tool",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e61a3958",
+    "purchase_id": "ceb29a1e",
+    "item_id": 62,
+    "item_name": "HDD CASING DESKTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0a281c36",
+    "purchase_id": "ceb29a1e",
+    "item_id": 133,
+    "item_name": "Hdmi Cable 10 mtr",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c01a3cd2",
+    "purchase_id": "73754be6",
+    "item_id": 130,
+    "item_name": "CPU FAN INTEL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ebc87f0d",
+    "purchase_id": "7a0a2911",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0924c0b4",
+    "purchase_id": "c3335ebd",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1a4ba0c7",
+    "purchase_id": "c3335ebd",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ac5f2f7b",
+    "purchase_id": "77742bf2",
+    "item_id": 39,
+    "item_name": "CANON 47",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cc48bbb0",
+    "purchase_id": "77742bf2",
+    "item_id": 40,
+    "item_name": "CANON 57S",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "44a0b2ed",
+    "purchase_id": "77742bf2",
+    "item_id": 426,
+    "item_name": "HP 47 BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bd619c1e",
+    "purchase_id": "7956a1c2",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "eac02b03",
+    "purchase_id": "7956a1c2",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 6,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bf9ef980",
+    "purchase_id": "7e6eb646",
+    "item_id": 438,
+    "item_name": "BULLET CAMERA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1c0a3b9e",
+    "purchase_id": "4aa02b4e",
+    "item_id": 39,
+    "item_name": "CANON 47",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f8bf49d1",
+    "purchase_id": "21c60f7f",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f8befb64",
+    "purchase_id": "4a1553f0",
+    "item_id": 444,
+    "item_name": "R34 DELL LATITUDE 5410 / I5 10TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b46d40c8",
+    "purchase_id": "4a1553f0",
+    "item_id": 445,
+    "item_name": "R35 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"/WITH TOUCH",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e03fb2e7",
+    "purchase_id": "4a1553f0",
+    "item_id": 446,
+    "item_name": "R36 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9f36e4ad",
+    "purchase_id": "4a1553f0",
+    "item_id": 447,
+    "item_name": "R37 HP ELITEBOOK  820G4 / I5 7TH / 8 GB / 512 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "21d043ef",
+    "purchase_id": "1309ee87",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fda0176e",
+    "purchase_id": "b37e1b97",
+    "item_id": 226,
+    "item_name": "Rj 45 Connector Dlink",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "227291fb",
+    "purchase_id": "022b4ddb",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "511b1e74",
+    "purchase_id": "022b4ddb",
+    "item_id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cb316f2b",
+    "purchase_id": "022b4ddb",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5b860f7e",
+    "purchase_id": "c5960e30",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d1bdc03c",
+    "purchase_id": "a99598c8",
+    "item_id": 16,
+    "item_name": "ADAPTOR C TYPE",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "df32e29c",
+    "purchase_id": "a99598c8",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cc855ed3",
+    "purchase_id": "2378b81b",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "088cc5fc",
+    "purchase_id": "6ae24983",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "757d1818",
+    "purchase_id": "ebfd69f9",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5ac17ee1",
+    "purchase_id": "f1c9721f",
+    "item_id": 72,
+    "item_name": "HDMI SPLITER 1 to 4",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9ea7b03b",
+    "purchase_id": "01869e8a",
+    "item_id": 210,
+    "item_name": "USB MOUSE DELL",
+    "custom_item_name": null,
+    "quantity": 50,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3ed669b3",
+    "purchase_id": "01869e8a",
+    "item_id": 162,
+    "item_name": "KeyBoard  DELL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a2df5ba9",
+    "purchase_id": "1613d2cd",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c057b66b",
+    "purchase_id": "0cdab9a5",
+    "item_id": 371,
+    "item_name": "UPS INTEX",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3058b4b4",
+    "purchase_id": "0cdab9a5",
+    "item_id": 28,
+    "item_name": "CABNET",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4ea42e50",
+    "purchase_id": "0cdab9a5",
+    "item_id": 430,
+    "item_name": "USB MOUSE INTEX",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d87d11d7",
+    "purchase_id": "0cdab9a5",
+    "item_id": 29,
+    "item_name": "SMPS",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "738acf72",
+    "purchase_id": "0cdab9a5",
+    "item_id": 448,
+    "item_name": "INTEX GAMING RGV KEYBOARD MOUSE COMBO WIRE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f258a03d",
+    "purchase_id": "4b38b590",
+    "item_id": 151,
+    "item_name": "CANON INK BOTTLE BLACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ff438c58",
+    "purchase_id": "4b38b590",
+    "item_id": 152,
+    "item_name": "CANON INK BOTTLE COLOR",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3a3e1f50",
+    "purchase_id": "ef734c1e",
+    "item_id": 77,
+    "item_name": "ADNET DP TO VGA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a9504253",
+    "purchase_id": "3b4cb6fb",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "209e2d74",
+    "purchase_id": "eb3cab9c",
+    "item_id": 191,
+    "item_name": "mobile stand",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "21b1bf34",
+    "purchase_id": "fa40858a",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f7d7221b",
+    "purchase_id": "fa40858a",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6925d95b",
+    "purchase_id": "7128161b",
+    "item_id": 282,
+    "item_name": "REF RAM 4 GB DDR3 D",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "18c5c6dc",
+    "purchase_id": "92768d1a",
+    "item_id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "25bf6607",
+    "purchase_id": "82d51736",
+    "item_id": 351,
+    "item_name": "512 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "14a1812e",
+    "purchase_id": "82d51736",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "599c9df2",
+    "purchase_id": "fe90b2a4",
+    "item_id": 449,
+    "item_name": "CPU I3 8TH GEN.",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c93ec485",
+    "purchase_id": "fe90b2a4",
+    "item_id": 283,
+    "item_name": "REF RAM 4 GB DDR4 D",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "275578a1",
+    "purchase_id": "5e4da965",
+    "item_id": 166,
+    "item_name": "Wireless Keyboard Mouse HP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0289fcec",
+    "purchase_id": "5e4da965",
+    "item_id": 8,
+    "item_name": "ADAPTOR HP C TYPE",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "85290f0a",
+    "purchase_id": "12f67d9f",
+    "item_id": 429,
+    "item_name": "ZEBRONICS 18.5\" LED",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "008d7cf2",
+    "purchase_id": "7c986dc7",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "93df06d7",
+    "purchase_id": "7c986dc7",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f28fdc89",
+    "purchase_id": "dcf02c50",
+    "item_id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d0aac88e",
+    "purchase_id": "dcf02c50",
+    "item_id": 257,
+    "item_name": "RAM 8 GB DDR3  LAPTOP  1333 / 1600",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1b95371e",
+    "purchase_id": "dcf02c50",
+    "item_id": 258,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 2400/2666",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "69561b66",
+    "purchase_id": "dcf02c50",
+    "item_id": 259,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 3200",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "093a799d",
+    "purchase_id": "dcf02c50",
+    "item_id": 261,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 3200",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b9d6f52b",
+    "purchase_id": "dcf02c50",
+    "item_id": 344,
+    "item_name": "256 GB SIMMTRONICS NVME",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a45f46df",
+    "purchase_id": "ffd13366",
+    "item_id": 249,
+    "item_name": "HP 585 TANK PRINTER",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "45949bcc",
+    "purchase_id": "443bba76",
+    "item_id": 258,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 2400/2666",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d9d0e6c0",
+    "purchase_id": "536247dc",
+    "item_id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a8e50292",
+    "purchase_id": "536247dc",
+    "item_id": 278,
+    "item_name": "Ref Screen 15.6 30 Pin Paper",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a7f3d14a",
+    "purchase_id": "536247dc",
+    "item_id": 301,
+    "item_name": "SCREEN 15.6\" NORMAL",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f0c498a4",
+    "purchase_id": "8e24226f",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4df35859",
+    "purchase_id": "dfbbacc8",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7b849538",
+    "purchase_id": "2cb9adf4",
+    "item_id": 213,
+    "item_name": "Wireless Mouse HP",
+    "custom_item_name": null,
+    "quantity": 25,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8d08da25",
+    "purchase_id": "2060815c",
+    "item_id": 155,
+    "item_name": "EPSON INK 003 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "875c4528",
+    "purchase_id": "2060815c",
+    "item_id": 156,
+    "item_name": "EPSON INK 003 COLOR",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "25a53a7b",
+    "purchase_id": "5ea0ba3d",
+    "item_id": 211,
+    "item_name": "Wireless Mouse DELL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4ea9b4aa",
+    "purchase_id": "2b556d94",
+    "item_id": 143,
+    "item_name": "Head Hp Gt50 Color",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7b55c519",
+    "purchase_id": "2b556d94",
+    "item_id": 144,
+    "item_name": "Head Hp Gt51 Black",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "24d8b93f",
+    "purchase_id": "41fbbb6c",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7b421981",
+    "purchase_id": "41fbbb6c",
+    "item_id": 261,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 3200",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b4cdbbe0",
+    "purchase_id": "41fbbb6c",
+    "item_id": 260,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 2400/2666",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "618aae90",
+    "purchase_id": "41fbbb6c",
+    "item_id": 258,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 2400/2666",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "28f92639",
+    "purchase_id": "41fbbb6c",
+    "item_id": 185,
+    "item_name": "128 GB MEMORY CARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7388888f",
+    "purchase_id": "1ceb9a06",
+    "item_id": 234,
+    "item_name": "Paper ream",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "deb83a60",
+    "purchase_id": "af429913",
+    "item_id": 389,
+    "item_name": "VGA CABLE 1.5 MTR ORGINAL",
+    "custom_item_name": null,
+    "quantity": 9,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "67a2dd7a",
+    "purchase_id": "4c1cff1f",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "28e6f51f",
+    "purchase_id": "af429913",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dd3eb667",
+    "purchase_id": "af429913",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "54d221d9",
+    "purchase_id": "30e974b2",
+    "item_id": 51,
+    "item_name": "805 Black Cartridge",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d1608399",
+    "purchase_id": "30e974b2",
+    "item_id": 52,
+    "item_name": "805 Color Cartridge",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0a28188b",
+    "purchase_id": "30e974b2",
+    "item_id": 45,
+    "item_name": "680 BLACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f5376f14",
+    "purchase_id": "d8d903e6",
+    "item_id": 206,
+    "item_name": "LED LG 22\"",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0b03b349",
+    "purchase_id": "410c5d9f",
+    "item_id": 4,
+    "item_name": "Adaptor Dell 45W",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "61fb4f2a",
+    "purchase_id": "38cca022",
+    "item_id": 301,
+    "item_name": "SCREEN 15.6\" NORMAL",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0ab051f2",
+    "purchase_id": "9094d324",
+    "item_id": 366,
+    "item_name": "TONER 77A",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "852b7d34",
+    "purchase_id": "9094d324",
+    "item_id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3e6a2ae9",
+    "purchase_id": "3b1303cd",
+    "item_id": 451,
+    "item_name": "ADPTOR MOBILE 65W",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ea25ab1b",
+    "purchase_id": "2a85badc",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b97bf72c",
+    "purchase_id": "b4671b81",
+    "item_id": 302,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "324d024e",
+    "purchase_id": "19656304",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "149bec1d",
+    "purchase_id": "19656304",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "619a6b77",
+    "purchase_id": "324c96a0",
+    "item_id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "349e33cc",
+    "purchase_id": "99d4c7be",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f1902712",
+    "purchase_id": "30a5df1b",
+    "item_id": 207,
+    "item_name": "MOTHER BOARD H110",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bda65227",
+    "purchase_id": "27e7a159",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 1300.0,
+    "amount": 1300.0
+  },
+  {
+    "line_id": "4b50ac36",
+    "purchase_id": "35b2929b",
+    "item_id": 405,
+    "item_name": "REF SSD 256GB M.2",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a8973144",
+    "purchase_id": "029f9883",
+    "item_id": 291,
+    "item_name": "REF RAM 8 GB DDR3 L",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2b8743ca",
+    "purchase_id": "c5949699",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e6ee521d",
+    "purchase_id": "80b486f8",
+    "item_id": 327,
+    "item_name": "Quick H .T.S. Ren. Code (Reg.)",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a8e16c97",
+    "purchase_id": "acfc0976",
+    "item_id": 349,
+    "item_name": "500 GB WD BLUE SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "462bc3ae",
+    "purchase_id": "b750b94b",
+    "item_id": 260,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 2400/2666",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "cc0c50d5",
+    "purchase_id": "34a950a9",
+    "item_id": 9,
+    "item_name": "LENOVO ADAPTOR C TYPE",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6863d8f8",
+    "purchase_id": "09cc66c6",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "203dc78f",
+    "purchase_id": "5a663841",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "37d62b5b",
+    "purchase_id": "2e761f1b",
+    "item_id": 173,
+    "item_name": "KEYBOARD TVS GOLD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "93237ad3",
+    "purchase_id": "f462d063",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3e60a719",
+    "purchase_id": "f462d063",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "bc304387",
+    "purchase_id": "eaa997f0",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a7fef2d6",
+    "purchase_id": "eaa997f0",
+    "item_id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "custom_item_name": null,
+    "quantity": 6,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "5f84ad25",
+    "purchase_id": "de36d2ac",
+    "item_id": 452,
+    "item_name": "CP PLUS WIRELESS CAMERA 2MP",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2453777c",
+    "purchase_id": "bc9d1598",
+    "item_id": 63,
+    "item_name": "HDD CASING NVME",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6099f465",
+    "purchase_id": "688e69d9",
+    "item_id": 371,
+    "item_name": "UPS INTEX",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fa394cea",
+    "purchase_id": "d219625f",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "75f816a5",
+    "purchase_id": "5a72124f",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "75e11ed5",
+    "purchase_id": "5a72124f",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6dfe11a0",
+    "purchase_id": "4df8675a",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c10bc64f",
+    "purchase_id": "7f7171b8",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "21c56617",
+    "purchase_id": "304bb539",
+    "item_id": 2,
+    "item_name": "ADAPTOR ASUS",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dc037a8f",
+    "purchase_id": "b24e2450",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "63b7a844",
+    "purchase_id": "307776f5",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4cb4d741",
+    "purchase_id": "fe09eeca",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fc27bc04",
+    "purchase_id": "b74a8fdd",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "460ef35d",
+    "purchase_id": "7e7d1635",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c71391c1",
+    "purchase_id": "eb5cf1fb",
+    "item_id": 5,
+    "item_name": "Adaptor Dell 65W",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7c87f0bf",
+    "purchase_id": "72de348f",
+    "item_id": 249,
+    "item_name": "HP 585 TANK PRINTER",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "71cdbbad",
+    "purchase_id": "85d5e423",
+    "item_id": 371,
+    "item_name": "UPS INTEX",
+    "custom_item_name": null,
+    "quantity": 8,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7ebbdf25",
+    "purchase_id": "87e1f835",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "09d3dfd2",
+    "purchase_id": "87cd6541",
+    "item_id": 176,
+    "item_name": "DC JACK",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c3e674ab",
+    "purchase_id": "a2e32fa1",
+    "item_id": 51,
+    "item_name": "805 Black Cartridge",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e3a07ebb",
+    "purchase_id": "a2e32fa1",
+    "item_id": 52,
+    "item_name": "805 Color Cartridge",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d9257e3c",
+    "purchase_id": "c36a18f5",
+    "item_id": 450,
+    "item_name": "R38 LENOVO G50 / I3 4TH / 8 GB / 128 /15.6\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2e6eb77f",
+    "purchase_id": "c36a18f5",
+    "item_id": 453,
+    "item_name": "R39 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e5a4fab6",
+    "purchase_id": "83305980",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f39b76e0",
+    "purchase_id": "e6e2246d",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "dc764a95",
+    "purchase_id": "193f3a81",
+    "item_id": 162,
+    "item_name": "KeyBoard  DELL",
+    "custom_item_name": null,
+    "quantity": 20,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8af572e5",
+    "purchase_id": "aa8e08fb",
+    "item_id": 275,
+    "item_name": "REF SCREEN 14\" 30 Pin PAPER",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f1eb20be",
+    "purchase_id": "d211bfbd",
+    "item_id": 370,
+    "item_name": "UPS BATTERY EXIDE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2c10400f",
+    "purchase_id": "b581b961",
+    "item_id": 281,
+    "item_name": "REF Ram 2 Gb Ddr3 D",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b09c665d",
+    "purchase_id": "b581b961",
+    "item_id": 282,
+    "item_name": "REF RAM 4 GB DDR3 D",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4dc80fab",
+    "purchase_id": "b581b961",
+    "item_id": 284,
+    "item_name": "REF RAM 8 GB DDR3 D",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f1b922cd",
+    "purchase_id": "98b73a7c",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "777a4268",
+    "purchase_id": "cab63062",
+    "item_id": 454,
+    "item_name": "R40 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 21000.0,
+    "amount": 21000.0
+  },
+  {
+    "line_id": "19439139",
+    "purchase_id": "cab63062",
+    "item_id": 455,
+    "item_name": "R41 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 21000.0,
+    "amount": 21000.0
+  },
+  {
+    "line_id": "9cb57bef",
+    "purchase_id": "cab63062",
+    "item_id": 456,
+    "item_name": "R42 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 21000.0,
+    "amount": 21000.0
+  },
+  {
+    "line_id": "fbefe5eb",
+    "purchase_id": "33029dfa",
+    "item_id": 457,
+    "item_name": "HARD DISK 500 GB CONSISTANT",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "055d5905",
+    "purchase_id": "33029dfa",
+    "item_id": 60,
+    "item_name": "HDD CASING 2.0",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d3bef766",
+    "purchase_id": "33029dfa",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e7dc1b65",
+    "purchase_id": "486cb932",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ecd97079",
+    "purchase_id": "4da0b1b3",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "d6851352",
+    "purchase_id": "03c00637",
+    "item_id": 366,
+    "item_name": "TONER 77A",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f6b88593",
+    "purchase_id": "a0bf01f7",
+    "item_id": 458,
+    "item_name": "R43 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 21000.0,
+    "amount": 21000.0
+  },
+  {
+    "line_id": "60180bf7",
+    "purchase_id": "07c84171",
+    "item_id": 90,
+    "item_name": "TECHIE VGA TO HDMI",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "534f3ff0",
+    "purchase_id": "4519551d",
+    "item_id": 352,
+    "item_name": "SWITCH 5 PORT",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3eb04625",
+    "purchase_id": "bc4ffc21",
+    "item_id": 147,
+    "item_name": "USB HEADPHONE QUANTRON",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "61a9f747",
+    "purchase_id": "66d8c88b",
+    "item_id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "59c7d5b8",
+    "purchase_id": "245134b9",
+    "item_id": 178,
+    "item_name": "LAPTOP FAN",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a9ce9b8d",
+    "purchase_id": "245134b9",
+    "item_id": 457,
+    "item_name": "HARD DISK 500 GB CONSISTANT",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "9daf426f",
+    "purchase_id": "245134b9",
+    "item_id": 60,
+    "item_name": "HDD CASING 2.0",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f7d2fca4",
+    "purchase_id": "74eefba4",
+    "item_id": 349,
+    "item_name": "500 GB WD BLUE SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "41b24a0b",
+    "purchase_id": "dbce6ec2",
+    "item_id": 389,
+    "item_name": "VGA CABLE 1.5 MTR ORGINAL",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a7da3233",
+    "purchase_id": "8f17fd77",
+    "item_id": 294,
+    "item_name": "REF SSD 128 GB SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0a5e9bf8",
+    "purchase_id": "91793f81",
+    "item_id": 459,
+    "item_name": "CPU I5 4TH GEN",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "6f179510",
+    "purchase_id": "367543a9",
+    "item_id": 378,
+    "item_name": "Usb Cable 1.5 mtr",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a079a24d",
+    "purchase_id": "367543a9",
+    "item_id": 376,
+    "item_name": "Usb Cable 3 mtr",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "db0c392b",
+    "purchase_id": "64eb6881",
+    "item_id": 188,
+    "item_name": "CARD READER",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e1a52835",
+    "purchase_id": "92612388",
+    "item_id": 164,
+    "item_name": "KeyBoard HP",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ca3eaca5",
+    "purchase_id": "05be76bd",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ba371772",
+    "purchase_id": "ab3eaf5c",
+    "item_id": 91,
+    "item_name": "Cooling Pad",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ac0ae00f",
+    "purchase_id": "ab3eaf5c",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4b75394e",
+    "purchase_id": "139bfc35",
+    "item_id": 460,
+    "item_name": "I3 2ND GEN CPU",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "be9bd1f1",
+    "purchase_id": "a0bf01f7",
+    "item_id": 461,
+    "item_name": "R44 DELL LATITUDE 5410 / I5 10TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 19500.0,
+    "amount": 19500.0
+  },
+  {
+    "line_id": "c31a47f7",
+    "purchase_id": "4250d489",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 25,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ed51316b",
+    "purchase_id": "4250d489",
+    "item_id": 242,
+    "item_name": "Pen Drive 16 Gb SIMMTRONICS",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "f2ea651e",
+    "purchase_id": "a6228cb3",
+    "item_id": 334,
+    "item_name": "MICE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c70d576e",
+    "purchase_id": "7cef9a8f",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ae58bc2f",
+    "purchase_id": "00bbd789",
+    "item_id": 45,
+    "item_name": "680 BLACK",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "fe4a7df5",
+    "purchase_id": "00bbd789",
+    "item_id": 46,
+    "item_name": "680 COLOUR",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c97c543b",
+    "purchase_id": "aa16fdba",
+    "item_id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "df85a65d",
+    "purchase_id": "aa16fdba",
+    "item_id": 372,
+    "item_name": "Ups Microtek 650VA",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4c55249e",
+    "purchase_id": "aa16fdba",
+    "item_id": 462,
+    "item_name": "ZEBRONICS 20\" TFT",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "676cbf5f",
+    "purchase_id": "aa16fdba",
+    "item_id": 463,
+    "item_name": "ZEBRONICS 24.5\" TFT",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b0511eab",
+    "purchase_id": "1fc50b70",
+    "item_id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "b98c7d02",
+    "purchase_id": "9fa6046c",
+    "item_id": 464,
+    "item_name": "R45 DELL LATITUDE 5410 / I5 11TH / 8 GB / 256 /14\"",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 21000.0,
+    "amount": 21000.0
+  },
+  {
+    "line_id": "3e5509b1",
+    "purchase_id": "89551f89",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "57d5c900",
+    "purchase_id": "7cfa031e",
+    "item_id": 237,
+    "item_name": "Patch Cable 2 Mtr Dlink",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 40.0,
+    "amount": 400.0
+  },
+  {
+    "line_id": "e7597cd4",
+    "purchase_id": "7cfa031e",
+    "item_id": 239,
+    "item_name": "PATCH CABLE 5 MTR DLINK",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 100.0,
+    "amount": 1000.0
+  },
+  {
+    "line_id": "67c36c02",
+    "purchase_id": "6a191623",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 950.0,
+    "amount": 950.0
+  },
+  {
+    "line_id": "4e0eb21f",
+    "purchase_id": "dcc9c31d",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 650.0,
+    "amount": 650.0
+  },
+  {
+    "line_id": "85e6e1fa",
+    "purchase_id": "cbb9744b",
+    "item_id": 146,
+    "item_name": "LOGITECH HEADPHONE WITH MIC H340",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "ab7282c8",
+    "purchase_id": "1de157a4",
+    "item_id": 2,
+    "item_name": "ADAPTOR ASUS",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3072139a",
+    "purchase_id": "1de157a4",
+    "item_id": 5,
+    "item_name": "Adaptor Dell 65W",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "a2a7954f",
+    "purchase_id": "a66525d1",
+    "item_id": 211,
+    "item_name": "Wireless Mouse DELL",
+    "custom_item_name": null,
+    "quantity": 15,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c2895205",
+    "purchase_id": "621ba40d",
+    "item_id": 290,
+    "item_name": "REF RAM 4 GB DDR3 L",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2cec6f53",
+    "purchase_id": "812a281f",
+    "item_id": 130,
+    "item_name": "CPU FAN INTEL",
+    "custom_item_name": null,
+    "quantity": 10,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2943db9e",
+    "purchase_id": "bc98137f",
+    "item_id": 24,
+    "item_name": "DISPLAY CABLE",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "48c1feba",
+    "purchase_id": "8be1fca6",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "2c570547",
+    "purchase_id": "8be1fca6",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "46f2f89f",
+    "purchase_id": "53f8c737",
+    "item_id": 441,
+    "item_name": "MOTHER BOARD 410",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "0dc8a9f1",
+    "purchase_id": "53f8c737",
+    "item_id": 207,
+    "item_name": "MOTHER BOARD H110",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "efe7cb23",
+    "purchase_id": "c9281b3e",
+    "item_id": 373,
+    "item_name": "Router UPS",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3e2fcf32",
+    "purchase_id": "dd74730d",
+    "item_id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c1eb26b9",
+    "purchase_id": "787266bb",
+    "item_id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "7b981ada",
+    "purchase_id": "11b1c8fd",
+    "item_id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "8b21f53a",
+    "purchase_id": "558f155c",
+    "item_id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 1200.0,
+    "amount": 1200.0
+  },
+  {
+    "line_id": "04eb817a",
+    "purchase_id": "0865f314",
+    "item_id": 155,
+    "item_name": "EPSON INK 003 BLACK",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "41829506",
+    "purchase_id": "0865f314",
+    "item_id": 156,
+    "item_name": "EPSON INK 003 COLOR",
+    "custom_item_name": null,
+    "quantity": 7,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "1a9b76f5",
+    "purchase_id": "25c8cd37",
+    "item_id": 156,
+    "item_name": "EPSON INK 003 COLOR",
+    "custom_item_name": null,
+    "quantity": 2,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3e28c436",
+    "purchase_id": "dcc0297d",
+    "item_id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4a332ac9",
+    "purchase_id": "dcc0297d",
+    "item_id": 302,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN",
+    "custom_item_name": null,
+    "quantity": 3,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "4d8309d0",
+    "purchase_id": "5a092c2c",
+    "item_id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "custom_item_name": null,
+    "quantity": 4,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "3081079a",
+    "purchase_id": "52d52b0c",
+    "item_id": 363,
+    "item_name": "Toner 166",
+    "custom_item_name": null,
+    "quantity": 5,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "e99b3c57",
+    "purchase_id": "52d52b0c",
+    "item_id": 382,
+    "item_name": "IVOOMI USB HUB 3.0",
+    "custom_item_name": null,
+    "quantity": 12,
+    "unit_price": 0.0,
+    "amount": 0.0
+  },
+  {
+    "line_id": "c8b78536",
+    "purchase_id": "6362b910",
+    "item_id": 212,
+    "item_name": "USB MOUSE HP",
+    "custom_item_name": null,
+    "quantity": 1,
+    "unit_price": 0.0,
+    "amount": 0.0
+  }
+]

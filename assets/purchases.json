@@ -1,0 +1,3042 @@
+[
+  {
+    "id": "925ebe96",
+    "date": "2026-04-01T20:39:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "06b9b1d7",
+    "date": "2026-04-01T21:00:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f632595b",
+    "date": "2026-04-01T21:04:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3d557924",
+    "date": "2026-04-01T21:06:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cc953be1",
+    "date": "2026-04-02T13:13:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "924a42fb",
+    "date": "2026-04-02T13:13:00",
+    "purchased_from": "MAHADEV INFOTECH GALAXY GZB",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "01ade91c",
+    "date": "2026-04-02T13:13:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7d26b837",
+    "date": "2026-04-02T13:13:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ae623846",
+    "date": "2026-04-02T13:08:00",
+    "purchased_from": "Avook Global",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "15263e4b",
+    "date": "2026-04-02T13:08:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "19d213e3",
+    "date": "2026-04-02T13:08:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7317cdc5",
+    "date": "2026-04-02T13:08:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "caa7377a",
+    "date": "2026-04-02T19:05:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0be65c94",
+    "date": "2026-04-02T20:09:00",
+    "purchased_from": "fugen",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c89d8a3a",
+    "date": "2026-04-04T13:14:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "79d93730",
+    "date": "2026-04-04T17:35:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "06b84eaa",
+    "date": "2026-04-04T17:37:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "93cadf15",
+    "date": "2026-04-04T17:37:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1bd9dd40",
+    "date": "2026-04-04T18:36:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "53e583d4",
+    "date": "2026-04-04T18:26:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe19a929",
+    "date": "2026-04-04T20:42:00",
+    "purchased_from": "prolab",
+    "total_amount": 500.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "603a388c",
+    "date": "2026-04-04T20:46:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a835e64c",
+    "date": "2026-04-06T14:35:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "adf89863",
+    "date": "2026-04-07T12:00:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ac57de26",
+    "date": "2026-04-07T12:00:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "597d3f0d",
+    "date": "2026-04-07T12:00:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "89f5399a",
+    "date": "2026-04-07T12:00:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0fe9b014",
+    "date": "2026-04-09T18:06:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6a15f242",
+    "date": "2026-04-09T18:06:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "65e42c94",
+    "date": "2026-04-09T18:06:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2872eeb6",
+    "date": "2026-04-09T20:14:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "26a176dc",
+    "date": "2026-04-09T20:26:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b02ddb60",
+    "date": "2026-04-09T20:12:00",
+    "purchased_from": "Mahi",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8ebc9260",
+    "date": "2026-04-09T20:12:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "48174663",
+    "date": "2026-04-09T20:21:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6bd9754e",
+    "date": "2026-04-09T20:16:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f2243bc0",
+    "date": "2026-04-09T20:27:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d4ace357",
+    "date": "2026-04-11T13:04:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "08dd8c8b",
+    "date": "2026-04-11T13:04:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "61eb843f",
+    "date": "2026-04-11T13:04:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "03747ac6",
+    "date": "2026-04-13T21:11:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "19f29455",
+    "date": "2026-04-13T21:11:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "bc58be1c",
+    "date": "2026-04-13T21:11:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ef83266b",
+    "date": "2026-04-13T21:12:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "96f1881a",
+    "date": "2026-04-13T21:12:00",
+    "purchased_from": "Aggarwal Screen",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0e3c703b",
+    "date": "2026-04-14T21:22:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0d746969",
+    "date": "2026-04-15T10:48:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe3d7a4c",
+    "date": "2026-04-15T16:16:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "98c2d443",
+    "date": "2026-04-17T11:46:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8782918f",
+    "date": "2026-04-17T18:36:00",
+    "purchased_from": "MAA MANSA TRADERS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b782f63e",
+    "date": "2026-04-17T19:40:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "12c42ab7",
+    "date": "2026-04-17T20:02:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f215411b",
+    "date": "2026-04-17T20:09:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "67fd3916",
+    "date": "2026-04-18T12:08:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "841fa2ad",
+    "date": "2026-04-18T13:32:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f281f8ba",
+    "date": "2026-04-18T17:14:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "de38f57f",
+    "date": "2026-04-18T17:16:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "422bd2f7",
+    "date": "2026-04-19T10:41:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9fec96e3",
+    "date": "2026-04-19T10:42:00",
+    "purchased_from": "LAPTOP REPAIRING CENTRE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "09a31492",
+    "date": "2026-04-19T10:45:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f866fa8d",
+    "date": "2026-04-19T10:45:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2dd3f7d2",
+    "date": "2026-04-19T10:47:00",
+    "purchased_from": "JT INFOTECH",
+    "total_amount": 1700.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c216bbb5",
+    "date": "2026-04-20T10:34:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c7a03b57",
+    "date": "2026-04-21T11:09:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9060931a",
+    "date": "2026-04-21T11:43:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ef6713e2",
+    "date": "2026-04-21T11:45:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d50ec14a",
+    "date": "2026-04-21T12:50:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d31a58c6",
+    "date": "2026-04-21T13:38:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "46cb2de3",
+    "date": "2026-04-22T10:41:00",
+    "purchased_from": "RASTOGI",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f920d44d",
+    "date": "2026-04-23T19:07:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d97ec1d0",
+    "date": "2026-04-24T13:22:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "82ba0ac4",
+    "date": "2026-04-24T13:28:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "27ac9a31",
+    "date": "2026-04-25T11:24:00",
+    "purchased_from": "Adrash Infotech",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5245376c",
+    "date": "2026-04-25T11:25:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "34c3dea2",
+    "date": "2026-04-25T11:26:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4fdbf30a",
+    "date": "2026-04-25T11:29:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6c2b3ab3",
+    "date": "2026-04-25T11:31:00",
+    "purchased_from": "SHREE MAHAVEER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9ad35f8d",
+    "date": "2026-04-25T11:38:00",
+    "purchased_from": "Chaudhary Communication",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c0628234",
+    "date": "2026-04-25T14:06:00",
+    "purchased_from": "Chaudhary Communication",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1b384d75",
+    "date": "2026-04-25T17:54:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ab5a281e",
+    "date": "2026-04-26T10:39:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6c5d2e27",
+    "date": "2026-04-26T10:56:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d0d00012",
+    "date": "2026-04-26T12:33:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c4dcd6aa",
+    "date": "2026-04-28T15:48:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0a06601d",
+    "date": "2026-04-29T20:00:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "02c34c1a",
+    "date": "2026-04-29T21:19:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "659a7635",
+    "date": "2026-04-29T21:21:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2d8ca691",
+    "date": "2026-04-30T10:45:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8a85ee03",
+    "date": "2026-05-01T10:40:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe0aec67",
+    "date": "2026-05-01T14:27:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "abe59c8c",
+    "date": "2026-05-02T11:01:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6ba13bda",
+    "date": "2026-05-02T11:34:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "30d0795e",
+    "date": "2026-05-02T14:47:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d3f22fc1",
+    "date": "2026-05-02T19:31:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "e84077c7",
+    "date": "2026-05-03T10:57:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8744f467",
+    "date": "2026-05-04T11:09:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "950a65d8",
+    "date": "2026-05-04T20:26:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6668dc53",
+    "date": "2026-05-04T20:27:00",
+    "purchased_from": "Aggarwal Battries",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b45817e4",
+    "date": "2026-05-05T12:43:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "23e9e5ee",
+    "date": "2026-05-05T12:59:00",
+    "purchased_from": "bhagwati",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "33135364",
+    "date": "2026-05-05T15:21:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "26862a82",
+    "date": "2026-05-06T20:02:00",
+    "purchased_from": "fugen",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "407e6f49",
+    "date": "2026-05-06T20:03:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3d96f743",
+    "date": "2026-05-06T20:03:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe23a1b7",
+    "date": "2026-05-07T11:11:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a02dae56",
+    "date": "2026-05-07T13:44:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fc343d3d",
+    "date": "2026-05-07T18:33:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7077dc86",
+    "date": "2026-05-07T18:34:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9d267a6b",
+    "date": "2026-05-08T17:48:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0d571ccc",
+    "date": "2026-05-09T12:37:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5d2f3fd9",
+    "date": "2026-05-09T12:38:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a9c3a42e",
+    "date": "2026-05-09T12:40:00",
+    "purchased_from": "Spark",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9485cf3c",
+    "date": "2026-05-09T12:42:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b1f6e7d0",
+    "date": "2026-05-09T12:42:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b41f7979",
+    "date": "2026-05-09T13:21:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a895d738",
+    "date": "2026-05-09T16:28:00",
+    "purchased_from": "VKM CONSULTANCY SERVICES",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c3fb3804",
+    "date": "2026-05-10T11:31:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "514299ca",
+    "date": "2026-05-10T11:32:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "e8117302",
+    "date": "2026-05-12T10:41:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6a72631b",
+    "date": "2026-05-12T11:02:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "95c1f9cf",
+    "date": "2026-05-12T13:16:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 3500.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "69f1dd90",
+    "date": "2026-05-12T13:24:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c2e49b24",
+    "date": "2026-05-12T13:25:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1ba077f4",
+    "date": "2026-05-12T13:25:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "921bbb15",
+    "date": "2026-05-12T13:27:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4797abfa",
+    "date": "2026-05-12T18:10:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "07fb5da9",
+    "date": "2026-05-12T18:17:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8807cca4",
+    "date": "2026-05-12T18:17:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "764a3c30",
+    "date": "2026-05-12T18:26:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "e4eaab87",
+    "date": "2026-05-13T19:59:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cb46683e",
+    "date": "2026-05-13T20:00:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1fbb24b0",
+    "date": "2026-05-13T20:00:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "43da9768",
+    "date": "2026-05-14T11:21:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "78671ee6",
+    "date": "2026-05-14T11:24:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3d6e95b4",
+    "date": "2026-05-14T11:26:00",
+    "purchased_from": "CREEVA INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "901b28ac",
+    "date": "2026-05-14T17:23:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b4e7ba29",
+    "date": "2026-05-14T17:36:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "08bbc71a",
+    "date": "2026-05-14T17:42:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d929c4ec",
+    "date": "2026-05-15T10:57:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9833c80a",
+    "date": "2026-05-15T11:03:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1be74f93",
+    "date": "2026-05-16T18:35:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "803e68aa",
+    "date": "2026-05-16T18:49:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "961ad434",
+    "date": "2026-05-16T18:50:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8d678ae7",
+    "date": "2026-05-16T18:50:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f8a10c37",
+    "date": "2026-05-16T18:51:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4f45e5b5",
+    "date": "2026-05-16T18:52:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9a7c185b",
+    "date": "2026-05-16T18:52:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "727a74dc",
+    "date": "2026-05-17T10:50:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "73a16959",
+    "date": "2026-05-17T10:51:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "913a379c",
+    "date": "2026-05-17T21:06:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a1afdee0",
+    "date": "2026-05-18T11:03:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5197f3bb",
+    "date": "2026-05-18T20:21:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ac32b2f7",
+    "date": "2026-05-19T12:30:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a9fd4eb4",
+    "date": "2026-05-20T11:05:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b693b678",
+    "date": "2026-05-20T11:12:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "aa2bb4b8",
+    "date": "2026-05-20T11:12:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "626f91c3",
+    "date": "2026-05-20T17:58:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "06aa4f0b",
+    "date": "2026-05-20T17:58:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9c92927b",
+    "date": "2026-05-20T17:59:00",
+    "purchased_from": "ZOOM COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c3c3e248",
+    "date": "2026-05-20T18:01:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "97caf64d",
+    "date": "2026-05-20T18:01:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cd46cc5f",
+    "date": "2026-05-20T21:25:00",
+    "purchased_from": "EBL",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5d10b982",
+    "date": "2026-05-21T15:37:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "04a295f0",
+    "date": "2026-05-22T11:45:00",
+    "purchased_from": "NEXTZEN",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7ab821e1",
+    "date": "2026-05-22T11:46:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2c066177",
+    "date": "2026-05-23T17:21:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cf736f86",
+    "date": "2026-05-23T17:22:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "21ee6c81",
+    "date": "2026-05-23T17:23:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f5a6d4f4",
+    "date": "2026-05-23T17:24:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7acd745c",
+    "date": "2026-05-25T16:22:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3d617338",
+    "date": "2026-05-25T16:28:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7a677f83",
+    "date": "2026-05-25T17:08:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3e0f9731",
+    "date": "2026-05-25T17:14:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5e5eb5af",
+    "date": "2026-05-25T17:34:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f92333c2",
+    "date": "2026-05-25T17:49:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "20ef89cb",
+    "date": "2026-05-26T10:30:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "aa45ad84",
+    "date": "2026-05-26T21:34:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fbc085aa",
+    "date": "2026-05-27T12:13:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c5e3a2f6",
+    "date": "2026-05-27T12:13:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7f294ebd",
+    "date": "2026-05-27T12:17:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f19baddf",
+    "date": "2026-05-27T12:21:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8549530b",
+    "date": "2026-05-27T12:22:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "10b9862d",
+    "date": "2026-05-27T12:23:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7920f64b",
+    "date": "2026-05-27T12:26:00",
+    "purchased_from": "preet computer",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2df6608b",
+    "date": "2026-05-27T12:35:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "334b4a59",
+    "date": "2026-05-28T20:31:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2961ad19",
+    "date": "2026-05-29T16:04:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d3b8e053",
+    "date": "2026-05-29T16:06:00",
+    "purchased_from": "SHREE MAHAVEER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "33b1d512",
+    "date": "2026-05-29T16:07:00",
+    "purchased_from": "bhagwati",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6b4d3b85",
+    "date": "2026-05-29T16:08:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "66cbe597",
+    "date": "2026-05-29T21:04:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "836d590e",
+    "date": "2026-05-30T14:20:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c0e30c81",
+    "date": "2026-05-30T17:08:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d8234214",
+    "date": "2026-05-30T17:10:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a3b94c36",
+    "date": "2026-05-30T17:48:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "92300932",
+    "date": "2026-05-30T20:04:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "259be7aa",
+    "date": "2026-05-31T11:07:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "25354aa7",
+    "date": "2026-05-31T11:08:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "72769b06",
+    "date": "2026-06-02T11:23:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "effc87f4",
+    "date": "2026-06-02T11:24:00",
+    "purchased_from": "Aggarwal Battries",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3f4a103f",
+    "date": "2026-06-02T11:25:00",
+    "purchased_from": "Chaudhary Communication",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "bcc77077",
+    "date": "2026-06-02T11:27:00",
+    "purchased_from": "S.IT SOLUTION",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8825baf7",
+    "date": "2026-06-02T11:28:00",
+    "purchased_from": "KEWAI PARTS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3d9c9515",
+    "date": "2026-06-02T16:06:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f7a76e56",
+    "date": "2026-06-02T19:59:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "539b9aa9",
+    "date": "2026-06-02T19:59:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3dee5a83",
+    "date": "2026-06-03T19:20:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ce380e9e",
+    "date": "2026-06-03T19:23:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "090db6cd",
+    "date": "2026-06-03T19:24:00",
+    "purchased_from": "SPS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d36d40e4",
+    "date": "2026-06-03T19:25:00",
+    "purchased_from": "SUDARSHAN",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "245b682f",
+    "date": "2026-06-03T19:26:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3bdff050",
+    "date": "2026-06-03T20:19:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9f1166b2",
+    "date": "2026-06-03T20:20:00",
+    "purchased_from": "bhagwati",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c9f55980",
+    "date": "2026-06-03T20:21:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "165cd756",
+    "date": "2026-06-03T20:37:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7a48aeab",
+    "date": "2026-06-04T20:13:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "381c66a4",
+    "date": "2026-06-05T18:39:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "00f23929",
+    "date": "2026-06-06T11:17:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cc3ee5d6",
+    "date": "2026-06-06T18:29:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ea673c45",
+    "date": "2026-06-06T19:36:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f827c1d7",
+    "date": "2026-06-07T13:40:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4c7c1897",
+    "date": "2026-06-07T13:44:00",
+    "purchased_from": "Spark",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9e59f48c",
+    "date": "2026-06-07T13:45:00",
+    "purchased_from": "SIMMTRONICE INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cf58220f",
+    "date": "2026-06-07T13:49:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b8aa7e89",
+    "date": "2026-06-07T14:07:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "63d03b84",
+    "date": "2026-06-07T14:26:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3f611921",
+    "date": "2026-06-07T16:52:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4e57c2b3",
+    "date": "2026-06-07T17:05:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "71c969f6",
+    "date": "2026-06-07T17:09:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ceb29a1e",
+    "date": "2026-06-08T17:59:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "73754be6",
+    "date": "2026-06-08T18:00:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7a0a2911",
+    "date": "2026-06-08T18:10:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c3335ebd",
+    "date": "2026-06-08T18:43:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "77742bf2",
+    "date": "2026-06-08T18:44:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7956a1c2",
+    "date": "2026-06-08T18:45:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7e6eb646",
+    "date": "2026-06-08T18:46:00",
+    "purchased_from": "bhagwati",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4aa02b4e",
+    "date": "2026-06-08T18:46:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "21c60f7f",
+    "date": "2026-06-08T18:51:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4a1553f0",
+    "date": "2026-06-09T15:35:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1309ee87",
+    "date": "2026-06-09T21:33:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b37e1b97",
+    "date": "2026-06-09T21:34:00",
+    "purchased_from": "Spark",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "022b4ddb",
+    "date": "2026-06-10T11:37:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c5960e30",
+    "date": "2026-06-11T10:47:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a99598c8",
+    "date": "2026-06-11T10:49:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2378b81b",
+    "date": "2026-06-11T10:50:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6ae24983",
+    "date": "2026-06-11T10:50:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ebfd69f9",
+    "date": "2026-06-11T11:15:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f1c9721f",
+    "date": "2026-06-11T19:10:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "01869e8a",
+    "date": "2026-06-12T19:55:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1613d2cd",
+    "date": "2026-06-12T19:57:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0cdab9a5",
+    "date": "2026-06-12T19:58:00",
+    "purchased_from": "FRIENDS COMPUTERS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4b38b590",
+    "date": "2026-06-13T15:35:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ef734c1e",
+    "date": "2026-06-13T17:03:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3b4cb6fb",
+    "date": "2026-06-13T17:10:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "eb3cab9c",
+    "date": "2026-06-13T17:13:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fa40858a",
+    "date": "2026-06-14T10:59:00",
+    "purchased_from": "SUDARSHAN",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7128161b",
+    "date": "2026-06-14T19:49:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "92768d1a",
+    "date": "2026-06-14T19:51:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "82d51736",
+    "date": "2026-06-16T10:35:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe90b2a4",
+    "date": "2026-06-16T19:03:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5e4da965",
+    "date": "2026-06-16T21:04:00",
+    "purchased_from": "Omega mishra ji",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "12f67d9f",
+    "date": "2026-06-16T21:08:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7c986dc7",
+    "date": "2026-06-16T21:09:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dcf02c50",
+    "date": "2026-06-16T21:10:00",
+    "purchased_from": "SIMMTRONICE INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ffd13366",
+    "date": "2026-06-16T21:13:00",
+    "purchased_from": "VKM CONSULTANCY SERVICES",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "443bba76",
+    "date": "2026-06-17T14:51:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "536247dc",
+    "date": "2026-06-18T21:22:00",
+    "purchased_from": "SPS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8e24226f",
+    "date": "2026-06-18T21:23:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dfbbacc8",
+    "date": "2026-06-18T21:23:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2cb9adf4",
+    "date": "2026-06-18T21:24:00",
+    "purchased_from": "Omega mishra ji",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2060815c",
+    "date": "2026-06-18T21:24:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5ea0ba3d",
+    "date": "2026-06-18T21:25:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2b556d94",
+    "date": "2026-06-19T11:48:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "41fbbb6c",
+    "date": "2026-06-19T21:11:00",
+    "purchased_from": "SIMMTRONICE INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1ceb9a06",
+    "date": "2026-06-19T21:18:00",
+    "purchased_from": "MAA MANSA TRADERS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "af429913",
+    "date": "2026-06-21T10:51:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4c1cff1f",
+    "date": "2026-06-21T10:52:00",
+    "purchased_from": "MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "30e974b2",
+    "date": "2026-06-21T17:55:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d8d903e6",
+    "date": "2026-06-21T17:56:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "410c5d9f",
+    "date": "2026-06-21T17:56:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "38cca022",
+    "date": "2026-06-21T17:57:00",
+    "purchased_from": "SPS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9094d324",
+    "date": "2026-06-23T10:57:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "3b1303cd",
+    "date": "2026-06-23T11:59:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2a85badc",
+    "date": "2026-06-23T13:16:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b4671b81",
+    "date": "2026-06-23T16:20:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "19656304",
+    "date": "2026-06-23T16:55:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "324c96a0",
+    "date": "2026-06-23T17:22:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "99d4c7be",
+    "date": "2026-06-24T11:11:00",
+    "purchased_from": "Mahi",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "30a5df1b",
+    "date": "2026-06-24T14:02:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "27e7a159",
+    "date": "2026-06-25T11:12:00",
+    "purchased_from": "MAX POWER",
+    "total_amount": 1300.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "35b2929b",
+    "date": "2026-06-25T11:49:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "029f9883",
+    "date": "2026-06-25T19:36:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c5949699",
+    "date": "2026-06-25T19:46:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "80b486f8",
+    "date": "2026-06-25T19:46:00",
+    "purchased_from": "FRIENDS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "acfc0976",
+    "date": "2026-06-26T12:43:00",
+    "purchased_from": "OFFICE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b750b94b",
+    "date": "2026-06-26T21:23:00",
+    "purchased_from": "OFFICE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "34a950a9",
+    "date": "2026-06-26T21:42:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "09cc66c6",
+    "date": "2026-06-27T11:33:00",
+    "purchased_from": "MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5a663841",
+    "date": "2026-06-27T12:14:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "2e761f1b",
+    "date": "2026-06-27T14:02:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "f462d063",
+    "date": "2026-06-27T14:02:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "eaa997f0",
+    "date": "2026-06-28T11:01:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "de36d2ac",
+    "date": "2026-06-28T11:01:00",
+    "purchased_from": "bhagwati",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "bc9d1598",
+    "date": "2026-06-28T11:02:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "688e69d9",
+    "date": "2026-06-28T17:15:00",
+    "purchased_from": "ELITE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d219625f",
+    "date": "2026-06-30T11:01:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5a72124f",
+    "date": "2026-06-30T11:02:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4df8675a",
+    "date": "2026-06-30T11:03:00",
+    "purchased_from": "fugen",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7f7171b8",
+    "date": "2026-06-30T11:03:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "304bb539",
+    "date": "2026-06-30T11:04:00",
+    "purchased_from": "Aggarwal Battries",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b24e2450",
+    "date": "2026-06-30T11:05:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "307776f5",
+    "date": "2026-06-30T11:05:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "fe09eeca",
+    "date": "2026-07-01T10:53:00",
+    "purchased_from": "Kalka",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b74a8fdd",
+    "date": "2026-07-01T10:54:00",
+    "purchased_from": "KEWAI PARTS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7e7d1635",
+    "date": "2026-07-01T10:54:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "eb5cf1fb",
+    "date": "2026-07-01T10:55:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "72de348f",
+    "date": "2026-07-01T11:32:00",
+    "purchased_from": "VKM CONSULTANCY SERVICES",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "85d5e423",
+    "date": "2026-07-01T11:33:00",
+    "purchased_from": "ELITE PERIPHERALS",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "87e1f835",
+    "date": "2026-07-01T11:35:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "87cd6541",
+    "date": "2026-07-01T13:15:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a2e32fa1",
+    "date": "2026-07-01T14:08:00",
+    "purchased_from": "SHREE MAHAVEER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c36a18f5",
+    "date": "2026-07-02T18:50:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "83305980",
+    "date": "2026-07-03T10:59:00",
+    "purchased_from": "fugen",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "e6e2246d",
+    "date": "2026-07-03T11:02:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "193f3a81",
+    "date": "2026-07-03T13:00:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "aa8e08fb",
+    "date": "2026-07-03T16:08:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "d211bfbd",
+    "date": "2026-07-03T19:03:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "b581b961",
+    "date": "2026-07-03T19:05:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "98b73a7c",
+    "date": "2026-07-04T12:19:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cab63062",
+    "date": "2026-07-04T12:26:00",
+    "purchased_from": "VISHAL N PLACE",
+    "total_amount": 63000.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "33029dfa",
+    "date": "2026-07-05T10:29:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "PENDING",
+    "notes": null
+  },
+  {
+    "id": "486cb932",
+    "date": "2026-07-05T10:31:00",
+    "purchased_from": "prolab",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4da0b1b3",
+    "date": "2026-07-05T10:31:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "03c00637",
+    "date": "2026-07-05T10:32:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a0bf01f7",
+    "date": "2026-07-05T10:59:00",
+    "purchased_from": "VISHAL N PLACE",
+    "total_amount": 40500.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "07c84171",
+    "date": "2026-07-05T11:15:00",
+    "purchased_from": "Techie Laptop Parts",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4519551d",
+    "date": "2026-07-05T11:16:00",
+    "purchased_from": "Spark",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "bc4ffc21",
+    "date": "2026-07-05T11:16:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "66d8c88b",
+    "date": "2026-07-05T11:17:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "245134b9",
+    "date": "2026-07-05T11:46:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "74eefba4",
+    "date": "2026-07-05T13:18:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dbce6ec2",
+    "date": "2026-07-05T14:57:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8f17fd77",
+    "date": "2026-07-06T17:07:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "91793f81",
+    "date": "2026-07-06T19:23:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "367543a9",
+    "date": "2026-07-07T11:59:00",
+    "purchased_from": "Adnet",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "64eb6881",
+    "date": "2026-07-07T12:00:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "92612388",
+    "date": "2026-07-07T12:00:00",
+    "purchased_from": "Omega mishra ji",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "05be76bd",
+    "date": "2026-07-07T12:02:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "ab3eaf5c",
+    "date": "2026-07-07T12:03:00",
+    "purchased_from": "Techie Battery",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "139bfc35",
+    "date": "2026-07-07T18:46:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "4250d489",
+    "date": "2026-07-09T16:33:00",
+    "purchased_from": "SIMMTRONICE INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a6228cb3",
+    "date": "2026-07-10T11:41:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7cef9a8f",
+    "date": "2026-07-10T12:29:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "00bbd789",
+    "date": "2026-07-10T12:30:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "aa16fdba",
+    "date": "2026-07-10T12:31:00",
+    "purchased_from": "CREEVA INFOTECH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1fc50b70",
+    "date": "2026-07-10T14:49:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "9fa6046c",
+    "date": "2026-07-10T19:33:00",
+    "purchased_from": "KRITANYA",
+    "total_amount": 21000.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "89551f89",
+    "date": "2026-07-11T10:54:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "7cfa031e",
+    "date": "2026-07-11T10:55:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 1400.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6a191623",
+    "date": "2026-07-12T11:21:00",
+    "purchased_from": "MAX POWER",
+    "total_amount": 950.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dcc9c31d",
+    "date": "2026-07-12T11:29:00",
+    "purchased_from": "prolab",
+    "total_amount": 650.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "cbb9744b",
+    "date": "2026-07-12T12:51:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "1de157a4",
+    "date": "2026-07-12T12:52:00",
+    "purchased_from": "Aggarwal Battries",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "a66525d1",
+    "date": "2026-07-12T12:53:00",
+    "purchased_from": "MARKS COMPUTER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "621ba40d",
+    "date": "2026-07-13T21:09:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "812a281f",
+    "date": "2026-07-14T11:05:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "bc98137f",
+    "date": "2026-07-14T11:06:00",
+    "purchased_from": "Baranwal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "8be1fca6",
+    "date": "2026-07-14T11:07:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "53f8c737",
+    "date": "2026-07-15T11:23:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "c9281b3e",
+    "date": "2026-07-15T11:24:00",
+    "purchased_from": "Sunrise",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dd74730d",
+    "date": "2026-07-16T10:47:00",
+    "purchased_from": "Referbished Adeptor",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "787266bb",
+    "date": "2026-07-16T10:48:00",
+    "purchased_from": "Universal",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "11b1c8fd",
+    "date": "2026-07-16T10:49:00",
+    "purchased_from": "Mahi",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "558f155c",
+    "date": "2026-07-17T11:12:00",
+    "purchased_from": "PANDAY MAX POWER",
+    "total_amount": 1200.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "0865f314",
+    "date": "2026-07-17T13:05:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "25c8cd37",
+    "date": "2026-07-17T13:06:00",
+    "purchased_from": "MODCARE",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "dcc0297d",
+    "date": "2026-07-17T13:07:00",
+    "purchased_from": "Rx Lapgrade",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "5a092c2c",
+    "date": "2026-07-17T13:09:00",
+    "purchased_from": "mahadev",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "52d52b0c",
+    "date": "2026-07-17T13:16:00",
+    "purchased_from": "Chaudhary Communication",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  },
+  {
+    "id": "6362b910",
+    "date": "2026-07-17T20:03:00",
+    "purchased_from": "CASH",
+    "total_amount": 0.0,
+    "status": "Confirmed",
+    "notes": null
+  }
+]

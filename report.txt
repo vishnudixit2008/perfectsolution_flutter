@@ -1,0 +1,203 @@
+Analyzing shop_management_flutter...                            
+
+warning • The declaration '_NonRedirectingClient' isn't referenced • lib/data/services/google_drive_upload_service.dart:145:7 • unused_element
+warning • The declaration '_seedSales' isn't referenced • lib/data/services/local_database_service.dart:75:16 • unused_element
+warning • The declaration '_seedCalls' isn't referenced • lib/data/services/local_database_service.dart:109:16 • unused_element
+warning • The declaration '_seedInwardRepairs' isn't referenced • lib/data/services/local_database_service.dart:124:16 • unused_element
+warning • The declaration '_seedReplacements' isn't referenced • lib/data/services/local_database_service.dart:160:16 • unused_element
+warning • The declaration '_seedRequests' isn't referenced • lib/data/services/local_database_service.dart:177:16 • unused_element
+warning • The declaration '_seedPurchases' isn't referenced • lib/data/services/local_database_service.dart:192:16 • unused_element
+warning • The value of the field '_localDbRef' isn't used • lib/data/services/supabase_sync_service.dart:40:25 • unused_field
+   info • 'anonKey' is deprecated and shouldn't be used. Use publishableKey instead. anonKey will be removed in a future major version • lib/data/services/supabase_sync_service.dart:99:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:70:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:75:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:146:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:155:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:159:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:186:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/core/app_theme.dart:211:48 • deprecated_member_use
+warning • The value of the field '_statusWidth' isn't used • lib/ui/features/calls/views/calls_view.dart:40:10 • unused_field
+warning • The value of the field '_currentPage' isn't used • lib/ui/features/calls/views/calls_view.dart:82:7 • unused_field
+warning • The value of the field '_itemsPerPage' isn't used • lib/ui/features/calls/views/calls_view.dart:83:13 • unused_field
+warning • The declaration '_statusPriority' isn't referenced • lib/ui/features/calls/views/calls_view.dart:97:14 • unused_element
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/calls/views/calls_view.dart:970:10 • unused_element
+  error • Expected a method, getter, setter or operator declaration • lib/ui/features/calls/views/calls_view.dart:1378:1 • expected_executable
+warning • The value of the field '_statusOptions' isn't used • lib/ui/features/calls/views/calls_view.dart:1427:29 • unused_field
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:175:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:183:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:214:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:223:28 • deprecated_member_use
+warning • The value of the local variable 'isPending' isn't used • lib/ui/features/dashboard/views/dashboard_view.dart:294:21 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:313:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:387:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:484:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:485:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:755:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:822:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/dashboard/views/dashboard_view.dart:854:28 • deprecated_member_use
+warning • The value of the field '_statusWidth' isn't used • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:45:10 • unused_field
+warning • The value of the field '_currentPage' isn't used • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:87:7 • unused_field
+warning • The value of the field '_itemsPerPage' isn't used • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:88:13 • unused_field
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:416:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:418:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:501:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:590:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:750:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:752:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:880:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:882:60 • deprecated_member_use
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1023:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1036:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1039:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1054:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1093:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1102:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1122:47 • deprecated_member_use
+warning • The declaration '_ActionButton' isn't referenced • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1262:7 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1281:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1282:50 • deprecated_member_use
+  error • All final variables must be initialized, but 'prefillEstimates' isn't • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1315:9 • final_not_initialized_constructor
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/inward_repairs/views/inward_repairs_view.dart:1935:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:146:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:148:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:256:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:328:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:408:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:411:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:480:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:481:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:536:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:538:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:539:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:573:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:575:56 • deprecated_member_use
+warning • The declaration '_bulkDeleteItems' isn't referenced • lib/ui/features/pricelist/views/pricelist_view.dart:664:8 • unused_element
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/pricelist/views/pricelist_view.dart:700:40 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/pricelist/views/pricelist_view.dart:709:40 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/pricelist/views/pricelist_view.dart:717:33 • use_build_context_synchronously
+warning • The declaration '_buildSortHeader' isn't referenced • lib/ui/features/pricelist/views/pricelist_view.dart:729:10 • unused_element
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/pricelist/views/pricelist_view.dart:1368:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1382:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1385:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1400:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1439:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1448:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/pricelist/views/pricelist_view.dart:1468:47 • deprecated_member_use
+warning • The value of the field '_statusWidth' isn't used • lib/ui/features/purchases/views/purchases_view.dart:40:10 • unused_field
+warning • The value of the field '_currentPage' isn't used • lib/ui/features/purchases/views/purchases_view.dart:78:7 • unused_field
+warning • The value of the field '_itemsPerPage' isn't used • lib/ui/features/purchases/views/purchases_view.dart:79:13 • unused_field
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:399:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:401:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:479:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:563:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:659:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:661:45 • deprecated_member_use
+warning • The declaration '_confirmStockIn' isn't referenced • lib/ui/features/purchases/views/purchases_view.dart:674:8 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:803:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:805:60 • deprecated_member_use
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/purchases/views/purchases_view.dart:943:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:956:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:959:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:974:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:1013:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:1022:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:1042:47 • deprecated_member_use
+  error • All final variables must be initialized, but 'prefillItems' isn't • lib/ui/features/purchases/views/purchases_view.dart:1093:9 • final_not_initialized_constructor
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/purchases/views/purchases_view.dart:1568:37 • deprecated_member_use
+warning • The value of the field '_statusWidth' isn't used • lib/ui/features/replacements/views/replacements_view.dart:41:10 • unused_field
+warning • The value of the field '_currentPage' isn't used • lib/ui/features/replacements/views/replacements_view.dart:85:7 • unused_field
+warning • The value of the field '_itemsPerPage' isn't used • lib/ui/features/replacements/views/replacements_view.dart:86:13 • unused_field
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:411:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:413:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:496:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:584:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:698:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:700:45 • deprecated_member_use
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/replacements/views/replacements_view.dart:931:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:944:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:947:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:962:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:1001:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:1010:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:1030:47 • deprecated_member_use
+warning • The declaration '_ActionButton' isn't referenced • lib/ui/features/replacements/views/replacements_view.dart:1101:7 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:1120:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/replacements/views/replacements_view.dart:1121:50 • deprecated_member_use
+warning • The value of the field '_statusWidth' isn't used • lib/ui/features/requests/views/requests_view.dart:40:10 • unused_field
+warning • The value of the field '_currentPage' isn't used • lib/ui/features/requests/views/requests_view.dart:88:7 • unused_field
+warning • The value of the field '_itemsPerPage' isn't used • lib/ui/features/requests/views/requests_view.dart:89:13 • unused_field
+  error • The method '_buildMobileCardsList' isn't defined for the type '_RequestsViewState' • lib/ui/features/requests/views/requests_view.dart:275:27 • undefined_method
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:420:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:422:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:516:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:614:39 • deprecated_member_use
+warning • The declaration '_buildStatusChip' isn't referenced • lib/ui/features/requests/views/requests_view.dart:624:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:638:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:640:45 • deprecated_member_use
+warning • The declaration '_buildFloatingPaginationIsland' isn't referenced • lib/ui/features/requests/views/requests_view.dart:879:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:892:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:895:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:910:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:949:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:958:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/requests/views/requests_view.dart:978:47 • deprecated_member_use
+warning • Dead code • lib/ui/features/sales/views/sales_view.dart:196:23 • dead_code
+warning • The left operand can't be null, so the right operand is never executed • lib/ui/features/sales/views/sales_view.dart:196:26 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/ui/features/sales/views/sales_view.dart:197:26 • dead_null_aware_expression
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:360:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:419:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:422:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:511:39 • deprecated_member_use
+warning • The declaration '_bulkDeleteSales' isn't referenced • lib/ui/features/sales/views/sales_view.dart:552:8 • unused_element
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/sales/views/sales_view.dart:588:40 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/sales/views/sales_view.dart:597:40 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/sales/views/sales_view.dart:605:33 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:636:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:638:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1013:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1051:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1054:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1096:49 • deprecated_member_use
+   info • Unnecessary use of multiple underscores • lib/ui/features/sales/views/sales_view.dart:1109:51 • unnecessary_underscores
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1161:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1185:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1219:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1222:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1235:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1236:62 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1401:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1516:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1518:58 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/sales/views/sales_view.dart:1611:46 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/ui/features/sales/views/sales_view.dart:1626:46 • use_build_context_synchronously
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1674:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1811:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/sales/views/sales_view.dart:1814:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:97:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:108:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:213:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:214:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:218:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:219:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:254:67 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:322:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:333:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:377:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:379:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:413:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:466:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/features/settings/views/settings_view.dart:468:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:312:42 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:314:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:317:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:332:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:343:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:413:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:422:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:426:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:480:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:534:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:537:55 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/shared/status_management_dialog.dart:594:55 • deprecated_member_use
+
+199 issues found. (ran in 36.8s)

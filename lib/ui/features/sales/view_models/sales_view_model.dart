@@ -1,0 +1,271 @@
+import 'package:flutter/foundation.dart';
+import '../../../../data/models/pricelist_item.dart';
+import '../../../../data/models/sale.dart';
+import '../../../../data/models/sale_item.dart';
+import '../../../../data/repositories/shop_repository.dart';
+
+class SalesViewModel extends ChangeNotifier {
+  final ShopRepository _repository;
+
+  SalesViewModel({required ShopRepository repository})
+    : _repository = repository;
+
+  // Search catalog state
+  List<PricelistItem> _catalogItems = [];
+  String _searchQuery = '';
+
+  // Cart state
+  final List<SaleItem> _cartItems = [];
+  String _customerName = '';
+  String _customerNumber = '';
+  String _paymentMode = 'UPI'; // Default to UPI
+  double _advance = 0.0;
+  double _discount = 0.0;
+  bool _isSaving = false;
+  List<String> _savedServices = [];
+
+  // Getters
+  List<SaleItem> get cartItems => _cartItems;
+  String get customerName => _customerName;
+  String get customerNumber => _customerNumber;
+  String get paymentMode => _paymentMode;
+  double get advance => _advance;
+  double get discount => _discount;
+  bool get isSaving => _isSaving;
+  String get searchQuery => _searchQuery;
+  List<String> get savedServices => _savedServices;
+
+  // Load available catalog list for item selector
+  void loadCatalog() {
+    _catalogItems = _repository.getPricelist();
+    loadSavedServices();
+  }
+
+  void loadSavedServices() {
+    _savedServices = _repository.getCustomServiceNames();
+    notifyListeners();
+  }
+
+  // Get filtered items based on search query
+  List<PricelistItem> get searchResults {
+    if (_searchQuery.trim().isEmpty) return [];
+    return _catalogItems.where((item) {
+      final nameMatch = item.itemName.toLowerCase().contains(
+        _searchQuery.toLowerCase(),
+      );
+      final catMatch =
+          item.category?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+          false;
+      return nameMatch || catMatch;
+    }).toList();
+  }
+
+  void updateSearchQuery(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  // Add Product Item to Cart
+  void addProductToCart(PricelistItem product) {
+    // Check if product is already in cart
+    final existingIdx = _cartItems.indexWhere(
+      (item) => item.lineType == 'Product' && item.itemId == product.id,
+    );
+
+    if (existingIdx != -1 && existingIdx >= 0) {
+      // Increment quantity
+      final item = _cartItems[existingIdx];
+      _cartItems[existingIdx] = item.copyWith(
+        quantity: item.quantity + 1,
+        totalAmount: (item.quantity + 1) * (item.customPrice ?? item.itemPrice),
+      );
+    } else {
+      // Create new line item (temp invoiceNo = 0, will assign on checkout)
+      final newItem = SaleItem(
+        id: 'prod_${product.id}_${DateTime.now().millisecondsSinceEpoch}',
+        invoiceNo: 0,
+        lineType: 'Product',
+        itemId: product.id,
+        itemDescription: product.itemName,
+        quantity: 1,
+        itemPrice: product.price,
+        totalAmount: product.price,
+      );
+      _cartItems.add(newItem);
+    }
+    _searchQuery = '';
+    notifyListeners();
+  }
+
+  // Add Custom Service to Cart
+  Future<void> addCustomServiceToCart(String serviceName, double price) async {
+    await _repository.saveCustomServiceName(serviceName);
+    loadSavedServices();
+
+    final newItem = SaleItem(
+      id: 'srv_${DateTime.now().millisecondsSinceEpoch}',
+      invoiceNo: 0,
+      lineType: 'Service',
+      itemDescription: serviceName,
+      quantity: 1,
+      itemPrice: price,
+      totalAmount: price,
+    );
+    _cartItems.add(newItem);
+    notifyListeners();
+  }
+
+  // Add SaleItem to Cart (for prefilling estimates/products/services)
+  void addSaleItemToCart({
+    int? itemId,
+    required String lineType,
+    required String itemDescription,
+    required int quantity,
+    required double itemPrice,
+  }) {
+    final int qty = quantity > 0 ? quantity : 1;
+    final newItem = SaleItem(
+      id: '${lineType.toLowerCase()}_${DateTime.now().microsecondsSinceEpoch}_${_cartItems.length}_${_cartItems.hashCode}',
+      invoiceNo: 0,
+      itemId: itemId,
+      lineType: lineType,
+      itemDescription: itemDescription,
+      quantity: qty,
+      itemPrice: itemPrice,
+      totalAmount: qty * itemPrice,
+    );
+    _cartItems.add(newItem);
+    notifyListeners();
+  }
+
+  // Update item quantity
+  void updateItemQuantity(String cartItemId, int quantity) {
+    if (quantity <= 0) {
+      removeCartItem(cartItemId);
+      return;
+    }
+
+    final idx = _cartItems.indexWhere((item) => item.id == cartItemId);
+    if (idx >= 0) {
+      final item = _cartItems[idx];
+      _cartItems[idx] = item.copyWith(
+        quantity: quantity,
+        totalAmount: quantity * item.activePrice,
+      );
+      notifyListeners();
+    }
+  }
+
+  // Update custom price override
+  void updateItemCustomPrice(String cartItemId, double? price) {
+    final idx = _cartItems.indexWhere((item) => item.id == cartItemId);
+    if (idx >= 0) {
+      final item = _cartItems[idx];
+      final double activeRate = price ?? item.itemPrice;
+      _cartItems[idx] = item.copyWith(
+        customPrice: price,
+        totalAmount: item.quantity * activeRate,
+      );
+      notifyListeners();
+    }
+  }
+
+  // Remove cart item
+  void removeCartItem(String cartItemId) {
+    _cartItems.removeWhere((item) => item.id == cartItemId);
+    notifyListeners();
+  }
+
+  // Setters for customer details
+  void setCustomerName(String name) {
+    _customerName = name;
+  }
+
+  void setCustomerNumber(String num) {
+    _customerNumber = num;
+  }
+
+  void setPaymentMode(String mode) {
+    _paymentMode = mode;
+    notifyListeners();
+  }
+
+  void setAdvance(double val) {
+    _advance = val;
+    notifyListeners();
+  }
+
+  void setDiscount(double val) {
+    _discount = val;
+    notifyListeners();
+  }
+
+  // Totals calculations
+  double get subtotal {
+    return _cartItems.fold(0.0, (sum, item) => sum + item.totalAmount);
+  }
+
+  double get totalAmount {
+    final double net = subtotal - _discount;
+    return net < 0.0 ? 0.0 : net;
+  }
+
+  // Checkout (saves sale as PENDING, deferring stock deduction)
+  Future<int?> checkout() async {
+    if (_cartItems.isEmpty) return null;
+
+    _isSaving = true;
+    notifyListeners();
+
+    try {
+      final invoiceNo = _repository.getNextInvoiceNo();
+      final DateTime now = DateTime.now();
+
+      final List<SaleItem> finalItems = _cartItems.map((item) {
+        return item.copyWith(invoiceNo: invoiceNo);
+      }).toList();
+
+      final sale = Sale(
+        invoiceNo: invoiceNo,
+        saleDate: now,
+        customerName: _customerName.trim().isEmpty
+            ? null
+            : _customerName.trim(),
+        customerNumber: _customerNumber.trim().isEmpty
+            ? null
+            : _customerNumber.trim(),
+        paymentMode: _paymentMode,
+        advance: _advance,
+        discount: _discount,
+        totalAmount: totalAmount,
+        orderStatus:
+            'PENDING', // Initial status is PENDING, waits for admin complete
+      );
+
+      await _repository.saveSale(sale, finalItems);
+
+      // Clear Cart
+      clearCart();
+      return invoiceNo;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Checkout error: $e');
+      }
+      return null;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  void clearCart() {
+    _cartItems.clear();
+    _customerName = '';
+    _customerNumber = '';
+    _paymentMode = 'UPI';
+    _advance = 0.0;
+    _discount = 0.0;
+    _searchQuery = '';
+    notifyListeners();
+  }
+}

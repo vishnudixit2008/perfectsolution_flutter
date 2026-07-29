@@ -1,0 +1,1519 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../data/models/replacement.dart';
+import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/supabase_sync_service.dart';
+import '../../../../data/services/ui_preferences_service.dart';
+import '../../../../data/services/whatsapp_service.dart';
+import '../../../../ui/core/app_theme.dart';
+import '../../../navigation/navigation_view_model.dart';
+import '../../../shared/components/app_page_header.dart';
+import '../../../shared/components/app_list_card.dart';
+import '../../../shared/components/app_empty_state.dart';
+import '../../../shared/components/app_floating_action_button.dart';
+import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/photo_attachment_widget.dart';
+import '../../../shared/resizable_detail_popup.dart';
+import '../../../shared/status_management_dialog.dart';
+
+import '../../../shared/whatsapp_icon.dart';
+import '../../../../data/services/user_permission_service.dart';
+import '../view_models/replacements_view_model.dart';
+
+class ReplacementsView extends StatefulWidget {
+  const ReplacementsView({super.key});
+
+  @override
+  State<ReplacementsView> createState() => _ReplacementsViewState();
+}
+
+class _ReplacementsViewState extends State<ReplacementsView> {
+  final TextEditingController _searchController = TextEditingController();
+
+  // Table columns widths
+  double _jobNoWidth = 100.0;
+  double _dateWidth = 120.0;
+  double _nameWidth = 200.0;
+  double _mobileWidth = 150.0;
+  double _itemWidth = 250.0;
+  double _statusWidth = 140.0;
+
+  void _loadSavedColumnWidths() {
+    _jobNoWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'jobNo') ?? 100.0;
+    _dateWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'date') ?? 120.0;
+    _nameWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'name') ?? 200.0;
+    _mobileWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'mobile') ?? 150.0;
+    _itemWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'item') ?? 250.0;
+    _statusWidth =
+        UiPreferencesService.getColumnWidth('replacement', 'status') ?? 140.0;
+  }
+
+  void _updateColumnWidth(String columnKey, double newWidth) {
+    setState(() {
+      switch (columnKey) {
+        case 'jobNo':
+          _jobNoWidth = newWidth;
+          break;
+        case 'date':
+          _dateWidth = newWidth;
+          break;
+        case 'name':
+          _nameWidth = newWidth;
+          break;
+        case 'mobile':
+          _mobileWidth = newWidth;
+          break;
+        case 'item':
+          _itemWidth = newWidth;
+          break;
+        case 'status':
+          _statusWidth = newWidth;
+          break;
+      }
+    });
+    UiPreferencesService.setColumnWidth('replacement', columnKey, newWidth);
+  }
+
+  // Pagination states
+  int _currentPage = 1;
+  final int _itemsPerPage = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedColumnWidths();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ReplacementsViewModel>().loadReplacements();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handlePrefillData(
+    BuildContext context,
+    Map<String, dynamic> prefill,
+    NavigationViewModel navVM,
+  ) {
+    navVM.clearPrefillData();
+    final String name = prefill['name'] ?? prefill['customerName'] ?? '';
+    final String mobile =
+        prefill['mobileNo'] ?? prefill['customerNumber'] ?? '';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showAddEditDialog(context, prefillName: name, prefillMobile: mobile);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navVM = context.watch<NavigationViewModel>();
+    final prefill = navVM.pendingPrefillData;
+    if (prefill != null && prefill['target'] == 'replacement') {
+      _handlePrefillData(context, prefill, navVM);
+    }
+
+    return Consumer<ReplacementsViewModel>(
+      builder: (context, viewModel, child) {
+        if (viewModel.isLoading && viewModel.replacements.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppTheme.primary),
+          );
+        }
+
+        final double screenWidth = MediaQuery.of(context).size.width;
+        final bool isDesktop = screenWidth >= 800;
+
+        // Filtering
+        final query = _searchController.text.trim().toLowerCase();
+        final filtered = viewModel.replacements.where((r) {
+          if (query.isEmpty) return true;
+          final jobMatch = r.jobNo.toLowerCase().contains(query);
+          final nameMatch = r.name.toLowerCase().contains(query);
+          final itemMatch = r.item.toLowerCase().contains(query);
+          final mobileMatch =
+              r.mobileNo?.toLowerCase().contains(query) ?? false;
+          final statusMatch = r.status.toLowerCase().contains(query);
+          return jobMatch ||
+              nameMatch ||
+              itemMatch ||
+              mobileMatch ||
+              statusMatch;
+        }).toList();
+
+        // Sort by date descending (newest replacements first)
+        filtered.sort((a, b) => b.date.compareTo(a.date));
+
+        final groupedReplacements = _getGroupedReplacements(filtered);
+
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: UserPermissionService.canPerformModuleAction('replacements', 'canAdd')
+              ? AppFloatingActionButton(
+                  onPressed: () => _showAddEditDialog(context),
+                  tooltip: 'Add Replacement',
+                )
+              : null,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppPageHeader(
+                title: 'Replacements',
+                subtitle: 'Warranty & Parts Replacement Tracker',
+                actions: [
+                  IconButton(
+                    onPressed: () {
+                      StatusManagementDialog.show(
+                        context,
+                        moduleKey: 'replacements',
+                        moduleTitle: 'Replacement',
+                        onStatusesUpdated: () {
+                          StatusManagementService.invalidateCache(
+                            'replacements',
+                          );
+                          context
+                              .read<ReplacementsViewModel>()
+                              .loadReplacements();
+                          setState(() {});
+                        },
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.low_priority_rounded,
+                      color: AppTheme.primaryLight,
+                      size: 20,
+                    ),
+                    tooltip: 'Manage & Reorder Statuses',
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Search Bar
+              if (isDesktop)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Search job no, name, item, mobile, status...',
+                      prefixIcon: const Icon(
+                        Icons.search_rounded,
+                        color: AppTheme.textMuted,
+                        size: 20,
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                  ),
+                )
+              else
+                AppSearchFilterBar(
+                  searchQuery: _searchController.text,
+                  onSearchChanged: (q) => setState(() {
+                    _searchController.text = q;
+                    _currentPage = 1;
+                  }),
+                  hintText: 'Search job no, name, item...',
+                ),
+
+              const SizedBox(height: 12),
+
+              // Table / Cards list grouped by status
+              Expanded(
+                child: filtered.isEmpty
+                    ? _buildEmptyState()
+                    : (isDesktop
+                        ? _buildDesktopTable(
+                            context,
+                            viewModel,
+                            groupedReplacements,
+                          )
+                        : _buildMobileCardsList(
+                            context,
+                            viewModel,
+                            groupedReplacements,
+                          )),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, List<Replacement>> _getGroupedReplacements(
+    List<Replacement> replacements,
+  ) {
+    final List<String> configuredStatuses =
+        StatusManagementService.getStatuses('replacements');
+    final Map<String, List<Replacement>> grouped = {};
+
+    for (final status in configuredStatuses) {
+      grouped[status] = [];
+    }
+
+    for (final repl in replacements) {
+      final statusName = repl.status.trim();
+      final existingKey = grouped.keys.firstWhere(
+        (k) => k.toLowerCase() == statusName.toLowerCase(),
+        orElse: () => '',
+      );
+
+      if (existingKey.isNotEmpty) {
+        grouped[existingKey]!.add(repl);
+      } else {
+        if (!grouped.containsKey(statusName)) {
+          grouped[statusName] = [];
+        }
+        grouped[statusName]!.add(repl);
+      }
+    }
+
+    grouped.removeWhere((key, list) => list.isEmpty);
+    return grouped;
+  }
+
+  Widget _buildStatusSectionHeader(String status, int count) {
+    final Color color = _getStatusColor(status);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count ${count == 1 ? 'Replacement' : 'Replacements'}',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    final s = status.toLowerCase().trim();
+    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
+    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
+    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
+    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
+    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
+      return const Color(0xFF10B981); // Green
+    }
+    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
+    if (s.contains('pending')) return const Color(0xFFF97316);
+    return const Color(0xFF6366F1);
+  }
+
+  Widget _buildEmptyState() {
+    return AppEmptyState(
+      icon: Icons.published_with_changes_rounded,
+      title: 'No Replacements Found',
+      message: 'No replacement records match your search query.',
+      actionLabel: 'Add Replacement',
+      onAction: () => _showAddEditDialog(context),
+    );
+  }
+
+  Widget _buildDesktopTable(
+    BuildContext context,
+    ReplacementsViewModel viewModel,
+    Map<String, List<Replacement>> groupedReplacements,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.glassCardDecoration(
+        color: const Color(0x0AFFFFFF),
+        borderRadius: 12,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header Row (Status column removed - grouped under status headers)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.02),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+              ),
+            ),
+            child: Row(
+              children: [
+                _buildResizableHeader(
+                  'Job No',
+                  _jobNoWidth,
+                  (delta) => _updateColumnWidth(
+                    'jobNo',
+                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Date',
+                  _dateWidth,
+                  (delta) => _updateColumnWidth(
+                    'date',
+                    (_dateWidth + delta).clamp(80.0, 200.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Customer Name',
+                  _nameWidth,
+                  (delta) => _updateColumnWidth(
+                    'name',
+                    (_nameWidth + delta).clamp(120.0, 400.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Mobile',
+                  _mobileWidth,
+                  (delta) => _updateColumnWidth(
+                    'mobile',
+                    (_mobileWidth + delta).clamp(100.0, 300.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Replacement Item',
+                  _itemWidth,
+                  (delta) => _updateColumnWidth(
+                    'item',
+                    (_itemWidth + delta).clamp(150.0, 500.0),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scrollable Body grouped by Status
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 80),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final entry in groupedReplacements.entries) ...[
+                    _buildStatusSectionHeader(entry.key, entry.value.length),
+                    for (final repl in entry.value) ...[
+                      _buildDesktopTableRow(context, viewModel, repl),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopTableRow(
+    BuildContext context,
+    ReplacementsViewModel viewModel,
+    Replacement repl,
+  ) {
+    final formattedDate = DateFormat('dd/MM/yy').format(repl.date);
+    return InkWell(
+      onTap: () => _showDetailDialog(context, repl, viewModel),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withOpacity(0.04),
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: _jobNoWidth,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              child: Text(
+                repl.jobNo,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+            ),
+            Container(
+              width: _dateWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(formattedDate),
+            ),
+            Container(
+              width: _nameWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                repl.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Container(
+              width: _mobileWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(repl.mobileNo ?? '-'),
+            ),
+            Container(
+              width: _itemWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                repl.item,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResizableHeader(
+    String label,
+    double currentWidth,
+    ValueChanged<double> onResize,
+  ) {
+    return Container(
+      width: currentWidth,
+      padding: const EdgeInsets.only(left: 16, right: 2, top: 12, bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeLeftRight,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragUpdate: (details) => onResize(details.delta.dx),
+              child: Container(
+                width: 12,
+                height: 20,
+                alignment: Alignment.center,
+                child: Container(
+                  width: 1.5,
+                  height: 14,
+                  color: Colors.white.withOpacity(0.12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileCardsList(
+    BuildContext context,
+    ReplacementsViewModel viewModel,
+    Map<String, List<Replacement>> groupedReplacements,
+  ) {
+    return RefreshIndicator(
+      color: AppTheme.primaryLight,
+      backgroundColor: const Color(0xFF131A2E),
+      onRefresh: () async {
+        final localDb = context.read<ShopRepository>().localDb;
+        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        if (context.mounted) viewModel.loadReplacements();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final entry in groupedReplacements.entries) ...[
+              _buildStatusSectionHeader(entry.key, entry.value.length),
+              for (final repl in entry.value) ...[
+                _buildMobileReplacementCard(context, viewModel, repl),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileReplacementCard(
+    BuildContext context,
+    ReplacementsViewModel viewModel,
+    Replacement repl,
+  ) {
+    final formattedDate = DateFormat('dd MMM yyyy').format(repl.date);
+    final metadata = <Widget>[];
+
+    if (repl.mobileNo != null &&
+        repl.mobileNo!.trim().isNotEmpty &&
+        repl.mobileNo != 'N/A') {
+      metadata.add(
+        Row(
+          children: [
+            const Icon(
+              Icons.phone_rounded,
+              size: 13,
+              color: AppTheme.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              repl.mobileNo!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 6));
+    metadata.add(
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            formattedDate,
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppTheme.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return AppListCard(
+      title: '#${repl.jobNo} • ${repl.item}',
+      subtitle: 'Customer: ${repl.name}',
+      statusBadge: _buildStatusChip(repl.status),
+      metadataRows: metadata,
+      onTap: () => _showDetailDialog(context, repl, viewModel),
+      onEdit: () => _showAddEditDialog(context, existingReplacement: repl),
+      onDelete: () => _confirmDelete(context, repl.jobNo, viewModel),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color chipColor = AppTheme.warning;
+    final lower = status.toLowerCase();
+    if (lower.contains('complete')) {
+      chipColor = AppTheme.success;
+    } else if (lower.contains('received')) {
+      chipColor = AppTheme.primaryLight;
+    } else if (lower.contains('pending')) {
+      chipColor = AppTheme.warning;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: chipColor.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: chipColor.withOpacity(0.3), width: 1),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: chipColor,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(
+    BuildContext context,
+    String jobNo,
+    ReplacementsViewModel viewModel,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Replacement Record?'),
+          content: Text(
+            'Are you sure you want to permanently delete replacement job $jobNo? This action cannot be undone.',
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await viewModel.deleteReplacement(jobNo);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Job $jobNo deleted successfully.'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDetailDialog(
+    BuildContext context,
+    Replacement repl,
+    ReplacementsViewModel viewModel,
+  ) {
+    final repo = context.read<ShopRepository>();
+    final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(repl.date);
+    final depDate = repl.depositDate != null
+        ? DateFormat('dd MMM yyyy').format(repl.depositDate!)
+        : 'N/A';
+    final recDate = repl.receiveDate != null
+        ? DateFormat('dd MMM yyyy').format(repl.receiveDate!)
+        : 'N/A';
+
+    ResizableDetailPopup.show(
+      context: context,
+      repository: repo,
+      title: 'Replacement ${repl.jobNo}',
+      subtitle: 'Logged on $formattedDate',
+      contentBuilder: (ctx, scale) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ScaledInfoRow(
+              label: 'Customer Name',
+              value: repl.name,
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Mobile Number',
+              value: repl.mobileNo ?? 'N/A',
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Replacement Item',
+              value: repl.item,
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Assigned To',
+              value: repl.assignedTo ?? 'N/A',
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Deposit Date',
+              value: depDate,
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Receive Date',
+              value: recDate,
+              scaleFactor: scale,
+            ),
+            ScaledInfoRow(
+              label: 'Status',
+              value: repl.status,
+              scaleFactor: scale,
+            ),
+            if (repl.photoList.isNotEmpty)
+              PhotoGallerySection(photoUrls: repl.photoList),
+            SizedBox(height: 12 * scale),
+            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+            SizedBox(height: 12 * scale),
+            Wrap(
+              spacing: 8 * scale,
+              runSpacing: 8 * scale,
+              children: [
+                ScaledActionButton(
+                  icon: Icons.phone,
+                  label: 'Call',
+                  scaleFactor: scale,
+                  onTap: () => _launchPhone(repl.mobileNo ?? ''),
+                ),
+                ScaledActionButton(
+                  iconWidget: WhatsAppIcon(size: 18 * scale),
+                  label: 'WhatsApp',
+                  scaleFactor: scale,
+                  onTap: () => _launchWhatsApp(repl),
+                ),
+                ScaledActionButton(
+                  icon: Icons.copy,
+                  label: 'Duplicate',
+                  scaleFactor: scale,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _duplicate(context, repl);
+                  },
+                ),
+                ScaledActionButton(
+                  icon: Icons.sell,
+                  label: 'Convert to Sale',
+                  scaleFactor: scale,
+                  onTap: () => _convertToSale(ctx, repl),
+                ),
+                ScaledActionButton(
+                  icon: Icons.build,
+                  label: 'Enter in Inward',
+                  scaleFactor: scale,
+                  onTap: () => _enterInModule(ctx, 'inward', repl),
+                ),
+                ScaledActionButton(
+                  icon: Icons.request_page,
+                  label: 'Enter in Request',
+                  scaleFactor: scale,
+                  onTap: () => _enterInModule(ctx, 'request', repl),
+                ),
+                ScaledActionButton(
+                  icon: Icons.shopping_cart,
+                  label: 'Enter in Purchase',
+                  scaleFactor: scale,
+                  onTap: () => _enterInModule(ctx, 'purchase', repl),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+      actionsBuilder: (ctx, scale) {
+        return Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showAddEditDialog(context, existingReplacement: repl);
+                },
+                icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryLight,
+                  side: BorderSide(
+                    color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                ),
+              ),
+            ),
+            SizedBox(width: 12 * scale),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _confirmDelete(context, repl.jobNo, viewModel);
+                },
+                icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.danger,
+                  side: BorderSide(
+                    color: AppTheme.danger.withValues(alpha: 0.3),
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddEditDialog(
+    BuildContext context, {
+    Replacement? existingReplacement,
+    String? prefillName,
+    String? prefillMobile,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ReplacementFormDialog(
+        existingReplacement: existingReplacement,
+        prefillName: prefillName,
+        prefillMobile: prefillMobile,
+      ),
+    );
+  }
+
+  Widget _buildFloatingPaginationIsland({
+    required int currentPage,
+    required int totalPages,
+    required int itemsPerPage,
+    required ValueChanged<int> onItemsPerPageChanged,
+    required VoidCallback onPreviousPage,
+    required VoidCallback onNextPage,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xE60F1524),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopupMenuButton<int>(
+            initialValue: itemsPerPage,
+            tooltip: 'Rows per page',
+            color: const Color(0xFF0F1524),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            ),
+            onSelected: onItemsPerPageChanged,
+            child: Row(
+              children: [
+                Text(
+                  '$itemsPerPage',
+                  style: const TextStyle(
+                    color: AppTheme.primaryLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_drop_down_rounded,
+                  color: AppTheme.textMuted,
+                  size: 14,
+                ),
+              ],
+            ),
+            itemBuilder: (context) => [20, 50, 100].map((val) {
+              return PopupMenuItem<int>(
+                value: val,
+                child: Text(
+                  '$val rows',
+                  style: TextStyle(
+                    color: val == itemsPerPage
+                        ? AppTheme.primaryLight
+                        : AppTheme.textPrimary,
+                    fontSize: 11,
+                    fontWeight: val == itemsPerPage
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(width: 4),
+          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.chevron_left_rounded),
+            onPressed: currentPage > 1 ? onPreviousPage : null,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            iconSize: 16,
+            color: AppTheme.primaryLight,
+            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Text(
+              '$currentPage/$totalPages',
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: currentPage < totalPages ? onNextPage : null,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            iconSize: 16,
+            color: AppTheme.primaryLight,
+            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _launchPhone(String number) async {
+    if (number.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: number);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  void _launchWhatsApp(Replacement r) {
+    final mobileNo = r.mobileNo;
+    if (mobileNo == null || mobileNo.trim().isEmpty) return;
+    final message =
+        "Hello ${r.name}, We have updated your replacement item ${r.item} status to ${r.status} (JobNo: ${r.jobNo}). Perfect Solution";
+    WhatsAppService.launch(mobileNo: mobileNo, message: message);
+  }
+
+  void _duplicate(BuildContext context, Replacement r) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ReplacementFormDialog(
+        prefillName: r.name,
+        prefillMobile: r.mobileNo,
+        prefillItem: r.item,
+        prefillAssignedTo: r.assignedTo,
+        prefillStatus: r.status,
+      ),
+    );
+  }
+
+  void _convertToSale(BuildContext context, Replacement r) {
+    final navVM = context.read<NavigationViewModel>();
+    navVM.setIndex(
+      NavigationViewModel.sales,
+      prefillData: {
+        'target': 'sales',
+        'customerName': r.name,
+        'customerNumber': r.mobileNo,
+        'itemName': 'Replacement item conversion: ${r.item} (${r.jobNo})',
+        'amount': 0.0,
+      },
+    );
+  }
+
+  void _enterInModule(BuildContext context, String target, Replacement r) {
+    final navVM = context.read<NavigationViewModel>();
+    int index = target == 'inward'
+        ? NavigationViewModel.inward
+        : (target == 'request'
+              ? NavigationViewModel.request
+              : NavigationViewModel.purchase);
+    navVM.setIndex(
+      index,
+      prefillData: {
+        'target': target,
+        'name': r.name,
+        'customerName': r.name,
+        'purchasedFrom': r.name,
+        'mobileNo': r.mobileNo,
+        'devices': r.item,
+        'item': 'Replacement job ${r.jobNo} - ${r.item}',
+      },
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppTheme.primaryLight, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================================
+// ADD/EDIT FORM DIALOG IMPLEMENTATION
+// ==========================================================
+class _ReplacementFormDialog extends StatefulWidget {
+  final Replacement? existingReplacement;
+  final String? prefillName;
+  final String? prefillMobile;
+  final String? prefillItem;
+  final String? prefillAssignedTo;
+  final String? prefillStatus;
+
+  const _ReplacementFormDialog({
+    this.existingReplacement,
+    this.prefillName,
+    this.prefillMobile,
+    this.prefillItem,
+    this.prefillAssignedTo,
+    this.prefillStatus,
+  });
+
+  @override
+  State<_ReplacementFormDialog> createState() => _ReplacementFormDialogState();
+}
+
+class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _mobileController;
+  late final TextEditingController _itemController;
+  late final TextEditingController _assignedToController;
+  late String _status;
+
+  DateTime? _depositDate;
+  DateTime? _receiveDate;
+  String? _photoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.existingReplacement;
+
+    _nameController = TextEditingController(
+      text: r?.name ?? widget.prefillName ?? '',
+    );
+    _mobileController = TextEditingController(
+      text: r?.mobileNo ?? widget.prefillMobile ?? '',
+    );
+    _itemController = TextEditingController(
+      text: r?.item ?? widget.prefillItem ?? '',
+    );
+    _assignedToController = TextEditingController(
+      text: r?.assignedTo ?? widget.prefillAssignedTo ?? '',
+    );
+    final replacementsStatuses = StatusManagementService.getStatuses(
+      'replacements',
+    );
+    _status =
+        r?.status ??
+        widget.prefillStatus ??
+        (replacementsStatuses.isNotEmpty
+            ? replacementsStatuses.first
+            : 'Pending');
+    _depositDate = r?.depositDate;
+    _receiveDate = r?.receiveDate;
+    _photoUrl = r?.photo;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _mobileController.dispose();
+    _itemController.dispose();
+    _assignedToController.dispose();
+    super.dispose();
+  }
+
+  void _saveForm() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final viewModel = context.read<ReplacementsViewModel>();
+    final String jobNo =
+        widget.existingReplacement?.jobNo ?? viewModel.getNextJobNo();
+    final DateTime date = widget.existingReplacement?.date ?? DateTime.now();
+
+    final r = Replacement(
+      jobNo: jobNo,
+      date: date,
+      name: _nameController.text.trim(),
+      mobileNo: _mobileController.text.trim().isEmpty
+          ? null
+          : _mobileController.text.trim(),
+      item: _itemController.text.trim(),
+      assignedTo: _assignedToController.text.trim().isEmpty
+          ? null
+          : _assignedToController.text.trim(),
+      depositDate: _depositDate,
+      receiveDate:
+          _status.toLowerCase().contains('complete') ||
+              _status.toLowerCase().contains('recieved')
+          ? (_receiveDate ?? DateTime.now())
+          : _receiveDate,
+      status: _status,
+      photo: _photoUrl,
+    );
+
+    await viewModel.saveReplacement(r);
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.existingReplacement == null
+                ? 'Replacement created successfully'
+                : 'Replacement updated successfully',
+          ),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isDeposit) async {
+    final initial = (isDeposit ? _depositDate : _receiveDate) ?? DateTime.now();
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppTheme.primary,
+              onPrimary: Colors.white,
+              surface: Color(0xFF131A2E),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        if (isDeposit) {
+          _depositDate = picked;
+        } else {
+          _receiveDate = picked;
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isEdit = widget.existingReplacement != null;
+    final bool isMobile = MediaQuery.of(context).size.width < 700;
+    final viewModel = context.watch<ReplacementsViewModel>();
+
+    final Widget formContent = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Job Number: ',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+              Text(
+                isEdit
+                    ? widget.existingReplacement!.jobNo
+                    : viewModel.getNextJobNo(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: 'Customer Name *'),
+            validator: (val) => val == null || val.trim().isEmpty
+                ? 'Please enter customer name'
+                : null,
+          ),
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: _mobileController,
+            decoration: const InputDecoration(
+              labelText: 'Mobile Number',
+              hintText: '10 digits',
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: _itemController,
+            decoration: const InputDecoration(
+              labelText: 'Replacement Item *',
+              hintText: 'e.g. Logitech G102, Crucial 8GB DDR4 RAM',
+            ),
+            validator: (val) => val == null || val.trim().isEmpty
+                ? 'Please enter replacement item name'
+                : null,
+          ),
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: _assignedToController,
+            decoration: const InputDecoration(
+              labelText: 'Assigned To / Technician',
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          PhotoAttachmentWidget(
+            initialPhotoUrl: _photoUrl,
+            label: 'Replacement Item Photo / Receipt (Google Drive Link)',
+            onPhotoChanged: (url) {
+              _photoUrl = url;
+            },
+          ),
+          const SizedBox(height: 12),
+
+          DropdownButtonFormField<String>(
+            initialValue: _status,
+            decoration: const InputDecoration(labelText: 'Replacement Status'),
+            dropdownColor: const Color(0xFF131A2E),
+            items:
+                (() {
+                  final list = StatusManagementService.getStatuses(
+                    'replacements',
+                  );
+                  if (!list.contains(_status)) {
+                    list.add(_status);
+                  }
+                  return list;
+                })().map((st) {
+                  return DropdownMenuItem(value: st, child: Text(st));
+                }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _status = val;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Deposit Date Picker
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _depositDate == null
+                      ? 'Deposit Date: Not set'
+                      : 'Deposit Date: ${DateFormat('dd/MM/yyyy').format(_depositDate!)}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () => _selectDate(context, true),
+                child: const Text('Set Deposit'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Receive Date Picker
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _receiveDate == null
+                      ? 'Receive Date: Not set'
+                      : 'Receive Date: ${DateFormat('dd/MM/yyyy').format(_receiveDate!)}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              OutlinedButton(
+                onPressed: () => _selectDate(context, false),
+                child: const Text('Set Receive'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (isMobile) {
+      return Dialog.fullscreen(
+        backgroundColor: const Color(0xFF0F1322),
+        child: Scaffold(
+          backgroundColor: const Color(0xFF0F1322),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF131A2E),
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.close_rounded,
+                color: AppTheme.textPrimary,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              isEdit
+                  ? 'Edit Replacement #${widget.existingReplacement?.jobNo}'
+                  : 'Add New Replacement Job',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: _saveForm,
+                child: const Text(
+                  'Save Job',
+                  style: TextStyle(
+                    color: AppTheme.primaryLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: formContent,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF131A2E),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      title: Text(
+        isEdit
+            ? 'Edit Replacement #${widget.existingReplacement?.jobNo}'
+            : 'Add New Replacement Job',
+        style: const TextStyle(color: AppTheme.textPrimary),
+      ),
+      content: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        width: MediaQuery.of(context).size.width * 0.9,
+        child: SingleChildScrollView(child: formContent),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Cancel',
+            style: TextStyle(color: AppTheme.textSecondary),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: _saveForm,
+          child: const Text('Save Replacement'),
+        ),
+      ],
+    );
+  }
+}
