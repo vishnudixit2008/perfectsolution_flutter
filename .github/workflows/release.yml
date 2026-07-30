@@ -82,7 +82,7 @@ jobs:
           $issContent = @"
           [Setup]
           AppName=Perfect Solution
-          AppVersion=0.9.5
+          AppVersion=0.9.9
           DefaultDirName={autopf}\Perfect Solution
           DefaultGroupName=Perfect Solution
           UninstallDisplayIcon={app}\"Perfect Solution.exe"
