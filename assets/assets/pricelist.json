@@ -1,0 +1,4115 @@
+[
+  {
+    "id": 1,
+    "item_name": "ADAPTOR INTERNATIONAL",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 8,
+    "opening_stock": 8,
+    "category": "ADAPTOR"
+  },
+  {
+    "id": 2,
+    "item_name": "ADAPTOR ASUS",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "ADAPTOR ASUS"
+  },
+  {
+    "id": 4,
+    "item_name": "Adaptor Dell 45W",
+    "item_description": null,
+    "price": 1250.0,
+    "stock_qty": 5,
+    "opening_stock": 2,
+    "category": "ADAPTOR DELL"
+  },
+  {
+    "id": 5,
+    "item_name": "Adaptor Dell 65W",
+    "item_description": null,
+    "price": 1250.0,
+    "stock_qty": 10,
+    "opening_stock": 9,
+    "category": "ADAPTOR DELL"
+  },
+  {
+    "id": 6,
+    "item_name": "Adaptor Dell C TYPE",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "ADAPTOR DELL"
+  },
+  {
+    "id": 7,
+    "item_name": "ADAPTOR 65W HP",
+    "item_description": null,
+    "price": 1250.0,
+    "stock_qty": 15,
+    "opening_stock": 21,
+    "category": "ADAPTOR HP"
+  },
+  {
+    "id": 8,
+    "item_name": "ADAPTOR HP C TYPE",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 5,
+    "opening_stock": 1,
+    "category": "ADAPTOR HP"
+  },
+  {
+    "id": 9,
+    "item_name": "LENOVO ADAPTOR C TYPE",
+    "item_description": null,
+    "price": 1750.0,
+    "stock_qty": 4,
+    "opening_stock": 2,
+    "category": "ADAPTOR LENOVO"
+  },
+  {
+    "id": 10,
+    "item_name": "LENOVO ADAPTOR NEW PIN 45W",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 4,
+    "opening_stock": 4,
+    "category": "ADAPTOR LENOVO"
+  },
+  {
+    "id": 11,
+    "item_name": "LENOVO ADAPTOR NEW PIN 65W",
+    "item_description": null,
+    "price": 1650.0,
+    "stock_qty": 1,
+    "opening_stock": 4,
+    "category": "ADAPTOR LENOVO"
+  },
+  {
+    "id": 12,
+    "item_name": "LENOVO ADAPTOR USB",
+    "item_description": null,
+    "price": 1400.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "ADAPTOR LENOVO"
+  },
+  {
+    "id": 13,
+    "item_name": "adaptor 150w  USB",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "ADAPTOR TECHIE"
+  },
+  {
+    "id": 14,
+    "item_name": "adaptor 120W TECHIE",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "ADAPTOR TECHIE"
+  },
+  {
+    "id": 15,
+    "item_name": "ADAPTOR APPLE",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 0,
+    "opening_stock": 3,
+    "category": "ADAPTOR TECHIE"
+  },
+  {
+    "id": 16,
+    "item_name": "ADAPTOR C TYPE",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "ADAPTOR TECHIE"
+  },
+  {
+    "id": 17,
+    "item_name": "ADAPTOR LAPTOP",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 66,
+    "opening_stock": 61,
+    "category": "ADAPTOR TECHIE"
+  },
+  {
+    "id": 18,
+    "item_name": "Bag",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 7,
+    "opening_stock": 12,
+    "category": "BAG"
+  },
+  {
+    "id": 19,
+    "item_name": "BAG HEAVY",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "BAG"
+  },
+  {
+    "id": 20,
+    "item_name": "BARCODE SCANNER TECHIE",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "BARCODE"
+  },
+  {
+    "id": 400,
+    "item_name": "BARCODE SCANNER WIRELESS TECHIE",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "BARCODE"
+  },
+  {
+    "id": 21,
+    "item_name": "Blue Tooth TPLINK 5.0",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "BLUETOOTH"
+  },
+  {
+    "id": 22,
+    "item_name": "Bluetooth",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 5,
+    "category": "BLUETOOTH"
+  },
+  {
+    "id": 23,
+    "item_name": "Audio Cable",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 7,
+    "opening_stock": 5,
+    "category": "Cable"
+  },
+  {
+    "id": 24,
+    "item_name": "DISPLAY CABLE",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "Cable"
+  },
+  {
+    "id": 25,
+    "item_name": "HDMI TO VGA CABLE TECHIE",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "Cable"
+  },
+  {
+    "id": 26,
+    "item_name": "DP TO VGA CABLE TECHIE",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "Cable"
+  },
+  {
+    "id": 27,
+    "item_name": "DP TO HDMI CABLE TECHIE",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "Cable"
+  },
+  {
+    "id": 28,
+    "item_name": "CABNET",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 6,
+    "opening_stock": 5,
+    "category": "CABNET"
+  },
+  {
+    "id": 29,
+    "item_name": "SMPS",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": -1,
+    "opening_stock": 4,
+    "category": "CABNET"
+  },
+  {
+    "id": 30,
+    "item_name": "Screw Driver laptop",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 3,
+    "opening_stock": 5,
+    "category": "CARD"
+  },
+  {
+    "id": 31,
+    "item_name": "USB SOUND CARD",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "CARD"
+  },
+  {
+    "id": 32,
+    "item_name": "GRAPHICS CARD 2 GB CONSISTENT",
+    "item_description": null,
+    "price": 4000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 33,
+    "item_name": "LAN CARD",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 34,
+    "item_name": "LPT CARD",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 35,
+    "item_name": "PCI EXP. TO USB CARD 4 PORT",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 36,
+    "item_name": "SOUND CARDD",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 37,
+    "item_name": "THARMAMETER",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 38,
+    "item_name": "PCI EXPRESS TO LAN",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARD PCI"
+  },
+  {
+    "id": 39,
+    "item_name": "CANON 47",
+    "item_description": null,
+    "price": 795.0,
+    "stock_qty": 3,
+    "opening_stock": 2,
+    "category": "CARTRIDGE CANON"
+  },
+  {
+    "id": 40,
+    "item_name": "CANON 57S",
+    "item_description": null,
+    "price": 990.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARTRIDGE CANON"
+  },
+  {
+    "id": 41,
+    "item_name": "CANON 745",
+    "item_description": null,
+    "price": 795.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "CARTRIDGE CANON"
+  },
+  {
+    "id": 42,
+    "item_name": "CANON 746",
+    "item_description": null,
+    "price": 1065.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARTRIDGE CANON"
+  },
+  {
+    "id": 43,
+    "item_name": "678 CARTRIDGE BLACK",
+    "item_description": null,
+    "price": 965.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 44,
+    "item_name": "678 CARTRIDGE COLOR",
+    "item_description": null,
+    "price": 965.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 45,
+    "item_name": "680 BLACK",
+    "item_description": null,
+    "price": 904.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 46,
+    "item_name": "680 COLOUR",
+    "item_description": null,
+    "price": 904.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 47,
+    "item_name": "682 Black Cartridge",
+    "item_description": null,
+    "price": 950.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 48,
+    "item_name": "682 Color Cartidge",
+    "item_description": null,
+    "price": 950.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 49,
+    "item_name": "803 Black",
+    "item_description": null,
+    "price": 989.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 50,
+    "item_name": "803 Color",
+    "item_description": null,
+    "price": 1482.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 51,
+    "item_name": "805 Black Cartridge",
+    "item_description": null,
+    "price": 829.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 52,
+    "item_name": "805 Color Cartridge",
+    "item_description": null,
+    "price": 837.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 53,
+    "item_name": "HP 103AD TONER",
+    "item_description": null,
+    "price": 1941.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 54,
+    "item_name": "HP 158X TONER",
+    "item_description": null,
+    "price": 1908.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 55,
+    "item_name": "HP 46 BLACK",
+    "item_description": null,
+    "price": 989.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 56,
+    "item_name": "HP 46 COLOR",
+    "item_description": null,
+    "price": 994.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 57,
+    "item_name": "HP 82 CYAN",
+    "item_description": null,
+    "price": 1955.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 58,
+    "item_name": "Hp Cartridge 862 Yellow",
+    "item_description": null,
+    "price": 798.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 59,
+    "item_name": "CADY",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 14,
+    "opening_stock": 12,
+    "category": "CASING"
+  },
+  {
+    "id": 60,
+    "item_name": "HDD CASING 2.0",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 12,
+    "opening_stock": 8,
+    "category": "CASING"
+  },
+  {
+    "id": 61,
+    "item_name": "HDD CASING 3.0",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 11,
+    "opening_stock": 12,
+    "category": "CASING"
+  },
+  {
+    "id": 62,
+    "item_name": "HDD CASING DESKTOP",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 3,
+    "opening_stock": 1,
+    "category": "CASING"
+  },
+  {
+    "id": 63,
+    "item_name": "HDD CASING NVME",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 5,
+    "opening_stock": 4,
+    "category": "CASING"
+  },
+  {
+    "id": 64,
+    "item_name": "CAT6 100 MTR DLINK",
+    "item_description": null,
+    "price": 4000.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "CAT CABLE"
+  },
+  {
+    "id": 65,
+    "item_name": "CAT6 305 MTR ADNET",
+    "item_description": null,
+    "price": 9000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CAT CABLE"
+  },
+  {
+    "id": 67,
+    "item_name": "CCTV CABLE 90 Mtr",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CCTV"
+  },
+  {
+    "id": 68,
+    "item_name": "CP PLUS WIRELESS CAMERA 3MP",
+    "item_description": null,
+    "price": 2200.0,
+    "stock_qty": 0,
+    "opening_stock": 4,
+    "category": "CCTV"
+  },
+  {
+    "id": 69,
+    "item_name": "SMPS 4 CH. ERD",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CCTV"
+  },
+  {
+    "id": 70,
+    "item_name": "SMPS 8 CH. ERD",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CCTV"
+  },
+  {
+    "id": 71,
+    "item_name": "CCTV BALOON",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CCTV"
+  },
+  {
+    "id": 72,
+    "item_name": "HDMI SPLITER 1 to 4",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "CONVERTER"
+  },
+  {
+    "id": 73,
+    "item_name": "HDMI SWITCH 3 TO 1",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "CONVERTER"
+  },
+  {
+    "id": 74,
+    "item_name": "MAC SSD CONVERTOR",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CONVERTER"
+  },
+  {
+    "id": 75,
+    "item_name": "VGA SHARER",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "CONVERTER"
+  },
+  {
+    "id": 76,
+    "item_name": "ADNET C TO HDMI",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "CONVERTER ADNET"
+  },
+  {
+    "id": 77,
+    "item_name": "ADNET DP TO VGA",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 6,
+    "opening_stock": 5,
+    "category": "CONVERTER ADNET"
+  },
+  {
+    "id": 78,
+    "item_name": "ADNET DVI TO VGA",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CONVERTER ADNET"
+  },
+  {
+    "id": 79,
+    "item_name": "ADNET HDMI TO VGA",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 4,
+    "opening_stock": 5,
+    "category": "CONVERTER ADNET"
+  },
+  {
+    "id": 80,
+    "item_name": "ADNET USB TO HDMI",
+    "item_description": null,
+    "price": 550.0,
+    "stock_qty": 5,
+    "opening_stock": 6,
+    "category": "CONVERTER ADNET"
+  },
+  {
+    "id": 81,
+    "item_name": "RAVTRON DOC C TO USB & HDMI & VGA",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CONVERTER RAVTRON"
+  },
+  {
+    "id": 82,
+    "item_name": "RAVTRON DP TO VGA",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CONVERTER RAVTRON"
+  },
+  {
+    "id": 83,
+    "item_name": "RAVTRON HDMI TO VGA",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "CONVERTER RAVTRON"
+  },
+  {
+    "id": 84,
+    "item_name": "TECHI C TO LAN 100 MBPS",
+    "item_description": null,
+    "price": 550.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 85,
+    "item_name": "TECHIE DOC C TO USB & HDMI & C",
+    "item_description": null,
+    "price": 1250.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 86,
+    "item_name": "TECHIE DP TO HDMI",
+    "item_description": null,
+    "price": 550.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 87,
+    "item_name": "TECHIE HDMI TO VGA",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 5,
+    "opening_stock": 2,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 88,
+    "item_name": "TECHIE MINI DP TO HDMI",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 89,
+    "item_name": "TECHIE MINI DP TO VGA",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 5,
+    "opening_stock": 2,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 90,
+    "item_name": "TECHIE VGA TO HDMI",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 407,
+    "item_name": "C TO HDMI TECHI",
+    "item_description": null,
+    "price": 550.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CONVERTER TECHIE"
+  },
+  {
+    "id": 91,
+    "item_name": "Cooling Pad",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 3,
+    "opening_stock": 4,
+    "category": "COOLING PAD"
+  },
+  {
+    "id": 92,
+    "item_name": "LAPTOP STAND",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "COOLING PAD"
+  },
+  {
+    "id": 93,
+    "item_name": "CPU I3 4TH GEN",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "CPU"
+  },
+  {
+    "id": 94,
+    "item_name": "CPU I3 7TH GEN",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "CPU"
+  },
+  {
+    "id": 95,
+    "item_name": "CPU I5 3RD GEN.",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 4,
+    "opening_stock": 2,
+    "category": "CPU"
+  },
+  {
+    "id": 96,
+    "item_name": "CPU I7 7TH GEN.",
+    "item_description": null,
+    "price": 8000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "CPU"
+  },
+  {
+    "id": 97,
+    "item_name": "CPU PENTIUM 2ND GEN",
+    "item_description": null,
+    "price": 1500.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "CPU"
+  },
+  {
+    "id": 98,
+    "item_name": "ADNET DVI CABLE",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "DVI CABLE"
+  },
+  {
+    "id": 99,
+    "item_name": "ADAPTOR CONNECTOR",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 100,
+    "item_name": "AUDIO CONNECTOR 1 TO 2",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 101,
+    "item_name": "black ink",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 102,
+    "item_name": "BNC CONNECTOR",
+    "item_description": null,
+    "price": 40.0,
+    "stock_qty": -9,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 103,
+    "item_name": "C TO AUDIO",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 104,
+    "item_name": "CARD HOLDER",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 105,
+    "item_name": "CAT 6 ADNET per mtr",
+    "item_description": null,
+    "price": 30.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 106,
+    "item_name": "CAT 6 DLINK per mtr",
+    "item_description": null,
+    "price": 40.0,
+    "stock_qty": -19,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 107,
+    "item_name": "CMOS 2 / 3 PIN",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 108,
+    "item_name": "CMOS BATTERY",
+    "item_description": null,
+    "price": 50.0,
+    "stock_qty": -5,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 109,
+    "item_name": "color ink",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 110,
+    "item_name": "cooling paste",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 111,
+    "item_name": "DC CONNECTOR",
+    "item_description": null,
+    "price": 40.0,
+    "stock_qty": -5,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 112,
+    "item_name": "desktop switch",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 113,
+    "item_name": "DVD WRITER CABLE",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "EXTRA"
+  },
+  {
+    "id": 114,
+    "item_name": "HDMI JOINTER",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 115,
+    "item_name": "hdmi male to female",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 116,
+    "item_name": "JOINTER BLACK SINGLE",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 117,
+    "item_name": "JOINTER DUAL",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 118,
+    "item_name": "JOINTER SINGLE",
+    "item_description": null,
+    "price": 50.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 119,
+    "item_name": "KEY GUARD",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 120,
+    "item_name": "LAN TESTER BATTERY",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 121,
+    "item_name": "LCD CLEANER",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 122,
+    "item_name": "mouse pad normal",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": -8,
+    "opening_stock": -4,
+    "category": "EXTRA"
+  },
+  {
+    "id": 123,
+    "item_name": "OGT C TO USB",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 124,
+    "item_name": "OTG USB TO C",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 125,
+    "item_name": "Power Cable Dektop",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": -11,
+    "opening_stock": -1,
+    "category": "EXTRA"
+  },
+  {
+    "id": 126,
+    "item_name": "Power Cable LAPTOP",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": -39,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 128,
+    "item_name": "SATA CONVERTOR 1 TO 2",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 129,
+    "item_name": "WIRE 3+1",
+    "item_description": null,
+    "price": 15.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 402,
+    "item_name": "Test 1",
+    "item_description": "XYZ",
+    "price": 0.0,
+    "stock_qty": 9,
+    "opening_stock": 10,
+    "category": "EXTRA"
+  },
+  {
+    "id": 130,
+    "item_name": "CPU FAN INTEL",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 14,
+    "opening_stock": 7,
+    "category": "FAN"
+  },
+  {
+    "id": 131,
+    "item_name": "CPU FAN ORGINAL",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "FAN"
+  },
+  {
+    "id": 404,
+    "item_name": "HARD DISK 2 TB ELEMENT",
+    "item_description": null,
+    "price": 9600.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "HARD DISK USB"
+  },
+  {
+    "id": 132,
+    "item_name": "Hdmi Cable 1.5 mtr",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 6,
+    "opening_stock": 6,
+    "category": "HDMI Cable"
+  },
+  {
+    "id": 133,
+    "item_name": "Hdmi Cable 10 mtr",
+    "item_description": null,
+    "price": 700.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "HDMI Cable"
+  },
+  {
+    "id": 134,
+    "item_name": "Hdmi Cable 3 mtr",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 5,
+    "opening_stock": 5,
+    "category": "HDMI Cable"
+  },
+  {
+    "id": 135,
+    "item_name": "Hdmi Cable 5 mtr",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "HDMI Cable"
+  },
+  {
+    "id": 136,
+    "item_name": "HDMI TO MINI HDMI CABLE",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "HDMI Cable"
+  },
+  {
+    "id": 137,
+    "item_name": "HDMI CABLE 1.8 MTR. RAVTORN 4K",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "HDMI Cable RAVTRON"
+  },
+  {
+    "id": 138,
+    "item_name": "HDMI CABLE 3 MTR. RAVTORN 4K",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "HDMI Cable RAVTRON"
+  },
+  {
+    "id": 139,
+    "item_name": "HDMI CABLE 5 MTR. RAVTORN 4K",
+    "item_description": null,
+    "price": 700.0,
+    "stock_qty": 1,
+    "opening_stock": 4,
+    "category": "HDMI Cable RAVTRON"
+  },
+  {
+    "id": 140,
+    "item_name": "Canon BH-7 HEAD BLACK",
+    "item_description": null,
+    "price": 1380.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "HEAD CANON"
+  },
+  {
+    "id": 141,
+    "item_name": "CANON CH 7 HEAD COLOR",
+    "item_description": null,
+    "price": 1380.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "HEAD CANON"
+  },
+  {
+    "id": 142,
+    "item_name": "HEAD HP 75AA",
+    "item_description": null,
+    "price": 1499.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "HEAD HP"
+  },
+  {
+    "id": 143,
+    "item_name": "Head Hp Gt50 Color",
+    "item_description": null,
+    "price": 1650.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "HEAD HP"
+  },
+  {
+    "id": 144,
+    "item_name": "Head Hp Gt51 Black",
+    "item_description": null,
+    "price": 1500.0,
+    "stock_qty": 5,
+    "opening_stock": 3,
+    "category": "HEAD HP"
+  },
+  {
+    "id": 145,
+    "item_name": "HEAD PHONE WITH MICE HP AUX",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "HEAD PHONE"
+  },
+  {
+    "id": 146,
+    "item_name": "LOGITECH HEADPHONE WITH MIC H340",
+    "item_description": null,
+    "price": 2700.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "HEAD PHONE"
+  },
+  {
+    "id": 147,
+    "item_name": "USB HEADPHONE QUANTRON",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "HEAD PHONE"
+  },
+  {
+    "id": 148,
+    "item_name": "USB HP HEADPHONE",
+    "item_description": null,
+    "price": 1600.0,
+    "stock_qty": 2,
+    "opening_stock": 5,
+    "category": "HEAD PHONE"
+  },
+  {
+    "id": 409,
+    "item_name": "LENOVO H110 HEADPHONE GAMING",
+    "item_description": null,
+    "price": 2200.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "HEAD PHONE"
+  },
+  {
+    "id": 149,
+    "item_name": "BROTHER INK BLACK",
+    "item_description": null,
+    "price": 755.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "INK BROTHER"
+  },
+  {
+    "id": 150,
+    "item_name": "BROTHER INK COLOR",
+    "item_description": null,
+    "price": 490.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "INK BROTHER"
+  },
+  {
+    "id": 151,
+    "item_name": "CANON INK BOTTLE BLACK",
+    "item_description": null,
+    "price": 595.0,
+    "stock_qty": 7,
+    "opening_stock": 4,
+    "category": "INK CANON"
+  },
+  {
+    "id": 152,
+    "item_name": "CANON INK BOTTLE COLOR",
+    "item_description": null,
+    "price": 595.0,
+    "stock_qty": 6,
+    "opening_stock": 10,
+    "category": "INK CANON"
+  },
+  {
+    "id": 406,
+    "item_name": "CANON INK 70 BLACK",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "INK CANON"
+  },
+  {
+    "id": 153,
+    "item_name": "EPSON INK 001 BLACK",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 154,
+    "item_name": "EPSON INK 001 COLOR",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": 4,
+    "opening_stock": 4,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 155,
+    "item_name": "EPSON INK 003 BLACK",
+    "item_description": null,
+    "price": 404.0,
+    "stock_qty": 5,
+    "opening_stock": 4,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 156,
+    "item_name": "EPSON INK 003 COLOR",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 11,
+    "opening_stock": 3,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 157,
+    "item_name": "EPSON INK 664 BLACK",
+    "item_description": null,
+    "price": 404.0,
+    "stock_qty": 4,
+    "opening_stock": 0,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 158,
+    "item_name": "EPSON INK 664 COLOR",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 6,
+    "opening_stock": 3,
+    "category": "INK EPSON"
+  },
+  {
+    "id": 160,
+    "item_name": "Hp Ink BLACK GT53 XL",
+    "item_description": null,
+    "price": 861.0,
+    "stock_qty": 5,
+    "opening_stock": 4,
+    "category": "INK HP"
+  },
+  {
+    "id": 161,
+    "item_name": "Hp Ink COLOR GT52",
+    "item_description": null,
+    "price": 783.0,
+    "stock_qty": 14,
+    "opening_stock": 6,
+    "category": "INK HP"
+  },
+  {
+    "id": 162,
+    "item_name": "KeyBoard  DELL",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 19,
+    "opening_stock": 12,
+    "category": "KEYBOARD DELL"
+  },
+  {
+    "id": 163,
+    "item_name": "Wireless Keyboard Mouse DELL",
+    "item_description": null,
+    "price": 1750.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "KEYBOARD DELL"
+  },
+  {
+    "id": 164,
+    "item_name": "KeyBoard HP",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 8,
+    "opening_stock": 13,
+    "category": "KEYBOARD HP"
+  },
+  {
+    "id": 165,
+    "item_name": "KEYBOARD MOUSE COMBO WIRE HP",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 5,
+    "opening_stock": 9,
+    "category": "KEYBOARD HP"
+  },
+  {
+    "id": 166,
+    "item_name": "Wireless Keyboard Mouse HP",
+    "item_description": null,
+    "price": 1550.0,
+    "stock_qty": 2,
+    "opening_stock": 6,
+    "category": "KEYBOARD HP"
+  },
+  {
+    "id": 167,
+    "item_name": "WIRELESS KEYBOARD MOUSE HP COMBO WHITE",
+    "item_description": null,
+    "price": 2700.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "KEYBOARD HP"
+  },
+  {
+    "id": 168,
+    "item_name": "Keyboard  IVOOMI",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 5,
+    "opening_stock": 8,
+    "category": "KEYBOARD IVOOMI"
+  },
+  {
+    "id": 169,
+    "item_name": "wireless + BT keyboard mouse combo ivoomi small",
+    "item_description": null,
+    "price": 1100.0,
+    "stock_qty": 3,
+    "opening_stock": 5,
+    "category": "KEYBOARD IVOOMI"
+  },
+  {
+    "id": 170,
+    "item_name": "WIRELESS KEYBOARD MOUSE COMBO IVOOMI",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "KEYBOARD IVOOMI"
+  },
+  {
+    "id": 171,
+    "item_name": "Key Board LOGITECH",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "KEYBOARD LOGITECH"
+  },
+  {
+    "id": 172,
+    "item_name": "Wireless Keyboard Mouse LOGITECH",
+    "item_description": null,
+    "price": 1825.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "KEYBOARD LOGITECH"
+  },
+  {
+    "id": 403,
+    "item_name": "KEYBOARD PRODOT",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 8,
+    "opening_stock": 0,
+    "category": "KEYBOARD PRODOT"
+  },
+  {
+    "id": 173,
+    "item_name": "KEYBOARD TVS GOLD",
+    "item_description": null,
+    "price": 2800.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "KEYBOARD TVS"
+  },
+  {
+    "id": 174,
+    "item_name": "DELL BATTERY WDXOR",
+    "item_description": null,
+    "price": 3500.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "LAPTOP BATTERY ORGINAL"
+  },
+  {
+    "id": 175,
+    "item_name": "DELL BATTERY YRDD6",
+    "item_description": null,
+    "price": 3500.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "LAPTOP BATTERY ORGINAL"
+  },
+  {
+    "id": 176,
+    "item_name": "DC JACK",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 66,
+    "opening_stock": 103,
+    "category": "laptop parts"
+  },
+  {
+    "id": 177,
+    "item_name": "LAPTOP BATTERY",
+    "item_description": null,
+    "price": 1500.0,
+    "stock_qty": 20,
+    "opening_stock": 14,
+    "category": "laptop parts"
+  },
+  {
+    "id": 178,
+    "item_name": "LAPTOP FAN",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 55,
+    "opening_stock": 37,
+    "category": "laptop parts"
+  },
+  {
+    "id": 179,
+    "item_name": "LAPTOP KEYBOARD",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 20,
+    "opening_stock": 11,
+    "category": "laptop parts"
+  },
+  {
+    "id": 180,
+    "item_name": "PANNAL",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "laptop parts"
+  },
+  {
+    "id": 181,
+    "item_name": "SCREEN GUARD",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 16,
+    "opening_stock": 17,
+    "category": "laptop parts"
+  },
+  {
+    "id": 182,
+    "item_name": "TOUCH PANNAL",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "laptop parts"
+  },
+  {
+    "id": 183,
+    "item_name": "DISPLAY CABLE (LAPTOP)",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 23,
+    "opening_stock": 7,
+    "category": "laptop parts"
+  },
+  {
+    "id": 185,
+    "item_name": "128 GB MEMORY CARD",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "MEMORY"
+  },
+  {
+    "id": 186,
+    "item_name": "32 GB MEMORY CARD",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "MEMORY"
+  },
+  {
+    "id": 187,
+    "item_name": "64 GB MEMORY CARD",
+    "item_description": null,
+    "price": 1300.0,
+    "stock_qty": 1,
+    "opening_stock": 3,
+    "category": "MEMORY"
+  },
+  {
+    "id": 188,
+    "item_name": "CARD READER",
+    "item_description": null,
+    "price": 120.0,
+    "stock_qty": 10,
+    "opening_stock": 8,
+    "category": "MEMORY"
+  },
+  {
+    "id": 189,
+    "item_name": "C TO AUDIO BOX",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "Mobile"
+  },
+  {
+    "id": 191,
+    "item_name": "mobile stand",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 4,
+    "opening_stock": 3,
+    "category": "Mobile"
+  },
+  {
+    "id": 192,
+    "item_name": "mobile adaptor 15w",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "Mobile ADAPTOR"
+  },
+  {
+    "id": 193,
+    "item_name": "mobile adaptor 25W",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "Mobile ADAPTOR"
+  },
+  {
+    "id": 194,
+    "item_name": "mobile adaptor 33w",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "Mobile ADAPTOR"
+  },
+  {
+    "id": 196,
+    "item_name": "DATA CABLE APPLE",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 10,
+    "opening_stock": 11,
+    "category": "Mobile CABLE"
+  },
+  {
+    "id": 197,
+    "item_name": "DATA CABLE C TYPE",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": -1,
+    "opening_stock": 10,
+    "category": "Mobile CABLE"
+  },
+  {
+    "id": 198,
+    "item_name": "data cable c type to c type",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 0,
+    "opening_stock": 3,
+    "category": "Mobile CABLE"
+  },
+  {
+    "id": 199,
+    "item_name": "DATA CABLE V8",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 6,
+    "opening_stock": 7,
+    "category": "Mobile CABLE"
+  },
+  {
+    "id": 200,
+    "item_name": "earphone C TYPE",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "Mobile EARPHONE"
+  },
+  {
+    "id": 201,
+    "item_name": "earphone iphone",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "Mobile EARPHONE"
+  },
+  {
+    "id": 202,
+    "item_name": "earphone pourch",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 7,
+    "opening_stock": 11,
+    "category": "Mobile EARPHONE"
+  },
+  {
+    "id": 203,
+    "item_name": "HP EARBUDS",
+    "item_description": null,
+    "price": 1050.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "Mobile EARPHONE"
+  },
+  {
+    "id": 204,
+    "item_name": "LED 19\" IVOOMI",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "MONITOR"
+  },
+  {
+    "id": 205,
+    "item_name": "LED 19\" LG HDMI",
+    "item_description": null,
+    "price": 5700.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "MONITOR"
+  },
+  {
+    "id": 206,
+    "item_name": "LED LG 22\"",
+    "item_description": null,
+    "price": 6300.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "MONITOR"
+  },
+  {
+    "id": 207,
+    "item_name": "MOTHER BOARD H110",
+    "item_description": null,
+    "price": 4600.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "MOTHER BOARD"
+  },
+  {
+    "id": 208,
+    "item_name": "MOTHER BOARD H61",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 5,
+    "opening_stock": 2,
+    "category": "MOTHER BOARD"
+  },
+  {
+    "id": 209,
+    "item_name": "MOTHER BOARD H81",
+    "item_description": null,
+    "price": 2800.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "MOTHER BOARD"
+  },
+  {
+    "id": 210,
+    "item_name": "USB MOUSE DELL",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 38,
+    "opening_stock": 25,
+    "category": "MOUSE DELL"
+  },
+  {
+    "id": 211,
+    "item_name": "Wireless Mouse DELL",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 16,
+    "opening_stock": 11,
+    "category": "MOUSE DELL"
+  },
+  {
+    "id": 212,
+    "item_name": "USB MOUSE HP",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 29,
+    "opening_stock": 70,
+    "category": "MOUSE HP"
+  },
+  {
+    "id": 213,
+    "item_name": "Wireless Mouse HP",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 15,
+    "opening_stock": 19,
+    "category": "MOUSE HP"
+  },
+  {
+    "id": 401,
+    "item_name": "BLUETOOTH MOUSE HP",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 0,
+    "opening_stock": 5,
+    "category": "MOUSE HP"
+  },
+  {
+    "id": 214,
+    "item_name": "INTEX BLUETOOTH MOUSE FLOW",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 2,
+    "opening_stock": 5,
+    "category": "MOUSE INTEX"
+  },
+  {
+    "id": 215,
+    "item_name": "MOUSE WIRELESS IVOOMI",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 11,
+    "opening_stock": 13,
+    "category": "MOUSE IVOOMI"
+  },
+  {
+    "id": 216,
+    "item_name": "MOUSE IVOOMI",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 20,
+    "opening_stock": 6,
+    "category": "MOUSE IVOOMI"
+  },
+  {
+    "id": 217,
+    "item_name": "MOUSE USB LOGITECH",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 0,
+    "opening_stock": 5,
+    "category": "MOUSE LOGITECH"
+  },
+  {
+    "id": 218,
+    "item_name": "Wireless Mouse LOGITECH",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 0,
+    "opening_stock": 5,
+    "category": "MOUSE LOGITECH"
+  },
+  {
+    "id": 219,
+    "item_name": "mouse pad with wrist support",
+    "item_description": null,
+    "price": 180.0,
+    "stock_qty": 3,
+    "opening_stock": 5,
+    "category": "MOUSE PAD"
+  },
+  {
+    "id": 220,
+    "item_name": "Mouse Pade big size",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "MOUSE PAD"
+  },
+  {
+    "id": 221,
+    "item_name": "Mouse Pade big size with light",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "MOUSE PAD"
+  },
+  {
+    "id": 222,
+    "item_name": "face plate",
+    "item_description": null,
+    "price": 80.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 223,
+    "item_name": "gagbox",
+    "item_description": null,
+    "price": 25.0,
+    "stock_qty": 6,
+    "opening_stock": 6,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 224,
+    "item_name": "io dlink",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 4,
+    "opening_stock": 10,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 225,
+    "item_name": "RJ 11 CONNECTOR",
+    "item_description": null,
+    "price": 15.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 226,
+    "item_name": "Rj 45 Connector Dlink",
+    "item_description": null,
+    "price": 590.0,
+    "stock_qty": 6,
+    "opening_stock": 2,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 227,
+    "item_name": "ROUTER AC 1200 TPLINK 5G",
+    "item_description": null,
+    "price": 2780.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 228,
+    "item_name": "TP LINK RANGE EXTENDER 5G",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "NETWORKING"
+  },
+  {
+    "id": 229,
+    "item_name": "Climping tool",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 6,
+    "opening_stock": 8,
+    "category": "NETWORKING TOOL"
+  },
+  {
+    "id": 230,
+    "item_name": "Climping tool  dlink",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "NETWORKING TOOL"
+  },
+  {
+    "id": 231,
+    "item_name": "LAN TESTER",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "NETWORKING TOOL"
+  },
+  {
+    "id": 232,
+    "item_name": "punching tool",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 6,
+    "opening_stock": 6,
+    "category": "NETWORKING TOOL"
+  },
+  {
+    "id": 233,
+    "item_name": "optical cable 1.5 mtr",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "OPTICAL CABLE"
+  },
+  {
+    "id": 234,
+    "item_name": "Paper ream",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 12,
+    "opening_stock": 3,
+    "category": "PAPER"
+  },
+  {
+    "id": 235,
+    "item_name": "PATCH CABLE 1 MTR",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 54,
+    "opening_stock": 2,
+    "category": "patch cable"
+  },
+  {
+    "id": 236,
+    "item_name": "Patch Cable 1 Mtr Dlink",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 7,
+    "opening_stock": 10,
+    "category": "patch cable"
+  },
+  {
+    "id": 237,
+    "item_name": "Patch Cable 2 Mtr Dlink",
+    "item_description": null,
+    "price": 180.0,
+    "stock_qty": 12,
+    "opening_stock": 5,
+    "category": "patch cable"
+  },
+  {
+    "id": 238,
+    "item_name": "PATCH CABLE 3 MTR DLINK",
+    "item_description": null,
+    "price": 230.0,
+    "stock_qty": 6,
+    "opening_stock": 7,
+    "category": "patch cable"
+  },
+  {
+    "id": 239,
+    "item_name": "PATCH CABLE 5 MTR DLINK",
+    "item_description": null,
+    "price": 320.0,
+    "stock_qty": 11,
+    "opening_stock": 2,
+    "category": "patch cable"
+  },
+  {
+    "id": 240,
+    "item_name": "PEN DRIVE 128 GB IVOOMI",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 6,
+    "opening_stock": 10,
+    "category": "PEN DRIVE 128 GB"
+  },
+  {
+    "id": 241,
+    "item_name": "PEN DRIVE 128 GB SANDISK",
+    "item_description": null,
+    "price": 1350.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "PEN DRIVE 128 GB"
+  },
+  {
+    "id": 242,
+    "item_name": "Pen Drive 16 Gb SIMMTRONICS",
+    "item_description": null,
+    "price": 550.0,
+    "stock_qty": 4,
+    "opening_stock": 1,
+    "category": "PEN DRIVE 16 GB"
+  },
+  {
+    "id": 243,
+    "item_name": "PEN DRIVE 32 GB IVOOMI",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 2,
+    "opening_stock": 9,
+    "category": "PEN DRIVE 32 GB"
+  },
+  {
+    "id": 244,
+    "item_name": "PEN DRIVE 32 GB OTG SANDISK",
+    "item_description": null,
+    "price": 700.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "PEN DRIVE 32 GB"
+  },
+  {
+    "id": 245,
+    "item_name": "PEN DRIVE 32 GB SANDISK",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "PEN DRIVE 32 GB"
+  },
+  {
+    "id": 246,
+    "item_name": "PEN DRIVE 32 GB SIMMTRONICS",
+    "item_description": null,
+    "price": 630.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "PEN DRIVE 32 GB"
+  },
+  {
+    "id": 247,
+    "item_name": "PEN DRIVE 64 GB  SIMMTRONICS",
+    "item_description": null,
+    "price": 850.0,
+    "stock_qty": 4,
+    "opening_stock": 5,
+    "category": "PEN DRIVE 64 GB"
+  },
+  {
+    "id": 248,
+    "item_name": "PEN DRIVE 64 GB SANDISK",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "PEN DRIVE 64 GB"
+  },
+  {
+    "id": 249,
+    "item_name": "HP 585 TANK PRINTER",
+    "item_description": null,
+    "price": 13200.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "PRINTER"
+  },
+  {
+    "id": 250,
+    "item_name": "PRINTER SHARER",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "PRINTER PART"
+  },
+  {
+    "id": 251,
+    "item_name": "RAM 16 GB DDR4  LAPTOP  2400/2666",
+    "item_description": null,
+    "price": 8800.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "RAM 16 GB"
+  },
+  {
+    "id": 252,
+    "item_name": "RAM 16 GB DDR4  LAPTOP  3200",
+    "item_description": null,
+    "price": 9000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "RAM 16 GB"
+  },
+  {
+    "id": 253,
+    "item_name": "RAM 2 GB DDR2 LAPTOP",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "RAM 2 GB"
+  },
+  {
+    "id": 254,
+    "item_name": "RAM 4 GB DDR3  LAPTOP",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "RAM 4 GB"
+  },
+  {
+    "id": 255,
+    "item_name": "RAM 4 GB DDR3 DESKTOP",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 0,
+    "opening_stock": 3,
+    "category": "RAM 4 GB"
+  },
+  {
+    "id": 256,
+    "item_name": "RAM 8 GB DDR3  DESKTOP 1333 / 1600",
+    "item_description": null,
+    "price": 2400.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 257,
+    "item_name": "RAM 8 GB DDR3  LAPTOP  1333 / 1600",
+    "item_description": null,
+    "price": 2400.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 258,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 2400/2666",
+    "item_description": null,
+    "price": 4200.0,
+    "stock_qty": 3,
+    "opening_stock": 1,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 259,
+    "item_name": "RAM 8 GB DDR4 DESKTOP 3200",
+    "item_description": null,
+    "price": 4500.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 260,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 2400/2666",
+    "item_description": null,
+    "price": 4200.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 261,
+    "item_name": "RAM 8 GB DDR4 LAPTOP 3200",
+    "item_description": null,
+    "price": 4500.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 262,
+    "item_name": "REF ADAPTOR",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 31,
+    "opening_stock": 27,
+    "category": "REF ADAPTOR"
+  },
+  {
+    "id": 263,
+    "item_name": "REF HARD DISK DESKTOP",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 20,
+    "opening_stock": 21,
+    "category": "REF HARD DISK"
+  },
+  {
+    "id": 264,
+    "item_name": "REF HARD DISK LAPTOP",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 39,
+    "opening_stock": 42,
+    "category": "REF HARD DISK"
+  },
+  {
+    "id": 265,
+    "item_name": "R01 DELL E5480 i5/7TH 8GB/256GB",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.",
+    "price": 19000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 266,
+    "item_name": "R10 DELL INSPIRON 15 i3/4TH 8GB/256GB",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 10500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 267,
+    "item_name": "R17 DELL LATITUDE E7480 I7 6TH GEN. / 8 GB RAM / 256 GB SSD / 14\u201dSCREEN",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 20000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 268,
+    "item_name": "R18 LENOVO X270/I7 7TH GEN / 8 GB RAM",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 21000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 269,
+    "item_name": "R19 LENOVO X270/I7 7TH GEN / 8 GB RAM",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 21000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 270,
+    "item_name": "R21 LENOVO X270/I7 7TH GEN / 8 GB RAM",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 21000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 271,
+    "item_name": "R22 DELL LATITUDE / I5 8TH GEN / 8 GB RAM/ 256",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 20000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 272,
+    "item_name": "R23 DEL LATITUDE E5420 I5 11TH GEN. / 8 GB RAM 256 GB SSD",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 273,
+    "item_name": "R24 ELITE BOOK 840 G8 I5 11TH GEN. / 8 GB RAM 512 GB SSD",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 274,
+    "item_name": "REF Screen 14.4\" 40 Pin FL",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 275,
+    "item_name": "REF SCREEN 14\" 30 Pin PAPER",
+    "item_description": "15 DAY WARRANTY",
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 276,
+    "item_name": "REF SCREEN 14\" 40 PIN PAPER",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 277,
+    "item_name": "REF Screen 15.4\" 40 Pin FL",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 278,
+    "item_name": "Ref Screen 15.6 30 Pin Paper",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 279,
+    "item_name": "REF Screen 15.6\" 40 Pin PAPER",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 280,
+    "item_name": "REF RAM 2 GB DDR2 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 281,
+    "item_name": "REF Ram 2 Gb Ddr3 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 10,
+    "opening_stock": 10,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 282,
+    "item_name": "REF RAM 4 GB DDR3 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": -3,
+    "opening_stock": 5,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 283,
+    "item_name": "REF RAM 4 GB DDR4 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 3,
+    "opening_stock": 2,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 284,
+    "item_name": "REF RAM 8 GB DDR3 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 285,
+    "item_name": "REF Ram 8 Gb DDR4 D",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "REF RAM DESKTOP"
+  },
+  {
+    "id": 286,
+    "item_name": "REF RAM 1 GB DDR2 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 287,
+    "item_name": "Ref Ram 16 Gb Ddr4 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 4,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 288,
+    "item_name": "REF RAM 2 GB DDR2 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 3,
+    "opening_stock": 5,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 289,
+    "item_name": "REF RAM 2 GB DDR3 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 7,
+    "opening_stock": 5,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 290,
+    "item_name": "REF RAM 4 GB DDR3 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 7,
+    "opening_stock": 14,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 291,
+    "item_name": "REF RAM 8 GB DDR3 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 292,
+    "item_name": "REF RAM 8 GB DDR4 L",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 4,
+    "opening_stock": 5,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 408,
+    "item_name": "REF 4 GB DDR4 L",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 28,
+    "opening_stock": 0,
+    "category": "REF RAM LAPTOP"
+  },
+  {
+    "id": 293,
+    "item_name": "REF SSD 128 GB M.2",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF SSD"
+  },
+  {
+    "id": 294,
+    "item_name": "REF SSD 128 GB SATA",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF SSD"
+  },
+  {
+    "id": 295,
+    "item_name": "REF SSD 256GB NVME",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF SSD"
+  },
+  {
+    "id": 296,
+    "item_name": "REF SSD 256GB SATA",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF SSD"
+  },
+  {
+    "id": 297,
+    "item_name": "REF SSD 512 NVME",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF SSD"
+  },
+  {
+    "id": 405,
+    "item_name": "REF SSD 256GB M.2",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF SSD"
+  },
+  {
+    "id": 298,
+    "item_name": "SCREEN 14.0\" NORMAL",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 299,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN",
+    "item_description": null,
+    "price": 3400.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 300,
+    "item_name": "SCREEN 14.0\" PAPER 30 PIN IPS",
+    "item_description": null,
+    "price": 3800.0,
+    "stock_qty": 2,
+    "opening_stock": 0,
+    "category": "SCREEN"
+  },
+  {
+    "id": 301,
+    "item_name": "SCREEN 15.6\" NORMAL",
+    "item_description": null,
+    "price": 2800.0,
+    "stock_qty": 3,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 302,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN",
+    "item_description": null,
+    "price": 3500.0,
+    "stock_qty": 3,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 303,
+    "item_name": "SCREEN 15.6\" PAPER 30 PIN IPS",
+    "item_description": null,
+    "price": 3800.0,
+    "stock_qty": 4,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 304,
+    "item_name": "SCREEN 15.6\" PAPER 40 PIN",
+    "item_description": null,
+    "price": 3500.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SCREEN"
+  },
+  {
+    "id": 305,
+    "item_name": "ADAPTOR REPAIR",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": -1,
+    "opening_stock": -1,
+    "category": "SERVICE"
+  },
+  {
+    "id": 306,
+    "item_name": "ADAPTOR REPAIR C TYPE",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 307,
+    "item_name": "CARTRIDGE REFFILING BLACK",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 308,
+    "item_name": "CARTRIDGE REFFILING COLOR",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 309,
+    "item_name": "FITTING CHARGES",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": -10,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 310,
+    "item_name": "FORMATTING & LOADING",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": -122,
+    "opening_stock": -8,
+    "category": "SERVICE"
+  },
+  {
+    "id": 311,
+    "item_name": "LAPTOP MOTHER BOARD REPAIR",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": -36,
+    "opening_stock": -4,
+    "category": "SERVICE"
+  },
+  {
+    "id": 312,
+    "item_name": "LAPTOP SERVICE GAMING WITH THERMAL PASTE",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": -9,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 313,
+    "item_name": "LAPTOP SERVICE WITH THERMAL PASTE",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": -34,
+    "opening_stock": -1,
+    "category": "SERVICE"
+  },
+  {
+    "id": 314,
+    "item_name": "TESTING CHARGES",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": -3,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 315,
+    "item_name": "TONER REFFILING",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": -11,
+    "opening_stock": 0,
+    "category": "SERVICE"
+  },
+  {
+    "id": 316,
+    "item_name": "ADAPTOR 12V 1A",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 6,
+    "opening_stock": 6,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 317,
+    "item_name": "ADAPTOR 12V 2A",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 2,
+    "opening_stock": 3,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 318,
+    "item_name": "ADAPTOR 5V 1A",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 319,
+    "item_name": "ADAPTOR 5V 2A",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 3,
+    "opening_stock": 4,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 320,
+    "item_name": "ADAPTOR 7.5V 1A",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 321,
+    "item_name": "ADAPTOR 9V 1A",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 6,
+    "opening_stock": 6,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 322,
+    "item_name": "ADAPTOR 9V 2A",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 323,
+    "item_name": "ADAPTOR LG LED",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "SMALL ADAPTOR"
+  },
+  {
+    "id": 324,
+    "item_name": "ERD ADAPTOR 12V 1A",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 3,
+    "opening_stock": 4,
+    "category": "SMALL ADAPTOR ERD"
+  },
+  {
+    "id": 325,
+    "item_name": "ERD ADAPTOR 12V 2A",
+    "item_description": null,
+    "price": 520.0,
+    "stock_qty": 3,
+    "opening_stock": 4,
+    "category": "SMALL ADAPTOR ERD"
+  },
+  {
+    "id": 326,
+    "item_name": "ERD ADAPTOR 9V 1A",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SMALL ADAPTOR ERD"
+  },
+  {
+    "id": 327,
+    "item_name": "Quick H .T.S. Ren. Code (Reg.)",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 4,
+    "opening_stock": 7,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 328,
+    "item_name": "QUICK HEAL ANTIVIRUS PRO",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 4,
+    "opening_stock": 12,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 329,
+    "item_name": "QUICK HEAL INTERNET  SECURITY",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 4,
+    "opening_stock": 3,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 330,
+    "item_name": "QUICK HEAL TOTAL SECURITY",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 2,
+    "opening_stock": 1,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 331,
+    "item_name": "QUICK HEAL TOTAL SECURITY 3 USER",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 332,
+    "item_name": "QUICK HEAL INTERNET SECURITY RENUAL",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 333,
+    "item_name": "BLUETOOTH SPEAKER EZILLA",
+    "item_description": null,
+    "price": 700.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SPEAKER"
+  },
+  {
+    "id": 334,
+    "item_name": "MICE",
+    "item_description": null,
+    "price": 500.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SPEAKER"
+  },
+  {
+    "id": 335,
+    "item_name": "Speaker Usb",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 3,
+    "opening_stock": 6,
+    "category": "SPEAKER"
+  },
+  {
+    "id": 336,
+    "item_name": "SPIKE 1.5MTR",
+    "item_description": null,
+    "price": 220.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SPIKE"
+  },
+  {
+    "id": 337,
+    "item_name": "SPIKE 5 MTR",
+    "item_description": null,
+    "price": 280.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SPIKE"
+  },
+  {
+    "id": 338,
+    "item_name": "128 GB SIMMTRONICS SATA",
+    "item_description": null,
+    "price": 2400.0,
+    "stock_qty": 22,
+    "opening_stock": 9,
+    "category": "SSD 128"
+  },
+  {
+    "id": 339,
+    "item_name": "1 TB SIMM",
+    "item_description": null,
+    "price": 12500.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SSD 1TB"
+  },
+  {
+    "id": 340,
+    "item_name": "1 TB SIMM NVME",
+    "item_description": null,
+    "price": 14300.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SSD 1TB"
+  },
+  {
+    "id": 341,
+    "item_name": "250 GB WD BLUE  NVME",
+    "item_description": null,
+    "price": 7000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "SSD 256"
+  },
+  {
+    "id": 342,
+    "item_name": "250 GB WD BLUE SATA",
+    "item_description": null,
+    "price": 6000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SSD 256"
+  },
+  {
+    "id": 343,
+    "item_name": "256 GB SIMMTRONICS M.2",
+    "item_description": null,
+    "price": 4250.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SSD 256"
+  },
+  {
+    "id": 344,
+    "item_name": "256 GB SIMMTRONICS NVME",
+    "item_description": null,
+    "price": 4800.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "SSD 256"
+  },
+  {
+    "id": 345,
+    "item_name": "256 GB SIMMTRONICS SATA",
+    "item_description": null,
+    "price": 3600.0,
+    "stock_qty": 11,
+    "opening_stock": 8,
+    "category": "SSD 256"
+  },
+  {
+    "id": 346,
+    "item_name": "240 GB WD SATA GREEN",
+    "item_description": null,
+    "price": 5000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "SSD 256"
+  },
+  {
+    "id": 347,
+    "item_name": "480 GB WD GREEN SATA",
+    "item_description": null,
+    "price": 8600.0,
+    "stock_qty": 0,
+    "opening_stock": 2,
+    "category": "SSD 512"
+  },
+  {
+    "id": 348,
+    "item_name": "500 GB WD BLUE  NVME",
+    "item_description": null,
+    "price": 9000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "SSD 512"
+  },
+  {
+    "id": 349,
+    "item_name": "500 GB WD BLUE SATA",
+    "item_description": null,
+    "price": 9000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "SSD 512"
+  },
+  {
+    "id": 350,
+    "item_name": "512 GB SIMMTRONICS NVME",
+    "item_description": null,
+    "price": 7400.0,
+    "stock_qty": 1,
+    "opening_stock": 6,
+    "category": "SSD 512"
+  },
+  {
+    "id": 351,
+    "item_name": "512 GB SIMMTRONICS SATA",
+    "item_description": null,
+    "price": 6700.0,
+    "stock_qty": 9,
+    "opening_stock": 6,
+    "category": "SSD 512"
+  },
+  {
+    "id": 352,
+    "item_name": "SWITCH 5 PORT",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 4,
+    "opening_stock": 1,
+    "category": "SWITCH"
+  },
+  {
+    "id": 353,
+    "item_name": "SWITCH 8 PORT",
+    "item_description": null,
+    "price": 1100.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "SWITCH"
+  },
+  {
+    "id": 354,
+    "item_name": "TELEPHONE WIRE 10 MTR",
+    "item_description": null,
+    "price": 450.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "TELEPHONE WIRE"
+  },
+  {
+    "id": 355,
+    "item_name": "TELEPHONE WIRE 2 MTR",
+    "item_description": null,
+    "price": 130.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "TELEPHONE WIRE"
+  },
+  {
+    "id": 356,
+    "item_name": "TELEPHONE WIRE 3 MTR",
+    "item_description": null,
+    "price": 170.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "TELEPHONE WIRE"
+  },
+  {
+    "id": 357,
+    "item_name": "TELEPHONE WIRE 5 MTR",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "TELEPHONE WIRE"
+  },
+  {
+    "id": 358,
+    "item_name": "12A Toner",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 15,
+    "opening_stock": 13,
+    "category": "TONER"
+  },
+  {
+    "id": 359,
+    "item_name": "BROTHER TONER  1020/1118",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "TONER"
+  },
+  {
+    "id": 360,
+    "item_name": "CANON 337 TONER",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 0,
+    "opening_stock": 3,
+    "category": "TONER"
+  },
+  {
+    "id": 361,
+    "item_name": "TONER 110A",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 5,
+    "opening_stock": 2,
+    "category": "TONER"
+  },
+  {
+    "id": 362,
+    "item_name": "TONER 137A",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 1,
+    "opening_stock": 2,
+    "category": "TONER"
+  },
+  {
+    "id": 363,
+    "item_name": "Toner 166",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 6,
+    "opening_stock": 2,
+    "category": "TONER"
+  },
+  {
+    "id": 364,
+    "item_name": "Toner 19A Hp",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "TONER"
+  },
+  {
+    "id": 365,
+    "item_name": "Toner 28 Hp",
+    "item_description": null,
+    "price": 800.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "TONER"
+  },
+  {
+    "id": 366,
+    "item_name": "TONER 77A",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "TONER"
+  },
+  {
+    "id": 367,
+    "item_name": "TONER 88A",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 15,
+    "opening_stock": 10,
+    "category": "TONER"
+  },
+  {
+    "id": 368,
+    "item_name": "TONER 925",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 3,
+    "opening_stock": 2,
+    "category": "TONER"
+  },
+  {
+    "id": 369,
+    "item_name": "TONER SAMSUNG 1043",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "TONER"
+  },
+  {
+    "id": 370,
+    "item_name": "UPS BATTERY EXIDE",
+    "item_description": null,
+    "price": 950.0,
+    "stock_qty": 4,
+    "opening_stock": 10,
+    "category": "UPS"
+  },
+  {
+    "id": 371,
+    "item_name": "UPS INTEX",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 13,
+    "opening_stock": 0,
+    "category": "UPS"
+  },
+  {
+    "id": 372,
+    "item_name": "Ups Microtek 650VA",
+    "item_description": null,
+    "price": 2500.0,
+    "stock_qty": 2,
+    "opening_stock": 5,
+    "category": "UPS"
+  },
+  {
+    "id": 373,
+    "item_name": "Router UPS",
+    "item_description": null,
+    "price": 1000.0,
+    "stock_qty": 3,
+    "opening_stock": 5,
+    "category": "UPS"
+  },
+  {
+    "id": 374,
+    "item_name": "usb cable 1.5 mtr orginal",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 9,
+    "opening_stock": 2,
+    "category": "USB Cable"
+  },
+  {
+    "id": 375,
+    "item_name": "USB CABLE 1.5 MTR RAVTRON",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "USB Cable"
+  },
+  {
+    "id": 376,
+    "item_name": "Usb Cable 3 mtr",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 7,
+    "opening_stock": 5,
+    "category": "USB Cable"
+  },
+  {
+    "id": 377,
+    "item_name": "Usb Cable 5 mtr",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 6,
+    "opening_stock": 5,
+    "category": "USB Cable"
+  },
+  {
+    "id": 378,
+    "item_name": "Usb Cable 1.5 mtr",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 24,
+    "opening_stock": 28,
+    "category": "USB Cable"
+  },
+  {
+    "id": 379,
+    "item_name": "USB CABLE 3.0",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 6,
+    "opening_stock": 7,
+    "category": "USB Cable CASING"
+  },
+  {
+    "id": 380,
+    "item_name": "USB TO MINI USB CABLE",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 13,
+    "opening_stock": 16,
+    "category": "USB Cable CASING"
+  },
+  {
+    "id": 381,
+    "item_name": "ADNET USB HUB 2.0",
+    "item_description": null,
+    "price": 200.0,
+    "stock_qty": 5,
+    "opening_stock": 5,
+    "category": "USB HUB"
+  },
+  {
+    "id": 382,
+    "item_name": "IVOOMI USB HUB 3.0",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 13,
+    "opening_stock": 4,
+    "category": "USB HUB"
+  },
+  {
+    "id": 383,
+    "item_name": "RAVTRON C TO USB 3.0",
+    "item_description": null,
+    "price": 950.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "USB HUB"
+  },
+  {
+    "id": 384,
+    "item_name": "RAVTRON USB HUB 3.0",
+    "item_description": null,
+    "price": 700.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "USB HUB"
+  },
+  {
+    "id": 385,
+    "item_name": "TECHIE USB HUB 3.0",
+    "item_description": null,
+    "price": 350.0,
+    "stock_qty": 3,
+    "opening_stock": 4,
+    "category": "USB HUB"
+  },
+  {
+    "id": 386,
+    "item_name": "USB HUB HONEYWELL",
+    "item_description": null,
+    "price": 650.0,
+    "stock_qty": 9,
+    "opening_stock": 9,
+    "category": "USB HUB"
+  },
+  {
+    "id": 387,
+    "item_name": "RAVTRON USB TO LAN  3.0 GIGA",
+    "item_description": null,
+    "price": 1250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "USB LAN"
+  },
+  {
+    "id": 388,
+    "item_name": "USB TO LAN CARD QUANTRON",
+    "item_description": null,
+    "price": 400.0,
+    "stock_qty": 4,
+    "opening_stock": 1,
+    "category": "USB LAN"
+  },
+  {
+    "id": 389,
+    "item_name": "VGA CABLE 1.5 MTR ORGINAL",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 14,
+    "opening_stock": 18,
+    "category": "VGA Cable"
+  },
+  {
+    "id": 390,
+    "item_name": "VGA CABLE 10 MTR",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 3,
+    "opening_stock": 3,
+    "category": "VGA Cable"
+  },
+  {
+    "id": 391,
+    "item_name": "VGA CABLE 3 MTR",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "VGA Cable"
+  },
+  {
+    "id": 392,
+    "item_name": "WALL MOUNTING FIX",
+    "item_description": null,
+    "price": 180.0,
+    "stock_qty": 5,
+    "opening_stock": 5,
+    "category": "WALL MOUNT"
+  },
+  {
+    "id": 393,
+    "item_name": "WALL MOUNTING ROTATE",
+    "item_description": null,
+    "price": 250.0,
+    "stock_qty": 2,
+    "opening_stock": 5,
+    "category": "WALL MOUNT"
+  },
+  {
+    "id": 394,
+    "item_name": "WEB CAM LOGITECH BRIO 100",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": 2,
+    "opening_stock": 2,
+    "category": "WEB CAM"
+  },
+  {
+    "id": 395,
+    "item_name": "WEB CAM QUANTRON",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 4,
+    "opening_stock": 1,
+    "category": "WEB CAM"
+  },
+  {
+    "id": 396,
+    "item_name": "WEBCAM 1015",
+    "item_description": null,
+    "price": 1400.0,
+    "stock_qty": 1,
+    "opening_stock": 1,
+    "category": "WEB CAM"
+  },
+  {
+    "id": 397,
+    "item_name": "WIFI 5G AC600 TP LINK",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "WIFI"
+  },
+  {
+    "id": 398,
+    "item_name": "WIFI 5G WITH BLUETOOTH",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 4,
+    "opening_stock": 14,
+    "category": "WIFI"
+  },
+  {
+    "id": 399,
+    "item_name": "Wifi card 4G",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 2,
+    "opening_stock": 4,
+    "category": "WIFI"
+  },
+  {
+    "id": 410,
+    "item_name": "LACARE 4G WIRELESS USB DONGLE",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CARD"
+  },
+  {
+    "id": 411,
+    "item_name": "ACER ORIGINAL ADAPTOR",
+    "item_description": null,
+    "price": 1700.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "ADAPTOR ACER"
+  },
+  {
+    "id": 412,
+    "item_name": "TONER 181A",
+    "item_description": null,
+    "price": 1150.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "TONER"
+  },
+  {
+    "id": 413,
+    "item_name": "MOUSE BLUETOOTH IVOOMI SHAKTI",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 4,
+    "opening_stock": 0,
+    "category": "MOUSE IVOOMI"
+  },
+  {
+    "id": 414,
+    "item_name": "MOUSE ROBOT  IVOOMI",
+    "item_description": null,
+    "price": 300.0,
+    "stock_qty": 2,
+    "opening_stock": 0,
+    "category": "MOUSE IVOOMI"
+  },
+  {
+    "id": 415,
+    "item_name": "HDMI SWITCHER IVOOMI",
+    "item_description": null,
+    "price": 600.0,
+    "stock_qty": 2,
+    "opening_stock": 0,
+    "category": "CONVERTER"
+  },
+  {
+    "id": 416,
+    "item_name": "KEYBOARD MECHANICAL TUCKER WHITE IVOOMI",
+    "item_description": null,
+    "price": 1800.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "KEYBOARD IVOOMI"
+  },
+  {
+    "id": 417,
+    "item_name": "HP 47 COLOR",
+    "item_description": null,
+    "price": 715.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 418,
+    "item_name": "SMPS 750 IVOOMI",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CABNET"
+  },
+  {
+    "id": 419,
+    "item_name": "Power cable 2 pin",
+    "item_description": null,
+    "price": 120.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 420,
+    "item_name": "DVR 8 CH. CP PLUS",
+    "item_description": null,
+    "price": 4800.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CCTV"
+  },
+  {
+    "id": 421,
+    "item_name": "QUICK HEAL SERVER EDITION",
+    "item_description": null,
+    "price": 2300.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "SOFTWARE"
+  },
+  {
+    "id": 422,
+    "item_name": "SATA CABLE DESKTOP",
+    "item_description": null,
+    "price": 100.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "EXTRA"
+  },
+  {
+    "id": 423,
+    "item_name": "R25 LENOVO THINKPAD T480 / I5 8TH GEN. / 8 GB RAM / 256 GB SSD /14\u201dSCREEN",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 20000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 424,
+    "item_name": "R26 LENOVO IDEAPAD / I5 8TH / 12 GB RAM / 240 GB SSD",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 22000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 425,
+    "item_name": "R27 HP PAVILION X360 / I5 7TH GEN. / 8 GB RAM / 240 GB SSD / 14\u201d  SCREEN",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.",
+    "price": 15000.0,
+    "stock_qty": 0,
+    "opening_stock": 1,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 426,
+    "item_name": "HP 47 BLACK",
+    "item_description": null,
+    "price": 727.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CARTRIDGE HP"
+  },
+  {
+    "id": 427,
+    "item_name": "DELL BATTERY G91J0",
+    "item_description": null,
+    "price": 3500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "LAPTOP BATTERY ORGINAL"
+  },
+  {
+    "id": 429,
+    "item_name": "ZEBRONICS 18.5\" LED",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": -1,
+    "opening_stock": 0,
+    "category": "MONITOR"
+  },
+  {
+    "id": 428,
+    "item_name": "INTEX 450 WATT SMPS",
+    "item_description": null,
+    "price": 1200.0,
+    "stock_qty": 2,
+    "opening_stock": 0,
+    "category": "CABNET"
+  },
+  {
+    "id": 430,
+    "item_name": "USB MOUSE INTEX",
+    "item_description": null,
+    "price": 150.0,
+    "stock_qty": 51,
+    "opening_stock": 0,
+    "category": "MOUSE INTEX"
+  },
+  {
+    "id": 431,
+    "item_name": "128 GB NVME simmtronics",
+    "item_description": null,
+    "price": 3200.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "SSD 128"
+  },
+  {
+    "id": 432,
+    "item_name": "R28 HP 840 G3 I5 6TH 8 TB RAM / 256 GB SSD / 14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 19500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 433,
+    "item_name": "R29 HP 830 G8 I5 11TH / 8 GB RAM / 512 GB SSD",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 434,
+    "item_name": "R30 DELL LATITUDE E6430 I5 3RD / 8 GB / 128",
+    "item_description": null,
+    "price": 10000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 435,
+    "item_name": "R31 DELL LATITUDE E6420 I5 2ND / 8 GB / 256",
+    "item_description": null,
+    "price": 10000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 436,
+    "item_name": "R32 HP ELITEBOOK 830 G5 / I5 8TH / 8 GB RAM / 256 GB",
+    "item_description": null,
+    "price": 22000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 437,
+    "item_name": "101 toner",
+    "item_description": null,
+    "price": 900.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "TONER"
+  },
+  {
+    "id": 438,
+    "item_name": "BULLET CAMERA",
+    "item_description": null,
+    "price": 1500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CCTV"
+  },
+  {
+    "id": 439,
+    "item_name": "R33 HP ELITEBOOK 840 G3 / I5 6TH / 8 GB RAM / 256 GB /  new battery",
+    "item_description": null,
+    "price": 22000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 440,
+    "item_name": "CPU I5 10TH",
+    "item_description": null,
+    "price": 17000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CPU"
+  },
+  {
+    "id": 441,
+    "item_name": "MOTHER BOARD 410",
+    "item_description": null,
+    "price": 6500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "MOTHER BOARD"
+  },
+  {
+    "id": 442,
+    "item_name": "RAM 8 GB DDR4 L CRUCIAL",
+    "item_description": null,
+    "price": 5500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "RAM 8 GB"
+  },
+  {
+    "id": 443,
+    "item_name": "REF SCREEN 14\"30 PIN PAPER IPS",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP SCREEN"
+  },
+  {
+    "id": 444,
+    "item_name": "R34 DELL LATITUDE 5410 / I5 10TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 29000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 445,
+    "item_name": "R35 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"/WITH TOUCH",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 32000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 446,
+    "item_name": "R36 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 447,
+    "item_name": "R37 HP ELITEBOOK  820G4 / I5 7TH / 8 GB / 512 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 22000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 448,
+    "item_name": "INTEX GAMING RGV KEYBOARD MOUSE COMBO WIRE",
+    "item_description": null,
+    "price": 1050.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "KEYBOARD INTEX"
+  },
+  {
+    "id": 449,
+    "item_name": "CPU I3 8TH GEN.",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CPU"
+  },
+  {
+    "id": 450,
+    "item_name": "R38 LENOVO G50 / I3 4TH / 8 GB / 128 /15.6\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 11500.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 451,
+    "item_name": "ADPTOR MOBILE 65W",
+    "item_description": null,
+    "price": 750.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "Mobile ADAPTOR"
+  },
+  {
+    "id": 452,
+    "item_name": "CP PLUS WIRELESS CAMERA 2MP",
+    "item_description": null,
+    "price": 2100.0,
+    "stock_qty": 2,
+    "opening_stock": 0,
+    "category": "CCTV"
+  },
+  {
+    "id": 453,
+    "item_name": "R39 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 3000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 454,
+    "item_name": "R40 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.\n2-EXTRA 6-Month Warranty: Perfect Solution provides\n    service only.",
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 455,
+    "item_name": "R41 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": null,
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 456,
+    "item_name": "R42 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": null,
+    "price": 30000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 457,
+    "item_name": "HARD DISK 500 GB CONSISTANT",
+    "item_description": null,
+    "price": 2000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "HARD DISK"
+  },
+  {
+    "id": 458,
+    "item_name": "R43 DELL LATITUDE 5420 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.",
+    "price": 29000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 459,
+    "item_name": "CPU I5 4TH GEN",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "CPU"
+  },
+  {
+    "id": 460,
+    "item_name": "I3 2ND GEN CPU",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "CPU"
+  },
+  {
+    "id": 461,
+    "item_name": "R44 DELL LATITUDE 5410 / I5 10TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.",
+    "price": 28000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  },
+  {
+    "id": 462,
+    "item_name": "ZEBRONICS 20\" TFT",
+    "item_description": null,
+    "price": 3000.0,
+    "stock_qty": 1,
+    "opening_stock": 0,
+    "category": "MONITOR"
+  },
+  {
+    "id": 463,
+    "item_name": "ZEBRONICS 24.5\" TFT",
+    "item_description": null,
+    "price": 0.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "MONITOR"
+  },
+  {
+    "id": 464,
+    "item_name": "R45 DELL LATITUDE 5410 / I5 11TH / 8 GB / 256 /14\"",
+    "item_description": "1-Month Warranty: Covers all services, excluding any cases      \n    of electrical burns, liquid exposure, or physical damage.",
+    "price": 29000.0,
+    "stock_qty": 0,
+    "opening_stock": 0,
+    "category": "REF LAPTOP"
+  }
+]
