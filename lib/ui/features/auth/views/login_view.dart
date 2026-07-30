@@ -12,12 +12,8 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController(
-    text: 'perfectsolutionnoida@gmail.com',
-  );
-  final TextEditingController _passwordController = TextEditingController(
-    text: 'admin123',
-  );
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
 
@@ -97,11 +93,14 @@ class _LoginViewState extends State<LoginView> {
 
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 24 : 16,
+                vertical: isDesktop ? 32 : 24,
+              ),
               child: Container(
-                width: isDesktop ? 500 : double.infinity,
-                constraints: const BoxConstraints(maxWidth: 540),
-                padding: const EdgeInsets.all(32),
+                width: isDesktop ? 480 : double.infinity,
+                constraints: const BoxConstraints(maxWidth: 500),
+                padding: EdgeInsets.all(isDesktop ? 32 : 24),
                 decoration: BoxDecoration(
                   color: const Color(0xFF131826),
                   borderRadius: BorderRadius.circular(24),
@@ -148,15 +147,6 @@ class _LoginViewState extends State<LoginView> {
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary,
                         letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Shop Management & User Permissions Portal',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textMuted,
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -227,7 +217,7 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ],
 
-                    // Supabase Google OAuth Button
+                    // Google OAuth Button
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -236,19 +226,21 @@ class _LoginViewState extends State<LoginView> {
                             ? null
                             : () => _handleGoogleLogin(authViewModel),
                         icon: Container(
-                          padding: const EdgeInsets.all(2),
+                          padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
                           ),
-                          child: const Icon(
-                            Icons.g_mobiledata_rounded,
-                            color: Color(0xFF4285F4),
-                            size: 24,
+                          child: const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CustomPaint(
+                              painter: _GoogleLogoPainter(),
+                            ),
                           ),
                         ),
                         label: const Text(
-                          'Sign in with Google (Supabase Auth)',
+                          'Sign in with Google',
                           style: TextStyle(
                             color: AppTheme.textPrimary,
                             fontWeight: FontWeight.bold,
@@ -457,16 +449,6 @@ class _LoginViewState extends State<LoginView> {
                               ),
                             ],
                           ),
-                          const Padding(
-                            padding: EdgeInsets.only(left: 32, top: 2),
-                            child: Text(
-                              'Uncheck to force login screen on every app launch.',
-                              style: TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
                           const SizedBox(height: 24),
 
                           // Submit Button
@@ -506,81 +488,6 @@ class _LoginViewState extends State<LoginView> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 28),
-
-                    // Test Credentials Reference Card (Clean text list)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF172036),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.primaryLight.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.key_rounded,
-                                color: AppTheme.primaryLight,
-                                size: 18,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Test Account Credentials for User Roles',
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Use the email & password combinations below to test different permission levels:',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(color: Colors.white10, height: 1),
-                          const SizedBox(height: 10),
-
-                          _buildCredentialRow(
-                            roleTag: 'PURE ADMIN 1',
-                            tagColor: AppTheme.primaryLight,
-                            email: 'perfectsolutionnoida@gmail.com',
-                            password: 'admin123',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildCredentialRow(
-                            roleTag: 'PURE ADMIN 2',
-                            tagColor: AppTheme.primaryLight,
-                            email: 'vishnudixit2008@gmail.com',
-                            password: 'admin123',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildCredentialRow(
-                            roleTag: 'STAFF',
-                            tagColor: AppTheme.success,
-                            email: 'staff@perfectsolution.com',
-                            password: 'staff123',
-                          ),
-                          const SizedBox(height: 8),
-                          _buildCredentialRow(
-                            roleTag: 'VIEW ONLY',
-                            tagColor: AppTheme.warning,
-                            email: 'viewonly@perfectsolution.com',
-                            password: 'viewonly123',
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -590,78 +497,70 @@ class _LoginViewState extends State<LoginView> {
       ),
     );
   }
+}
 
-  Widget _buildCredentialRow({
-    required String roleTag,
-    required Color tagColor,
-    required String email,
-    required String password,
-  }) {
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _emailController.text = email;
-          _passwordController.text = password;
-        });
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.05),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: tagColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                roleTag,
-                style: TextStyle(
-                  color: tagColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    email,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Password: $password',
-                    style: const TextStyle(
-                      color: AppTheme.textMuted,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.touch_app_rounded,
-              color: AppTheme.textMuted,
-              size: 14,
-            ),
-          ],
-        ),
-      ),
-    );
+class _GoogleLogoPainter extends CustomPainter {
+  const _GoogleLogoPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.width / 24.0;
+    canvas.scale(scale, scale);
+
+    // Red
+    final redPaint = Paint()..color = const Color(0xFFEA4335);
+    final redPath = Path()
+      ..moveTo(12, 4.75)
+      ..cubicTo(13.77, 4.75, 15.35, 5.36, 16.6, 6.55)
+      ..lineTo(20.02, 3.13)
+      ..cubicTo(17.95, 1.19, 15.24, 0, 12, 0)
+      ..cubicTo(7.37, 0, 3.26, 2.63, 1.24, 6.61)
+      ..lineTo(5.28, 9.76)
+      ..cubicTo(6.23, 6.91, 8.88, 4.75, 12, 4.75)
+      ..close();
+    canvas.drawPath(redPath, redPaint);
+
+    // Yellow
+    final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
+    final yellowPath = Path()
+      ..moveTo(5.28, 14.24)
+      ..cubicTo(5.03, 13.52, 4.9, 12.75, 4.9, 12)
+      ..cubicTo(4.9, 11.25, 5.03, 10.48, 5.28, 9.76)
+      ..lineTo(1.24, 6.61)
+      ..cubicTo(0.45, 8.18, 0, 9.99, 0, 12)
+      ..cubicTo(0, 14.01, 0.45, 15.82, 1.24, 17.39)
+      ..lineTo(5.28, 14.24)
+      ..close();
+    canvas.drawPath(yellowPath, yellowPaint);
+
+    // Green
+    final greenPaint = Paint()..color = const Color(0xFF34A853);
+    final greenPath = Path()
+      ..moveTo(12, 24)
+      ..cubicTo(15.24, 24, 17.95, 22.92, 19.93, 21.09)
+      ..lineTo(16.05, 18.04)
+      ..cubicTo(14.97, 18.76, 13.6, 19.2, 12, 19.2)
+      ..cubicTo(8.88, 19.2, 6.23, 17.04, 5.28, 14.19)
+      ..lineTo(1.24, 17.34)
+      ..cubicTo(3.26, 21.37, 7.37, 24, 12, 24)
+      ..close();
+    canvas.drawPath(greenPath, greenPaint);
+
+    // Blue
+    final bluePaint = Paint()..color = const Color(0xFF4285F4);
+    final bluePath = Path()
+      ..moveTo(23.74, 12.27)
+      ..cubicTo(23.74, 11.57, 23.68, 10.87, 23.55, 10.2)
+      ..lineTo(12, 10.2)
+      ..lineTo(12, 14.71)
+      ..lineTo(18.6, 14.71)
+      ..cubicTo(18.31, 16.23, 17.46, 17.53, 16.2, 18.39)
+      ..lineTo(20.08, 21.44)
+      ..cubicTo(22.35, 19.35, 23.74, 16.27, 23.74, 12.27)
+      ..close();
+    canvas.drawPath(bluePath, bluePaint);
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

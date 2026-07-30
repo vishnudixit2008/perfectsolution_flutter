@@ -37,7 +37,6 @@ class SupabaseSyncService extends ChangeNotifier {
 
   // Debounce timer to prevent realtime event flood
   Timer? _debounceTimer;
-  LocalDatabaseService? _localDbRef;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
@@ -47,7 +46,6 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Load credentials from local storage and initialize Supabase
   Future<void> init(LocalDatabaseService localDb) async {
-    _localDbRef = localDb;
     try {
       final box = await Hive.openBox(_boxName);
       _supabaseUrl = _defaultUrl;
@@ -86,7 +84,6 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Connects to Supabase and listens to realtime database events
   Future<bool> connectAndSubscribe(LocalDatabaseService localDb) async {
-    _localDbRef = localDb;
     if (_supabaseUrl == null || _supabaseAnonKey == null) return false;
 
     try {
@@ -96,7 +93,7 @@ class SupabaseSyncService extends ChangeNotifier {
       try {
       await Supabase.initialize(
           url: _supabaseUrl!,
-          anonKey: _supabaseAnonKey!,
+          publishableKey: _supabaseAnonKey!,
           authOptions: const FlutterAuthClientOptions(
             authFlowType: AuthFlowType.pkce,
           ),

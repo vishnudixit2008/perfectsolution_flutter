@@ -291,7 +291,6 @@ class _DashboardViewState extends State<DashboardView> {
               final formattedDate = DateFormat(
                 'dd/MM/yy hh:mm a',
               ).format(sale.saleDate);
-              final isPending = sale.orderStatus == 'PENDING';
 
               return DataRow(
                 cells: [

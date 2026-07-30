@@ -65,7 +65,7 @@ class UpdateCheckService {
           .eq('platform', platform)
           .maybeSingle();
 
-      if (res != null && res is Map) {
+      if (res != null) {
         final latestVer = (res['latest_version'] ?? currentVer).toString();
         final minVer = (res['min_required_version'] ?? currentVer).toString();
         final downloadUrl = (res['download_url'] ?? '').toString();

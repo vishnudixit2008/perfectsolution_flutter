@@ -57,7 +57,7 @@ class _PricelistViewState extends State<PricelistView> {
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: UserPermissionService.canPerformModuleAction('pricelist', 'canAdd')
+          floatingActionButton: (!isDesktop && UserPermissionService.canPerformModuleAction('pricelist', 'canAdd'))
               ? AppFloatingActionButton(
                   onPressed: () => _showAddEditItemDialog(context, viewModel),
                   tooltip: 'Add Product',
@@ -69,6 +69,14 @@ class _PricelistViewState extends State<PricelistView> {
               AppPageHeader(
                 title: 'Pricelist',
                 subtitle: 'Product Catalog & Inventory',
+                actions: [
+                  if (UserPermissionService.canPerformModuleAction('pricelist', 'canAdd'))
+                    AppHeaderActionButton(
+                      label: 'Add Item',
+                      icon: Icons.add_rounded,
+                      onPressed: () => _showAddEditItemDialog(context, viewModel),
+                    ),
+                ],
               ),
 
               // Search and Filters Bar
@@ -661,6 +669,7 @@ class _PricelistViewState extends State<PricelistView> {
     );
   }
 
+  // ignore: unused_element
   void _bulkDeleteItems(BuildContext context, PricelistViewModel viewModel) {
     showDialog(
       context: context,
@@ -726,6 +735,7 @@ class _PricelistViewState extends State<PricelistView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSortHeader(
     PricelistViewModel viewModel,
     String label,
@@ -1365,6 +1375,7 @@ class _PricelistViewState extends State<PricelistView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
     required BuildContext context,
     required int currentPage,

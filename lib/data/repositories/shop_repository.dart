@@ -2,6 +2,7 @@ import '../models/pricelist_item.dart';
 import '../models/sale.dart';
 import '../models/sale_item.dart';
 import '../models/call_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/inward_repair.dart';
 import '../models/inward_estimate_item.dart';
 import '../models/replacement.dart';
@@ -111,6 +112,16 @@ class ShopRepository {
         p.toJson(),
       );
     }
+    return true;
+  }
+
+  Future<bool> updateSale(Sale sale, List<SaleItem> items) async {
+    await _localDb.saveSale(sale, items);
+    try {
+      final client = Supabase.instance.client;
+      await client.from('sales').upsert(sale.toJson());
+      await client.from('sale_items').upsert(items.map((i) => i.toJson()).toList());
+    } catch (_) {}
     return true;
   }
 

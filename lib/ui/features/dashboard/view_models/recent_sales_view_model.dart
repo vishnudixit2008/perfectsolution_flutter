@@ -144,4 +144,20 @@ class RecentSalesViewModel extends ChangeNotifier {
       return false;
     }
   }
+
+  Future<bool> updateSale(Sale sale, List<SaleItem> items) async {
+    try {
+      final success = await _repository.updateSale(sale, items);
+      if (success) {
+        await loadSales();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating sale: $e');
+      }
+      return false;
+    }
+  }
 }

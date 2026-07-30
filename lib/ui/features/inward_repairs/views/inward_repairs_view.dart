@@ -19,7 +19,7 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
-
+import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/whatsapp_icon.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
@@ -42,6 +42,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   double _nameWidth = 200.0;
   double _mobileWidth = 150.0;
   double _devicesWidth = 250.0;
+  // ignore: unused_field
   double _statusWidth = 140.0;
 
   void _loadSavedColumnWidths() {
@@ -85,7 +86,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
 
   // Pagination states
   int _currentPage = 1;
-  final int _itemsPerPage = 20;
+  int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -156,17 +157,34 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         // Sort by jobNo descending (newest repairs first)
         filteredRepairs.sort((a, b) => b.jobNo.compareTo(a.jobNo));
 
+        final int totalPages = (filteredRepairs.length / _itemsPerPage).ceil();
+        final int currentPage = _currentPage.clamp(
+          1,
+          totalPages > 0 ? totalPages : 1,
+        );
+        final int startIndex = (currentPage - 1) * _itemsPerPage;
+        final int endIndex = (startIndex + _itemsPerPage).clamp(
+          0,
+          filteredRepairs.length,
+        );
+        final pagedRepairs = isDesktop
+            ? (filteredRepairs.isEmpty
+                  ? <InwardRepair>[]
+                  : filteredRepairs.sublist(startIndex, endIndex))
+            : filteredRepairs;
+
         // Group entries by Status (Status on top, entries belonging to that status below)
-        final groupedRepairs = _getGroupedRepairs(filteredRepairs);
+        final groupedRepairs = _getGroupedRepairs(pagedRepairs);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: UserPermissionService.canPerformModuleAction('inward', 'canAdd')
-              ? AppFloatingActionButton(
-                  onPressed: () => _showAddEditDialog(context),
-                  tooltip: 'Add Inward Repair',
-                )
-              : null,
+          floatingActionButton:
+              (!isDesktop && UserPermissionService.canPerformModuleAction('inward', 'canAdd'))
+                  ? AppFloatingActionButton(
+                      onPressed: () => _showAddEditDialog(context),
+                      tooltip: 'Add Inward Repair',
+                    )
+                  : null,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -174,6 +192,13 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 title: 'Inward Repairs',
                 subtitle: 'Jobsheets & Repair Tracking',
                 actions: [
+                  if (UserPermissionService.canPerformModuleAction('inward', 'canAdd'))
+                    AppHeaderActionButton(
+                      label: 'New Inward',
+                      icon: Icons.add_rounded,
+                      onPressed: () => _showAddEditDialog(context),
+                    ),
+                  const SizedBox(width: 6),
                   IconButton(
                     onPressed: () {
                       StatusManagementDialog.show(
@@ -260,16 +285,18 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 child: filteredRepairs.isEmpty
                     ? _buildEmptyState()
                     : (isDesktop
-                        ? _buildDesktopTable(
-                            context,
-                            viewModel,
-                            groupedRepairs,
-                          )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedRepairs,
-                          )),
+                          ? _buildDesktopTable(
+                              context,
+                              viewModel,
+                              groupedRepairs,
+                              currentPage,
+                              totalPages,
+                            )
+                          : _buildMobileCardsList(
+                              context,
+                              viewModel,
+                              groupedRepairs,
+                            )),
               ),
             ],
           ),
@@ -281,8 +308,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   Map<String, List<InwardRepair>> _getGroupedRepairs(
     List<InwardRepair> repairs,
   ) {
-    final List<String> configuredStatuses =
-        StatusManagementService.getStatuses('inward');
+    final List<String> configuredStatuses = StatusManagementService.getStatuses(
+      'inward',
+    );
     final Map<String, List<InwardRepair>> grouped = {};
 
     // Preserve configured status order
@@ -375,13 +403,19 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   Color _getStatusColor(String status) {
     final s = status.toLowerCase().trim();
     if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
+    if (s == 'ready return' || s == 'ready-return') {
+      return const Color(0xFFCA8A04); // Dull Yellow
+    }
     if (s == 'ready') return const Color(0xFFEAB308); // Yellow
     if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
+    if (s.contains('complete') ||
+        s.contains('pre complete') ||
+        s.contains('pre-complete')) {
       return const Color(0xFF10B981); // Green
     }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
+    if (s.contains('cancel') || s.contains('reject')) {
+      return const Color(0xFFEF4444);
+    }
     if (s.contains('pending')) return const Color(0xFFF97316);
     return const Color(0xFF6366F1);
   }
@@ -400,89 +434,115 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     BuildContext context,
     InwardRepairsViewModel viewModel,
     Map<String, List<InwardRepair>> groupedRepairs,
+    int currentPage,
+    int totalPages,
   ) {
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.glassCardDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: 12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Header Row (Status column removed - grouped under status headers)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
-              border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-              ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            width: double.infinity,
+            decoration: AppTheme.glassCardDecoration(
+              color: const Color(0x0AFFFFFF),
+              borderRadius: 12,
             ),
-            child: Row(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
               children: [
-                _buildResizableHeader(
-                  'Job No',
-                  _jobNoWidth,
-                  (delta) => _updateColumnWidth(
-                    'jobNo',
-                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                // Header Row (Status column removed - grouped under status headers)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.02),
+                    border: Border(
+                      bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildResizableHeader(
+                        'Job No',
+                        _jobNoWidth,
+                        (delta) => _updateColumnWidth(
+                          'jobNo',
+                          (_jobNoWidth + delta).clamp(60.0, 200.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Date',
+                        _dateWidth,
+                        (delta) => _updateColumnWidth(
+                          'date',
+                          (_dateWidth + delta).clamp(80.0, 200.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Customer Name',
+                        _nameWidth,
+                        (delta) => _updateColumnWidth(
+                          'name',
+                          (_nameWidth + delta).clamp(120.0, 400.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Mobile',
+                        _mobileWidth,
+                        (delta) => _updateColumnWidth(
+                          'mobile',
+                          (_mobileWidth + delta).clamp(100.0, 300.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Devices / Model',
+                        _devicesWidth,
+                        (delta) => _updateColumnWidth(
+                          'devices',
+                          (_devicesWidth + delta).clamp(150.0, 500.0),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(120.0, 400.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 300.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Devices / Model',
-                  _devicesWidth,
-                  (delta) => _updateColumnWidth(
-                    'devices',
-                    (_devicesWidth + delta).clamp(150.0, 500.0),
+
+                // Scrollable Body with Status Headers on Top and Entries Below Each Status
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final entry in groupedRepairs.entries) ...[
+                          _buildStatusSectionHeader(
+                            entry.key,
+                            entry.value.length,
+                          ),
+                          for (final repair in entry.value) ...[
+                            _buildDesktopTableRow(context, viewModel, repair),
+                          ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Scrollable Body with Status Headers on Top and Entries Below Each Status
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 80),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedRepairs.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final repair in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, repair),
-                    ],
-                  ],
-                ],
-              ),
-            ),
+        ),
+        Positioned(
+          left: 8,
+          bottom: 8,
+          child: AppPaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            itemsPerPage: _itemsPerPage,
+            onItemsPerPageChanged: (val) => setState(() {
+              _itemsPerPage = val;
+              _currentPage = 1;
+            }),
+            onPreviousPage: () => setState(() => _currentPage--),
+            onNextPage: () => setState(() => _currentPage++),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -497,19 +557,14 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
-            ),
+            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
           ),
         ),
         child: Row(
           children: [
             Container(
               width: _jobNoWidth,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Text(
                 '#${repair.jobNo}',
                 style: const TextStyle(
@@ -551,7 +606,6 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       ),
     );
   }
-
 
   Widget _buildResizableHeader(
     String label,
@@ -667,10 +721,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       metadata.add(
         Text(
           'Problem: ${repair.query!}',
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -713,10 +764,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         children: [
           Text(
             formattedDate,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textMuted,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
           ),
         ],
       ),
@@ -1020,6 +1068,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
     required int currentPage,
     required int totalPages,
@@ -1259,6 +1308,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   }
 }
 
+// ignore: unused_element
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -1321,6 +1371,7 @@ class _InwardRepairFormDialog extends StatefulWidget {
     this.prefillPurchasedFrom,
     this.prefillNotes,
     this.prefillStatus,
+    // ignore: unused_element_parameter
     this.prefillEstimates,
   });
 

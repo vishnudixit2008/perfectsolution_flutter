@@ -23,6 +23,7 @@ import '../../../shared/status_management_dialog.dart';
 
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
+import '../../../../data/services/user_permission_service.dart';
 
 class SalesView extends StatefulWidget {
   const SalesView({super.key});
@@ -193,8 +194,8 @@ class _SalesViewState extends State<SalesView> {
     filteredSales.sort((a, b) {
       final statusCompare = StatusManagementService.compareStatuses(
         'sales',
-        a.orderStatus ?? '',
-        b.orderStatus ?? '',
+        a.orderStatus,
+        b.orderStatus,
       );
       if (statusCompare != 0) return statusCompare;
       return b.saleDate.compareTo(a.saleDate);
@@ -217,14 +218,16 @@ class _SalesViewState extends State<SalesView> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: AppFloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _showBillingDesk = true;
-          });
-        },
-        tooltip: 'Create Invoice',
-      ),
+      floatingActionButton: isDesktop
+          ? null
+          : AppFloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _showBillingDesk = true;
+                });
+              },
+              tooltip: 'Create Invoice',
+            ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -232,6 +235,17 @@ class _SalesViewState extends State<SalesView> {
             title: 'Sales Ledger',
             subtitle: 'Ledger & Invoice History',
             actions: [
+              if (UserPermissionService.canPerformModuleAction('sales', 'canAdd'))
+                AppHeaderActionButton(
+                  label: 'New Sale',
+                  icon: Icons.add_rounded,
+                  onPressed: () {
+                    setState(() {
+                      _showBillingDesk = true;
+                    });
+                  },
+                ),
+              const SizedBox(width: 6),
               IconButton(
                 onPressed: () {
                   StatusManagementDialog.show(
@@ -549,6 +563,7 @@ class _SalesViewState extends State<SalesView> {
     );
   }
 
+  // ignore: unused_element
   void _bulkDeleteSales(BuildContext context, RecentSalesViewModel viewModel) {
     showDialog(
       context: context,
@@ -1993,30 +2008,49 @@ class _SalesViewState extends State<SalesView> {
                         ),
                       ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              await PdfInvoiceHelper.printInvoice(
-                                sale: sale,
-                                items: items,
-                                activeUpiId: viewModel.getActiveUpiId(),
-                              );
-                            },
-                            icon: const Icon(Icons.print_rounded, size: 18),
-                            label: const Text('Print Receipt'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white.withValues(
-                                alpha: 0.06,
-                              ),
-                              foregroundColor: AppTheme.textPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final canEdit = UserPermissionService.canPerformModuleAction('sales', 'canEdit');
+                        final isCompact = constraints.maxWidth < 460;
+
+                        final editBtn = ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showEditSaleDialog(context, viewModel, sale);
+                          },
+                          icon: const Icon(Icons.edit_note_rounded, size: 18),
+                          label: const Text('Edit Sale'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        OutlinedButton.icon(
+                        );
+
+                        final printBtn = ElevatedButton.icon(
+                          onPressed: () async {
+                            await PdfInvoiceHelper.printInvoice(
+                              sale: sale,
+                              items: items,
+                              activeUpiId: viewModel.getActiveUpiId(),
+                            );
+                          },
+                          icon: const Icon(Icons.print_rounded, size: 18),
+                          label: const Text('Print Receipt'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.08),
+                            foregroundColor: AppTheme.textPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+
+                        final deleteBtn = OutlinedButton.icon(
                           onPressed: () => _confirmDeleteInvoice(
                             context,
                             viewModel,
@@ -2031,12 +2065,46 @@ class _SalesViewState extends State<SalesView> {
                             side: const BorderSide(color: AppTheme.danger),
                             foregroundColor: AppTheme.danger,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
+                              horizontal: 14,
                               vertical: 14,
                             ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isCompact) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                children: [
+                                  if (canEdit) ...[
+                                    Expanded(child: editBtn),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Expanded(child: printBtn),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(width: double.infinity, child: deleteBtn),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            if (canEdit) ...[
+                              Expanded(child: editBtn),
+                              const SizedBox(width: 10),
+                            ],
+                            Expanded(child: printBtn),
+                            const SizedBox(width: 10),
+                            deleteBtn,
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -2209,6 +2277,391 @@ class _SalesViewState extends State<SalesView> {
           ],
         );
       },
+    );
+  }
+
+  void _showEditSaleDialog(
+    BuildContext context,
+    RecentSalesViewModel viewModel,
+    Sale sale,
+  ) {
+    final repo = context.read<ShopRepository>();
+    final initialItems = repo.localDb.getSaleItems(sale.invoiceNo);
+
+    final nameController = TextEditingController(text: sale.customerName ?? '');
+    final numberController = TextEditingController(text: sale.customerNumber ?? '');
+    final discountController = TextEditingController(
+      text: sale.discount > 0 ? sale.discount.toStringAsFixed(2) : '',
+    );
+    final advanceController = TextEditingController(
+      text: sale.advance > 0 ? sale.advance.toStringAsFixed(2) : '',
+    );
+
+    String paymentMode = sale.paymentMode;
+    String orderStatus = sale.orderStatus;
+
+    final List<Map<String, dynamic>> editedItems = initialItems.map((item) {
+      return {
+        'item': item,
+        'nameController': TextEditingController(text: item.itemDescription ?? ''),
+        'priceController': TextEditingController(text: item.activePrice.toStringAsFixed(2)),
+        'qtyController': TextEditingController(text: item.quantity.toString()),
+      };
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          double computedSubtotal = 0;
+          for (var itemMap in editedItems) {
+            final qty = int.tryParse(itemMap['qtyController'].text) ?? 1;
+            final price = double.tryParse(itemMap['priceController'].text) ?? 0.0;
+            computedSubtotal += (qty * price);
+          }
+          final disc = double.tryParse(discountController.text) ?? 0.0;
+          final computedTotal = (computedSubtotal - disc).clamp(0.0, double.infinity);
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF131A2E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.edit_note_rounded, color: AppTheme.primaryLight),
+                const SizedBox(width: 8),
+                Text(
+                  'Edit Sale Entry #${sale.invoiceNo}',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 600,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Customer Information',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: nameController,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            decoration: const InputDecoration(
+                              labelText: 'Customer Name',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: numberController,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            decoration: const InputDecoration(
+                              labelText: 'Mobile Number',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Order Settings & Payment',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: ['Cash', 'Online / UPI', 'Card', 'Credit / Due', 'UPI'].contains(paymentMode) ? paymentMode : 'Cash',
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Payment Method',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            dropdownColor: const Color(0xFF1B243B),
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            items: const [
+                              DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                              DropdownMenuItem(value: 'Online / UPI', child: Text('Online / UPI')),
+                              DropdownMenuItem(value: 'UPI', child: Text('UPI')),
+                              DropdownMenuItem(value: 'Card', child: Text('Card')),
+                              DropdownMenuItem(value: 'Credit / Due', child: Text('Credit / Due')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => paymentMode = val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: ['Confirmed', 'PENDING'].contains(orderStatus) ? orderStatus : 'Confirmed',
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Order Status',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                            dropdownColor: const Color(0xFF1B243B),
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            items: const [
+                              DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
+                              DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) setDialogState(() => orderStatus = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: discountController,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Discount (₹)',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: advanceController,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Advance Paid (₹)',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Sale Line Items',
+                          style: TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            final newId = 'edit_${DateTime.now().millisecondsSinceEpoch}';
+                            setDialogState(() {
+                              editedItems.add({
+                                'item': SaleItem(
+                                  id: newId,
+                                  invoiceNo: sale.invoiceNo,
+                                  lineType: 'Product',
+                                  itemDescription: 'Custom Item',
+                                  quantity: 1,
+                                  itemPrice: 0.0,
+                                  totalAmount: 0.0,
+                                ),
+                                'nameController': TextEditingController(text: 'Custom Item'),
+                                'priceController': TextEditingController(text: '0'),
+                                'qtyController': TextEditingController(text: '1'),
+                              });
+                            });
+                          },
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add Item'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    for (int i = 0; i < editedItems.length; i++) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextField(
+                                controller: editedItems[i]['nameController'],
+                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                                decoration: const InputDecoration(
+                                  labelText: 'Item Name',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              flex: 1,
+                              child: TextField(
+                                controller: editedItems[i]['qtyController'],
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                                onChanged: (_) => setDialogState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Qty',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: editedItems[i]['priceController'],
+                                keyboardType: TextInputType.number,
+                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                                onChanged: (_) => setDialogState(() {}),
+                                decoration: const InputDecoration(
+                                  labelText: 'Price (₹)',
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            if (editedItems.length > 1)
+                              IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, color: AppTheme.danger, size: 18),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    editedItems.removeAt(i);
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryLight.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Updated Net Total:',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '₹${computedTotal.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: AppTheme.primaryLight,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final finalItems = <SaleItem>[];
+                  for (var itemMap in editedItems) {
+                    final origItem = itemMap['item'] as SaleItem;
+                    final qty = int.tryParse(itemMap['qtyController'].text) ?? 1;
+                    final price = double.tryParse(itemMap['priceController'].text) ?? 0.0;
+                    final desc = itemMap['nameController'].text.trim();
+
+                    finalItems.add(
+                      origItem.copyWith(
+                        itemDescription: desc.isNotEmpty ? desc : origItem.itemDescription,
+                        quantity: qty,
+                        itemPrice: price,
+                        totalAmount: qty * price,
+                      ),
+                    );
+                  }
+
+                  final updatedSale = sale.copyWith(
+                    customerName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
+                    customerNumber: numberController.text.trim().isNotEmpty ? numberController.text.trim() : null,
+                    paymentMode: paymentMode,
+                    orderStatus: orderStatus,
+                    discount: double.tryParse(discountController.text) ?? 0.0,
+                    advance: double.tryParse(advanceController.text) ?? 0.0,
+                    totalAmount: computedTotal,
+                  );
+
+                  Navigator.pop(ctx);
+
+                  final success = await viewModel.updateSale(updatedSale, finalItems);
+                  if (success && context.mounted) {
+                    context.read<PricelistViewModel>().loadItems();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Invoice #${sale.invoiceNo} updated successfully.'),
+                        backgroundColor: AppTheme.success,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Save Changes'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

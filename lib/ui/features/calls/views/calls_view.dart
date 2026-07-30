@@ -19,6 +19,7 @@ import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
+import '../../../shared/components/app_pagination_bar.dart';
 import '../../../../data/services/user_permission_service.dart';
 
 class CallsView extends StatefulWidget {
@@ -37,6 +38,7 @@ class _CallsViewState extends State<CallsView> {
   double _mobileWidth = 130.0;
   double _queryWidth = 220.0;
   double _assignedWidth = 200.0;
+  // ignore: unused_field
   double _statusWidth = 130.0;
 
   void _loadSavedColumnWidths() {
@@ -80,7 +82,7 @@ class _CallsViewState extends State<CallsView> {
 
   // Pagination states
   int _currentPage = 1;
-  final int _itemsPerPage = 20;
+  int _itemsPerPage = 20;
   String _selectedStatus = 'All';
   String _selectedAssigned = 'All';
 
@@ -94,6 +96,7 @@ class _CallsViewState extends State<CallsView> {
   ];
 
   // Status priority for sorting (lower = shows first)
+  // ignore: unused_element
   static int _statusPriority(String status) {
     switch (status.toLowerCase()) {
       case 'pre-complete':
@@ -168,11 +171,19 @@ class _CallsViewState extends State<CallsView> {
         // Sort by ID descending (newest calls first)
         filteredCalls.sort((a, b) => b.id.compareTo(a.id));
 
-        final groupedCalls = _getGroupedCalls(filteredCalls);
+        final int totalPages = (filteredCalls.length / _itemsPerPage).ceil();
+        final int currentPage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
+        final int startIndex = (currentPage - 1) * _itemsPerPage;
+        final int endIndex = (startIndex + _itemsPerPage).clamp(0, filteredCalls.length);
+        final pagedCalls = isDesktop
+            ? (filteredCalls.isEmpty ? <CallModel>[] : filteredCalls.sublist(startIndex, endIndex))
+            : filteredCalls;
+
+        final groupedCalls = _getGroupedCalls(pagedCalls);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: UserPermissionService.canPerformModuleAction('calls', 'canAdd')
+          floatingActionButton: (!isDesktop && UserPermissionService.canPerformModuleAction('calls', 'canAdd'))
               ? AppFloatingActionButton(
                   onPressed: () => _showAddEditDialog(context),
                   tooltip: 'Log Call',
@@ -185,6 +196,13 @@ class _CallsViewState extends State<CallsView> {
                 title: 'Calls',
                 subtitle: 'Customer Support & Inquiries',
                 actions: [
+                  if (UserPermissionService.canPerformModuleAction('calls', 'canAdd'))
+                    AppHeaderActionButton(
+                      label: 'New Call',
+                      icon: Icons.add_ic_call_rounded,
+                      onPressed: () => _showAddEditDialog(context),
+                    ),
+                  const SizedBox(width: 6),
                   IconButton(
                     onPressed: () {
                       StatusManagementDialog.show(
@@ -430,6 +448,8 @@ class _CallsViewState extends State<CallsView> {
                             context,
                             viewModel,
                             groupedCalls,
+                            currentPage,
+                            totalPages,
                           )
                         : _buildMobileCardsList(
                             context,
@@ -561,6 +581,8 @@ class _CallsViewState extends State<CallsView> {
     BuildContext context,
     CallsViewModel viewModel,
     Map<String, List<CallModel>> groupedCalls,
+    int currentPage,
+    int totalPages,
   ) {
     final double totalWidth =
         _dateWidth +
@@ -569,102 +591,123 @@ class _CallsViewState extends State<CallsView> {
         _queryWidth +
         _assignedWidth;
 
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.glassCardDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: 12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double tableWidth = constraints.maxWidth > totalWidth
-              ? constraints.maxWidth
-              : totalWidth;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
-              child: Column(
-                children: [
-                  // Table Headers (Status column removed - grouped under status headers)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                    ),
-                    child: Row(
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            width: double.infinity,
+            decoration: AppTheme.glassCardDecoration(
+              color: const Color(0x0AFFFFFF),
+              borderRadius: 12,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double tableWidth = constraints.maxWidth > totalWidth
+                    ? constraints.maxWidth
+                    : totalWidth;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
                       children: [
-                        _buildResizableHeader(
-                          'Date',
-                          _dateWidth,
-                          (delta) => _updateColumnWidth(
-                            'date',
-                            (_dateWidth + delta).clamp(80.0, 200.0),
+                        // Table Headers (Status column removed - grouped under status headers)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.02),
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.06),
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildResizableHeader(
+                                'Date',
+                                _dateWidth,
+                                (delta) => _updateColumnWidth(
+                                  'date',
+                                  (_dateWidth + delta).clamp(80.0, 200.0),
+                                ),
+                              ),
+                              _buildResizableHeader(
+                                'Customer Name',
+                                _nameWidth,
+                                (delta) => _updateColumnWidth(
+                                  'name',
+                                  (_nameWidth + delta).clamp(120.0, 400.0),
+                                ),
+                              ),
+                              _buildResizableHeader(
+                                'Mobile',
+                                _mobileWidth,
+                                (delta) => _updateColumnWidth(
+                                  'mobile',
+                                  (_mobileWidth + delta).clamp(100.0, 300.0),
+                                ),
+                              ),
+                              _buildResizableHeader(
+                                'Query',
+                                _queryWidth,
+                                (delta) => _updateColumnWidth(
+                                  'query',
+                                  (_queryWidth + delta).clamp(120.0, 500.0),
+                                ),
+                              ),
+                              _buildResizableHeader(
+                                'Assigned To',
+                                _assignedWidth,
+                                (delta) => _updateColumnWidth(
+                                  'assigned',
+                                  (_assignedWidth + delta).clamp(120.0, 400.0),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        _buildResizableHeader(
-                          'Customer Name',
-                          _nameWidth,
-                          (delta) => _updateColumnWidth(
-                            'name',
-                            (_nameWidth + delta).clamp(120.0, 400.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Mobile',
-                          _mobileWidth,
-                          (delta) => _updateColumnWidth(
-                            'mobile',
-                            (_mobileWidth + delta).clamp(100.0, 300.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Query',
-                          _queryWidth,
-                          (delta) => _updateColumnWidth(
-                            'query',
-                            (_queryWidth + delta).clamp(120.0, 500.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Assigned To',
-                          _assignedWidth,
-                          (delta) => _updateColumnWidth(
-                            'assigned',
-                            (_assignedWidth + delta).clamp(120.0, 400.0),
+                        // Scrollable Body grouped by Status
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 80),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (final entry in groupedCalls.entries) ...[
+                                  _buildStatusSectionHeader(entry.key, entry.value.length),
+                                  for (final call in entry.value) ...[
+                                    _buildDesktopTableRow(context, viewModel, call),
+                                  ],
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Scrollable Body grouped by Status
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final entry in groupedCalls.entries) ...[
-                            _buildStatusSectionHeader(entry.key, entry.value.length),
-                            for (final call in entry.value) ...[
-                              _buildDesktopTableRow(context, viewModel, call),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
+          ),
+        ),
+        Positioned(
+          left: 8,
+          bottom: 8,
+          child: AppPaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            itemsPerPage: _itemsPerPage,
+            onItemsPerPageChanged: (val) => setState(() {
+              _itemsPerPage = val;
+              _currentPage = 1;
+            }),
+            onPreviousPage: () => setState(() => _currentPage--),
+            onNextPage: () => setState(() => _currentPage++),
+          ),
+        ),
+      ],
     );
   }
 
@@ -967,6 +1010,7 @@ class _CallsViewState extends State<CallsView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
     required int currentPage,
     required int totalPages,
@@ -1424,6 +1468,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     'Office',
   ];
 
+  // ignore: unused_field
   static const List<String> _statusOptions = [
     'Pending',
     'Pre-complete',

@@ -142,6 +142,7 @@ class GoogleDriveUploadService {
 }
 
 /// HTTP client that does NOT follow redirects so we can capture Location headers.
+// ignore: unused_element
 class _NonRedirectingClient extends http.BaseClient {
   final http.Client _inner = http.Client();
 

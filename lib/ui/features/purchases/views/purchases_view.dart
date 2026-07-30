@@ -17,6 +17,7 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
+import '../../../shared/components/app_pagination_bar.dart';
 
 import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/purchases_view_model.dart';
@@ -37,6 +38,7 @@ class _PurchasesViewState extends State<PurchasesView> {
   double _dateWidth = 120.0;
   double _vendorWidth = 220.0;
   double _amountWidth = 150.0;
+  // ignore: unused_field
   double _statusWidth = 140.0;
 
   void _loadSavedColumnWidths() {
@@ -76,7 +78,7 @@ class _PurchasesViewState extends State<PurchasesView> {
 
   // Pagination states
   int _currentPage = 1;
-  final int _itemsPerPage = 20;
+  int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -147,16 +149,37 @@ class _PurchasesViewState extends State<PurchasesView> {
         // Sort by date descending (newest purchases first)
         filtered.sort((a, b) => b.date.compareTo(a.date));
 
-        final groupedPurchases = _getGroupedPurchases(filtered);
+        final int totalPages = (filtered.length / _itemsPerPage).ceil();
+        final int currentPage = _currentPage.clamp(
+          1,
+          totalPages > 0 ? totalPages : 1,
+        );
+        final int startIndex = (currentPage - 1) * _itemsPerPage;
+        final int endIndex = (startIndex + _itemsPerPage).clamp(
+          0,
+          filtered.length,
+        );
+        final pagedPurchases = isDesktop
+            ? (filtered.isEmpty
+                  ? <PurchaseOrder>[]
+                  : filtered.sublist(startIndex, endIndex))
+            : filtered;
+
+        final groupedPurchases = _getGroupedPurchases(pagedPurchases);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: UserPermissionService.canPerformModuleAction('purchases', 'canAdd')
-              ? AppFloatingActionButton(
-                  onPressed: () => _showAddEditDialog(context),
-                  tooltip: 'Add Purchase',
-                )
-              : null,
+          floatingActionButton:
+              (!isDesktop &&
+                      UserPermissionService.canPerformModuleAction(
+                        'purchases',
+                        'canAdd',
+                      ))
+                  ? AppFloatingActionButton(
+                      onPressed: () => _showAddEditDialog(context),
+                      tooltip: 'Add Purchase',
+                    )
+                  : null,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -164,6 +187,13 @@ class _PurchasesViewState extends State<PurchasesView> {
                 title: 'Purchases',
                 subtitle: 'Vendor Procurement & Stock Inwarding',
                 actions: [
+                  if (UserPermissionService.canPerformModuleAction('purchases', 'canAdd'))
+                    AppHeaderActionButton(
+                      label: 'New Purchase',
+                      icon: Icons.add_rounded,
+                      onPressed: () => _showAddEditDialog(context),
+                    ),
+                  const SizedBox(width: 6),
                   IconButton(
                     onPressed: () {
                       StatusManagementDialog.show(
@@ -246,16 +276,18 @@ class _PurchasesViewState extends State<PurchasesView> {
                 child: filtered.isEmpty
                     ? _buildEmptyState()
                     : (isDesktop
-                        ? _buildDesktopTable(
-                            context,
-                            viewModel,
-                            groupedPurchases,
-                          )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedPurchases,
-                          )),
+                          ? _buildDesktopTable(
+                              context,
+                              viewModel,
+                              groupedPurchases,
+                              currentPage,
+                              totalPages,
+                            )
+                          : _buildMobileCardsList(
+                              context,
+                              viewModel,
+                              groupedPurchases,
+                            )),
               ),
             ],
           ),
@@ -267,8 +299,9 @@ class _PurchasesViewState extends State<PurchasesView> {
   Map<String, List<PurchaseOrder>> _getGroupedPurchases(
     List<PurchaseOrder> purchases,
   ) {
-    final List<String> configuredStatuses =
-        StatusManagementService.getStatuses('purchases');
+    final List<String> configuredStatuses = StatusManagementService.getStatuses(
+      'purchases',
+    );
     final Map<String, List<PurchaseOrder>> grouped = {};
 
     for (final status in configuredStatuses) {
@@ -358,13 +391,19 @@ class _PurchasesViewState extends State<PurchasesView> {
   Color _getStatusColor(String status) {
     final s = status.toLowerCase().trim();
     if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
+    if (s == 'ready return' || s == 'ready-return') {
+      return const Color(0xFFCA8A04); // Dull Yellow
+    }
     if (s == 'ready') return const Color(0xFFEAB308); // Yellow
     if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
+    if (s.contains('complete') ||
+        s.contains('pre complete') ||
+        s.contains('pre-complete')) {
       return const Color(0xFF10B981); // Green
     }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
+    if (s.contains('cancel') || s.contains('reject')) {
+      return const Color(0xFFEF4444);
+    }
     if (s.contains('pending')) return const Color(0xFFF97316);
     return const Color(0xFF6366F1);
   }
@@ -383,81 +422,107 @@ class _PurchasesViewState extends State<PurchasesView> {
     BuildContext context,
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
+    int currentPage,
+    int totalPages,
   ) {
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.glassCardDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: 12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Header Row (Status column removed - grouped under status headers)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
-              border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-              ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            width: double.infinity,
+            decoration: AppTheme.glassCardDecoration(
+              color: const Color(0x0AFFFFFF),
+              borderRadius: 12,
             ),
-            child: Row(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
               children: [
-                _buildResizableHeader(
-                  'ID',
-                  _idWidth,
-                  (delta) => _updateColumnWidth(
-                    'id',
-                    (_idWidth + delta).clamp(60.0, 300.0),
+                // Header Row (Status column removed - grouped under status headers)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.02),
+                    border: Border(
+                      bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildResizableHeader(
+                        'ID',
+                        _idWidth,
+                        (delta) => _updateColumnWidth(
+                          'id',
+                          (_idWidth + delta).clamp(60.0, 300.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Date',
+                        _dateWidth,
+                        (delta) => _updateColumnWidth(
+                          'date',
+                          (_dateWidth + delta).clamp(80.0, 200.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Purchased From (Vendor)',
+                        _vendorWidth,
+                        (delta) => _updateColumnWidth(
+                          'vendor',
+                          (_vendorWidth + delta).clamp(120.0, 450.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Total Amount',
+                        _amountWidth,
+                        (delta) => _updateColumnWidth(
+                          'amount',
+                          (_amountWidth + delta).clamp(100.0, 300.0),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Purchased From (Vendor)',
-                  _vendorWidth,
-                  (delta) => _updateColumnWidth(
-                    'vendor',
-                    (_vendorWidth + delta).clamp(120.0, 450.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Total Amount',
-                  _amountWidth,
-                  (delta) => _updateColumnWidth(
-                    'amount',
-                    (_amountWidth + delta).clamp(100.0, 300.0),
+
+                // Scrollable Body grouped by Status
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final entry in groupedPurchases.entries) ...[
+                          _buildStatusSectionHeader(
+                            entry.key,
+                            entry.value.length,
+                          ),
+                          for (final pur in entry.value) ...[
+                            _buildDesktopTableRow(context, viewModel, pur),
+                          ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Scrollable Body grouped by Status
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 80),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedPurchases.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final pur in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, pur),
-                    ],
-                  ],
-                ],
-              ),
-            ),
+        ),
+        Positioned(
+          left: 8,
+          bottom: 8,
+          child: AppPaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            itemsPerPage: _itemsPerPage,
+            onItemsPerPageChanged: (val) => setState(() {
+              _itemsPerPage = val;
+              _currentPage = 1;
+            }),
+            onPreviousPage: () => setState(() => _currentPage--),
+            onNextPage: () => setState(() => _currentPage++),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -475,19 +540,14 @@ class _PurchasesViewState extends State<PurchasesView> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
-            ),
+            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
           ),
         ),
         child: Row(
           children: [
             Container(
               width: _idWidth,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Text(
                 shortId,
                 style: const TextStyle(
@@ -515,9 +575,7 @@ class _PurchasesViewState extends State<PurchasesView> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 '₹${pur.totalAmount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -623,10 +681,7 @@ class _PurchasesViewState extends State<PurchasesView> {
           ),
           Text(
             formattedDate,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textMuted,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
           ),
         ],
       ),
@@ -642,7 +697,6 @@ class _PurchasesViewState extends State<PurchasesView> {
       onDelete: () => _confirmDelete(context, pur.id, viewModel),
     );
   }
-
 
   Widget _buildStatusChip(String status) {
     Color chipColor = AppTheme.warning;
@@ -671,6 +725,7 @@ class _PurchasesViewState extends State<PurchasesView> {
     );
   }
 
+  // ignore: unused_element
   void _confirmStockIn(
     BuildContext context,
     String id,
@@ -940,6 +995,7 @@ class _PurchasesViewState extends State<PurchasesView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
     required int currentPage,
     required int totalPages,
@@ -1096,6 +1152,7 @@ class _PurchaseFormDialog extends StatefulWidget {
     this.prefillItem,
     this.prefillAmount,
     this.prefillNotes,
+    // ignore: unused_element_parameter
     this.prefillItems,
   });
 

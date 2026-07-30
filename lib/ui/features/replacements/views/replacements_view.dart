@@ -17,7 +17,7 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
-
+import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/whatsapp_icon.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../view_models/replacements_view_model.dart';
@@ -38,6 +38,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   double _nameWidth = 200.0;
   double _mobileWidth = 150.0;
   double _itemWidth = 250.0;
+  // ignore: unused_field
   double _statusWidth = 140.0;
 
   void _loadSavedColumnWidths() {
@@ -83,7 +84,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
   // Pagination states
   int _currentPage = 1;
-  final int _itemsPerPage = 20;
+  int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -154,11 +155,19 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         // Sort by date descending (newest replacements first)
         filtered.sort((a, b) => b.date.compareTo(a.date));
 
-        final groupedReplacements = _getGroupedReplacements(filtered);
+        final int totalPages = (filtered.length / _itemsPerPage).ceil();
+        final int currentPage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
+        final int startIndex = (currentPage - 1) * _itemsPerPage;
+        final int endIndex = (startIndex + _itemsPerPage).clamp(0, filtered.length);
+        final pagedReplacements = isDesktop
+            ? (filtered.isEmpty ? <Replacement>[] : filtered.sublist(startIndex, endIndex))
+            : filtered;
+
+        final groupedReplacements = _getGroupedReplacements(pagedReplacements);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: UserPermissionService.canPerformModuleAction('replacements', 'canAdd')
+          floatingActionButton: (!isDesktop && UserPermissionService.canPerformModuleAction('replacements', 'canAdd'))
               ? AppFloatingActionButton(
                   onPressed: () => _showAddEditDialog(context),
                   tooltip: 'Add Replacement',
@@ -171,6 +180,13 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                 title: 'Replacements',
                 subtitle: 'Warranty & Parts Replacement Tracker',
                 actions: [
+                  if (UserPermissionService.canPerformModuleAction('replacements', 'canAdd'))
+                    AppHeaderActionButton(
+                      label: 'New Replacement',
+                      icon: Icons.add_rounded,
+                      onPressed: () => _showAddEditDialog(context),
+                    ),
+                  const SizedBox(width: 6),
                   IconButton(
                     onPressed: () {
                       StatusManagementDialog.show(
@@ -250,7 +266,6 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                   }),
                   hintText: 'Search job no, name, item...',
                 ),
-
               const SizedBox(height: 12),
 
               // Table / Cards list grouped by status
@@ -262,6 +277,8 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                             context,
                             viewModel,
                             groupedReplacements,
+                            currentPage,
+                            totalPages,
                           )
                         : _buildMobileCardsList(
                             context,
@@ -395,89 +412,112 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     BuildContext context,
     ReplacementsViewModel viewModel,
     Map<String, List<Replacement>> groupedReplacements,
+    int currentPage,
+    int totalPages,
   ) {
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.glassCardDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: 12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          // Header Row (Status column removed - grouped under status headers)
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
-              border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-              ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            width: double.infinity,
+            decoration: AppTheme.glassCardDecoration(
+              color: const Color(0x0AFFFFFF),
+              borderRadius: 12,
             ),
-            child: Row(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
               children: [
-                _buildResizableHeader(
-                  'Job No',
-                  _jobNoWidth,
-                  (delta) => _updateColumnWidth(
-                    'jobNo',
-                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                // Header Row (Status column removed - grouped under status headers)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.02),
+                    border: Border(
+                      bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildResizableHeader(
+                        'Job No',
+                        _jobNoWidth,
+                        (delta) => _updateColumnWidth(
+                          'jobNo',
+                          (_jobNoWidth + delta).clamp(60.0, 200.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Date',
+                        _dateWidth,
+                        (delta) => _updateColumnWidth(
+                          'date',
+                          (_dateWidth + delta).clamp(80.0, 200.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Customer Name',
+                        _nameWidth,
+                        (delta) => _updateColumnWidth(
+                          'name',
+                          (_nameWidth + delta).clamp(120.0, 400.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Mobile',
+                        _mobileWidth,
+                        (delta) => _updateColumnWidth(
+                          'mobile',
+                          (_mobileWidth + delta).clamp(100.0, 300.0),
+                        ),
+                      ),
+                      _buildResizableHeader(
+                        'Replacement Item',
+                        _itemWidth,
+                        (delta) => _updateColumnWidth(
+                          'item',
+                          (_itemWidth + delta).clamp(150.0, 500.0),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(120.0, 400.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 300.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Replacement Item',
-                  _itemWidth,
-                  (delta) => _updateColumnWidth(
-                    'item',
-                    (_itemWidth + delta).clamp(150.0, 500.0),
+
+                // Scrollable Body grouped by Status
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final entry in groupedReplacements.entries) ...[
+                          _buildStatusSectionHeader(entry.key, entry.value.length),
+                          for (final repl in entry.value) ...[
+                            _buildDesktopTableRow(context, viewModel, repl),
+                          ],
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Scrollable Body grouped by Status
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 80),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedReplacements.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final repl in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, repl),
-                    ],
-                  ],
-                ],
-              ),
-            ),
+        ),
+        Positioned(
+          left: 8,
+          bottom: 8,
+          child: AppPaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            itemsPerPage: _itemsPerPage,
+            onItemsPerPageChanged: (val) => setState(() {
+              _itemsPerPage = val;
+              _currentPage = 1;
+            }),
+            onPreviousPage: () => setState(() => _currentPage--),
+            onNextPage: () => setState(() => _currentPage++),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -928,6 +968,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
     required int currentPage,
     required int totalPages,
@@ -1098,6 +1139,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   }
 }
 
+// ignore: unused_element
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;

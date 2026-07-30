@@ -1,17 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
-import '../../../data/services/supabase_sync_service.dart';
-import '../../../data/repositories/shop_repository.dart';
-import '../../navigation/navigation_view_model.dart';
-import '../../features/calls/view_models/calls_view_model.dart';
-import '../../features/inward_repairs/view_models/inward_repairs_view_model.dart';
-import '../../features/replacements/view_models/replacements_view_model.dart';
-import '../../features/requests/view_models/requests_view_model.dart';
-import '../../features/purchases/view_models/purchases_view_model.dart';
-import '../../features/dashboard/view_models/recent_sales_view_model.dart';
 
-class AppPageHeader extends StatefulWidget {
+class AppHeaderActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final Color? backgroundColor;
+
+  const AppHeaderActionButton({
+    super.key,
+    required this.label,
+    this.icon = Icons.add_rounded,
+    required this.onPressed,
+    this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          letterSpacing: 0.2,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor ?? AppTheme.primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: AppTheme.primary.withValues(alpha: 0.4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+}
+
+class AppPageHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onBack;
@@ -26,45 +57,6 @@ class AppPageHeader extends StatefulWidget {
   });
 
   @override
-  State<AppPageHeader> createState() => _AppPageHeaderState();
-}
-
-class _AppPageHeaderState extends State<AppPageHeader> {
-  bool _isManualSyncing = false;
-
-  Future<void> _triggerManualSync(BuildContext context) async {
-    if (_isManualSyncing) return;
-    setState(() => _isManualSyncing = true);
-    try {
-      final localDb = context.read<ShopRepository>().localDb;
-      await SupabaseSyncService.instance.manualSync(localDb);
-      if (context.mounted) {
-        context.read<NavigationViewModel>().notifySync();
-        try {
-          context.read<CallsViewModel>().loadCalls();
-        } catch (_) {}
-        try {
-          context.read<InwardRepairsViewModel>().loadRepairs();
-        } catch (_) {}
-        try {
-          context.read<ReplacementsViewModel>().loadReplacements();
-        } catch (_) {}
-        try {
-          context.read<RequestsViewModel>().loadRequests();
-        } catch (_) {}
-        try {
-          context.read<PurchasesViewModel>().loadPurchases();
-        } catch (_) {}
-        try {
-          context.read<RecentSalesViewModel>().loadSales();
-        } catch (_) {}
-      }
-    } finally {
-      if (mounted) setState(() => _isManualSyncing = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -76,9 +68,9 @@ class _AppPageHeaderState extends State<AppPageHeader> {
         children: [
           Row(
             children: [
-              if (widget.onBack != null) ...[
+              if (onBack != null) ...[
                 IconButton(
-                  onPressed: widget.onBack,
+                  onPressed: onBack,
                   icon: const Icon(
                     Icons.arrow_back_rounded,
                     color: AppTheme.textPrimary,
@@ -94,7 +86,7 @@ class _AppPageHeaderState extends State<AppPageHeader> {
               ],
               Expanded(
                 child: Text(
-                  widget.title,
+                  title,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
@@ -105,18 +97,16 @@ class _AppPageHeaderState extends State<AppPageHeader> {
                   softWrap: true,
                 ),
               ),
-              const SizedBox(width: 8),
-              _buildSyncBadge(context),
-              if (widget.actions != null && widget.actions!.isNotEmpty) ...[
-                const SizedBox(width: 6),
-                ...widget.actions!,
+              if (actions != null && actions!.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                ...actions!,
               ],
             ],
           ),
-          if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
+          if (subtitle != null && subtitle!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              widget.subtitle!,
+              subtitle!,
               style: const TextStyle(
                 fontSize: 12,
                 color: AppTheme.textMuted,
@@ -128,70 +118,6 @@ class _AppPageHeaderState extends State<AppPageHeader> {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildSyncBadge(BuildContext context) {
-    return Consumer<SupabaseSyncService>(
-      builder: (context, syncService, _) {
-        final isSynced = syncService.status == SyncStatus.synced;
-        final isSyncing =
-            syncService.status == SyncStatus.syncing || _isManualSyncing;
-        final statusColor = isSynced
-            ? AppTheme.success
-            : isSyncing
-            ? AppTheme.primaryLight
-            : AppTheme.warning;
-
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _triggerManualSync(context),
-            borderRadius: BorderRadius.circular(16),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isSyncing)
-                    SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                        color: statusColor,
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: statusColor,
-                      ),
-                    ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isSynced ? 'Sync' : (isSyncing ? 'Syncing' : 'Sync'),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

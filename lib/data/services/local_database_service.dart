@@ -72,6 +72,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedSales() async {
     try {
       final salesJsonStr = await rootBundle.loadString('assets/sales.json');
@@ -106,6 +107,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedCalls() async {
     try {
       final jsonString = await rootBundle.loadString('assets/calls.json');
@@ -121,6 +123,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedInwardRepairs() async {
     try {
       final repairsJsonStr = await rootBundle.loadString(
@@ -157,6 +160,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedReplacements() async {
     try {
       final jsonString = await rootBundle.loadString(
@@ -174,6 +178,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedRequests() async {
     try {
       final jsonString = await rootBundle.loadString('assets/requests.json');
@@ -189,6 +194,7 @@ class LocalDatabaseService {
     }
   }
 
+  // ignore: unused_element
   Future<void> _seedPurchases() async {
     try {
       final purchasesJsonStr = await rootBundle.loadString(
