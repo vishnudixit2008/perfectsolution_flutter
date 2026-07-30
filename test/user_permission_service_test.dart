@@ -84,5 +84,16 @@ void main() {
       expect(employee.statusVisibilityAccess['calls'], equals(['Pending', 'Pre-complete']));
       expect(employee.statusSelectableAccess['calls'], equals(['Pending']));
     });
+
+    test('Password field serialization and security verification', () {
+      final user = AppUser.defaultEmployee('sec@shop.com', 'Sec User').copyWith(
+        password: 'SecretPassword123',
+      );
+
+      final json = user.toJson();
+      final parsed = AppUser.fromJson(json);
+
+      expect(parsed.password, equals('SecretPassword123'));
+    });
   });
 }

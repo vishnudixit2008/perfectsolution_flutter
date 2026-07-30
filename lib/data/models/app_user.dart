@@ -52,6 +52,7 @@ class AppUser {
   final String name;
   final String role; // 'admin' | 'employee'
   final bool isActive;
+  final String? password;
   final Map<String, bool> pageAccess;
   final Map<String, bool> actionAccess; // Legacy / fallback global action access
   final Map<String, Map<String, bool>> pageActionAccess;
@@ -64,6 +65,7 @@ class AppUser {
     required this.name,
     required this.role,
     this.isActive = true,
+    this.password,
     required this.pageAccess,
     required this.actionAccess,
     Map<String, Map<String, bool>>? pageActionAccess,
@@ -391,9 +393,10 @@ class AppUser {
       email: json['email'] ?? '',
       name: json['name'] ?? '',
       role: json['role'] ?? 'employee',
-      isActive: json['isActive'] ?? true,
-      pageAccess: Map<String, bool>.from(json['pageAccess'] ?? {}),
-      actionAccess: Map<String, bool>.from(json['actionAccess'] ?? {}),
+      isActive: json['isActive'] ?? json['is_active'] ?? true,
+      password: json['password'] ?? json['user_password'],
+      pageAccess: Map<String, bool>.from(json['pageAccess'] ?? json['page_access'] ?? {}),
+      actionAccess: Map<String, bool>.from(json['actionAccess'] ?? json['action_access'] ?? {}),
       pageActionAccess:
           parsedPageActions.isEmpty ? _defaultPageActionAccess() : parsedPageActions,
       fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
@@ -419,6 +422,7 @@ class AppUser {
       'name': name,
       'role': role,
       'isActive': isActive,
+      'password': password,
       'pageAccess': pageAccess,
       'actionAccess': actionAccess,
       'pageActionAccess': pageActionAccess,
@@ -433,6 +437,7 @@ class AppUser {
     String? name,
     String? role,
     bool? isActive,
+    String? password,
     Map<String, bool>? pageAccess,
     Map<String, bool>? actionAccess,
     Map<String, Map<String, bool>>? pageActionAccess,
@@ -445,6 +450,7 @@ class AppUser {
       name: name ?? this.name,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      password: password ?? this.password,
       pageAccess: pageAccess ?? Map.from(this.pageAccess),
       actionAccess: actionAccess ?? Map.from(this.actionAccess),
       pageActionAccess: pageActionAccess ?? Map.from(this.pageActionAccess),

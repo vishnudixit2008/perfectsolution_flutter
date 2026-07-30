@@ -126,7 +126,7 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Sign in with Email & Password (Strict Whitelist Check)
+  /// Sign in with Email & Password (Strict Password Verification + Whitelist Check)
   Future<bool> loginWithEmailAndPassword(
     String email,
     String password, {
@@ -139,6 +139,21 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       final cleanEmail = email.trim().toLowerCase();
+      final cleanPass = password.trim();
+
+      if (cleanEmail.isEmpty) {
+        _errorMessage = 'Please enter an email address.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      if (cleanPass.isEmpty) {
+        _errorMessage = 'Password is required to sign in. Access denied.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
 
       // 1. Strict Whitelist Check (Live Cloud DB + Local)
       final isAuthorized = await UserPermissionService.isAuthorizedUserAsync(cleanEmail);
@@ -150,43 +165,51 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
-      // 2. Check Supabase authentication if available
+      // 2. Authenticate Password against Supabase Auth
+      bool supabaseAuthSuccess = false;
       try {
         if (Supabase.instance.client.auth.currentSession != null) {
           await Supabase.instance.client.auth.signOut();
         }
         final res = await Supabase.instance.client.auth.signInWithPassword(
           email: cleanEmail,
-          password: password,
+          password: cleanPass,
         );
         if (res.user != null) {
-          await UserPermissionService.setCurrentUser(cleanEmail);
-          await _updateRememberMeSession(cleanEmail, rememberMe);
-          _isAuthenticated = true;
-          _isLoading = false;
-          notifyListeners();
-          return true;
+          supabaseAuthSuccess = true;
         }
-      } catch (_) {
-        // Fallback to internal UserPermissionService authorization
+      } catch (e) {
+        if (kDebugMode) print('Supabase auth sign in exception: $e');
       }
 
-      // Authorized user internal login success
+      // 3. Check UserPermissionService password verification if Supabase Auth isn't populated
+      final bool localAuthSuccess =
+          supabaseAuthSuccess || await UserPermissionService.verifyUserPassword(cleanEmail, cleanPass);
+
+      if (!localAuthSuccess) {
+        _errorMessage = 'Invalid Password. Sign in attempt blocked for security.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // Password Verification PASSED -> Grant Session
       await UserPermissionService.setCurrentUser(cleanEmail);
       await _updateRememberMeSession(cleanEmail, rememberMe);
       _isAuthenticated = true;
       _isLoading = false;
+      _errorMessage = null;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Authentication Error: $e';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  /// Sign in with Google via Supabase OAuth (Single clean browser window)
+  /// Sign in with Google via Supabase OAuth (Single clean external browser window)
   Future<bool> loginWithGoogle({bool rememberMe = false}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -199,9 +222,17 @@ class AuthViewModel extends ChangeNotifier {
         redirectTo: kIsWeb
             ? null
             : 'io.supabase.shopmanagement://login-callback',
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
 
-      // Loading state will be cleared by _listenToSupabaseAuth when deeplink completes
+      // Safety timeout: if OAuth browser window is closed without completing, reset loading after 30s
+      Future.delayed(const Duration(seconds: 30), () {
+        if (_isLoading && !_isAuthenticated) {
+          _isLoading = false;
+          notifyListeners();
+        }
+      });
+
       return success;
     } catch (e) {
       _errorMessage = 'Google Sign-In Error: $e';

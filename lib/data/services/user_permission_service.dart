@@ -86,6 +86,9 @@ class UserPermissionService {
     if (current == null) {
       await setCurrentUser('perfectsolutionnoida@gmail.com');
     }
+
+    // Sync cloud user database asynchronously
+    syncUsersFromCloud();
   }
 
   static Box? _getBox() {
@@ -146,6 +149,30 @@ class UserPermissionService {
     return users;
   }
 
+  /// Sync all users from Supabase app_users table to local Hive storage
+  static Future<void> syncUsersFromCloud() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('app_users')
+          .select()
+          .timeout(const Duration(seconds: 10));
+
+      if (response.isNotEmpty) {
+        final box = _getBox();
+        if (box != null) {
+          for (final row in response) {
+            final map = Map<String, dynamic>.from(row);
+            final email = (map['email'] ?? '').toString().toLowerCase().trim();
+            if (email.isNotEmpty) {
+              final user = AppUser.fromJson(map);
+              await box.put(email, user.toJson());
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   static Future<void> saveUser(AppUser user) async {
     final box = _getBox();
     if (box != null) {
@@ -157,6 +184,7 @@ class UserPermissionService {
         'name': user.name,
         'role': user.role,
         'is_active': user.isActive,
+        'user_password': user.password,
         'page_access': user.pageAccess,
         'action_access': user.actionAccess,
         'page_action_access': user.pageActionAccess,
@@ -198,13 +226,18 @@ class UserPermissionService {
     try {
       final res = await Supabase.instance.client
           .from('app_users')
-          .select('is_active')
+          .select()
           .eq('email', cleanEmail)
           .maybeSingle();
 
       if (res != null) {
-        final isActive = res['is_active'] == true;
-        return isActive;
+        final map = Map<String, dynamic>.from(res);
+        final fetchedUser = AppUser.fromJson(map);
+        final box = _getBox();
+        if (box != null) {
+          await box.put(cleanEmail, fetchedUser.toJson());
+        }
+        return fetchedUser.isActive;
       }
     } catch (_) {}
 
@@ -215,6 +248,46 @@ class UserPermissionService {
         return u.isActive;
       }
     }
+    return false;
+  }
+
+  static AppUser? getUser(String email) {
+    final cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail.isEmpty) return null;
+    if (AppUser.isPermanentAdmin(cleanEmail)) {
+      final name = cleanEmail.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin';
+      return AppUser.defaultAdmin(email: cleanEmail, name: name);
+    }
+    final box = _getBox();
+    if (box != null) {
+      final raw = box.get(cleanEmail);
+      if (raw != null && raw is Map) {
+        return AppUser.fromJson(Map<String, dynamic>.from(raw));
+      }
+    }
+    return null;
+  }
+
+  /// Verifies password against user credentials
+  static Future<bool> verifyUserPassword(String email, String password) async {
+    final cleanEmail = email.toLowerCase().trim();
+    final cleanPass = password.trim();
+    if (cleanEmail.isEmpty || cleanPass.isEmpty) return false;
+
+    final isAuth = await isAuthorizedUserAsync(cleanEmail);
+    if (!isAuth) return false;
+
+    var user = getUser(cleanEmail);
+    if (user == null) {
+      await syncUsersFromCloud();
+      user = getUser(cleanEmail);
+    }
+    if (user == null || !user.isActive) return false;
+
+    if (user.password != null && user.password!.isNotEmpty) {
+      return user.password!.trim() == cleanPass;
+    }
+
     return false;
   }
 

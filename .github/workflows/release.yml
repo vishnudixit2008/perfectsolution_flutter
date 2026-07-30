@@ -28,7 +28,7 @@ jobs:
             os: windows-latest
             build_cmd: flutter build windows --release
             artifact_path: build/windows/x64/runner/Release/
-            asset_name: ShopManagement-Windows.zip
+            asset_name: PerfectSolution-Setup.exe
 
           - target: macos
             os: macos-latest
@@ -75,26 +75,51 @@ jobs:
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
 
-      - name: Package Windows Zip
+      - name: Package Windows Installer
         if: matrix.target == 'windows'
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ShopManagement-Windows.zip
+        run: |
+          choco install innosetup --yes
+          $issContent = @"
+          [Setup]
+          AppName=Perfect Solution
+          AppVersion=0.9.5
+          DefaultDirName={autopf}\Perfect Solution
+          DefaultGroupName=Perfect Solution
+          UninstallDisplayIcon={app}\"Perfect Solution.exe"
+          Compression=lzma2
+          SolidCompression=yes
+          OutputDir=.
+          OutputBaseFilename=PerfectSolution-Setup
+          
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+          
+          [Icons]
+          Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\Perfect Solution.exe"
+          Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\Perfect Solution.exe"
+
+          [Run]
+          Filename: "{app}\Perfect Solution.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
+          "@
+          Set-Content -Path installer.iss -Value $issContent
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Package macOS DMG
         if: matrix.target == 'macos'
         run: |
           mkdir -p dist_macos
-          cp -R build/macos/Build/Products/Release/shop_management_flutter.app dist_macos/
+          cp -R "build/macos/Build/Products/Release/Perfect Solution.app" dist_macos/ || cp -R build/macos/Build/Products/Release/*.app dist_macos/
           brew install create-dmg || true
           create-dmg \
-            --volname "Shop Management" \
+            --volname "Perfect Solution" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
-            --icon "shop_management_flutter.app" 175 120 \
-            --hide-extension "shop_management_flutter.app" \
+            --icon "Perfect Solution.app" 175 120 \
+            --hide-extension "Perfect Solution.app" \
             --app-drop-link 425 120 \
-            "ShopManagement-macOS.dmg" \
-            "dist_macos/" || hdiutil create -volname "ShopManagement" -srcfolder "dist_macos/" -ov -format UDZO ShopManagement-macOS.dmg
+            "PerfectSolution-macOS.dmg" \
+            "dist_macos/" || hdiutil create -volname "Perfect Solution" -srcfolder "dist_macos/" -ov -format UDZO PerfectSolution-macOS.dmg
 
       - name: Upload Artifacts to GitHub Release
         if: matrix.target != 'web'
@@ -102,8 +127,8 @@ jobs:
         with:
           files: |
             ${{ matrix.target == 'android' && 'build/app/outputs/flutter-apk/app-release.apk' || '' }}
-            ${{ matrix.target == 'windows' && 'ShopManagement-Windows.zip' || '' }}
-            ${{ matrix.target == 'macos' && 'ShopManagement-macOS.dmg' || '' }}
+            ${{ matrix.target == 'windows' && 'PerfectSolution-Setup.exe' || '' }}
+            ${{ matrix.target == 'macos' && 'PerfectSolution-macOS.dmg' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

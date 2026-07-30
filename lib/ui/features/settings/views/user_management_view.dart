@@ -300,6 +300,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  late TextEditingController _passwordController;
   late String _role;
   late bool _isActive;
   late Map<String, bool> _pageAccess;
@@ -318,6 +319,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
     final u = widget.existingUser;
     _nameController = TextEditingController(text: u?.name ?? '');
     _emailController = TextEditingController(text: u?.email ?? '');
+    _passwordController = TextEditingController(text: u?.password ?? '');
     _role = u?.role ?? 'employee';
     _isActive = u?.isActive ?? true;
 
@@ -379,6 +381,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -445,6 +448,9 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
       name: _nameController.text.trim(),
       role: _role,
       isActive: _isActive,
+      password: _passwordController.text.trim().isNotEmpty
+          ? _passwordController.text.trim()
+          : widget.existingUser?.password,
       pageAccess: _pageAccess,
       actionAccess: _actionAccess,
       pageActionAccess: _pageActionAccess,
@@ -580,6 +586,25 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                       ),
                       validator: (val) =>
                           val == null || val.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(
+                        labelText: 'User Password (Secret Key) *',
+                        hintText: 'Enter login password',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (val) {
+                        if (widget.existingUser == null && (val == null || val.trim().isEmpty)) {
+                          return 'Password required';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 16),

@@ -14,6 +14,7 @@ import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/sale.dart';
 import '../services/local_database_service.dart';
+import '../services/user_permission_service.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
@@ -396,7 +397,10 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllPricelistItems(pricelistMap);
 
-      _setStatus(SyncStatus.synced, 'Live Synced');
+      // 8. Users & Permissions
+      await UserPermissionService.syncUsersFromCloud();
+
+      _setStatus(SyncStatus.synced, 'All tables synchronized');
       // notifyListeners is called by _setStatus above, ViewModels that
       // consume SupabaseSyncService via Provider will rebuild and re-read Hive.
     } catch (e) {
