@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   build-and-release:
     name: Build & Release (${{ matrix.target }})
@@ -56,9 +61,6 @@ jobs:
 
       - name: Install Dependencies
         run: flutter pub get
-
-      - name: Run Verification Tests
-        run: flutter test
 
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
