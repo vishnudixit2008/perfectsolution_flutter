@@ -59,6 +59,9 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Enable Desktop Support
+        run: flutter config --enable-macos-desktop --enable-windows-desktop
+
       - name: Install Dependencies
         run: flutter pub get
 
