@@ -10,9 +10,8 @@ import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_stock_badge.dart';
 import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/components/app_floating_action_button.dart';
+import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
-import '../../../../data/repositories/shop_repository.dart';
-import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 
 class PricelistView extends StatefulWidget {
@@ -79,20 +78,8 @@ class _PricelistViewState extends State<PricelistView> {
                       onPressed: () => _showAddEditItemDialog(context, viewModel),
                     ),
                   if (!isDesktop)
-                    IconButton(
-                      onPressed: () async {
-                        final localDb = context.read<ShopRepository>().localDb;
-                        await SupabaseSyncService.instance.manualSync(localDb);
-                        if (context.mounted) {
-                          context.read<PricelistViewModel>().loadItems();
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.sync_rounded,
-                        color: AppTheme.primaryLight,
-                        size: 20,
-                      ),
-                      tooltip: 'Sync Cloud Data',
+                    AppHeaderSyncButton(
+                      onSynced: () => context.read<PricelistViewModel>().loadItems(),
                     ),
                 ],
               ),

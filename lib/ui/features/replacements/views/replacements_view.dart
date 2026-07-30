@@ -13,6 +13,7 @@ import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
+import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
@@ -187,20 +188,8 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                       onPressed: () => _showAddEditDialog(context),
                     ),
                   if (!isDesktop)
-                    IconButton(
-                      onPressed: () async {
-                        final localDb = context.read<ShopRepository>().localDb;
-                        await SupabaseSyncService.instance.manualSync(localDb);
-                        if (context.mounted) {
-                          context.read<ReplacementsViewModel>().loadReplacements();
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.sync_rounded,
-                        color: AppTheme.primaryLight,
-                        size: 20,
-                      ),
-                      tooltip: 'Sync Cloud Data',
+                    AppHeaderSyncButton(
+                      onSynced: () => context.read<ReplacementsViewModel>().loadReplacements(),
                     ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -308,10 +297,8 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                               if (totalPages > 1)
                                 Positioned(
                                   bottom: 12,
-                                  left: 0,
-                                  right: 0,
-                                  child: Center(
-                                    child: _buildFloatingPaginationIsland(
+                                  left: 8,
+                                  child: _buildFloatingPaginationIsland(
                                       currentPage: currentPage,
                                       totalPages: totalPages,
                                       itemsPerPage: _itemsPerPage,
@@ -337,7 +324,6 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                                       },
                                     ),
                                   ),
-                                ),
                             ],
                           )),
               ),

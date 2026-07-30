@@ -17,6 +17,7 @@ import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
+import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -246,20 +247,8 @@ class _SalesViewState extends State<SalesView> {
                   },
                 ),
               if (!isDesktop)
-                IconButton(
-                  onPressed: () async {
-                    final localDb = context.read<ShopRepository>().localDb;
-                    await SupabaseSyncService.instance.manualSync(localDb);
-                    if (context.mounted) {
-                      context.read<RecentSalesViewModel>().loadSales();
-                    }
-                  },
-                  icon: const Icon(
-                    Icons.sync_rounded,
-                    color: AppTheme.primaryLight,
-                    size: 20,
-                  ),
-                  tooltip: 'Sync Cloud Data',
+                AppHeaderSyncButton(
+                  onSynced: () => context.read<RecentSalesViewModel>().loadSales(),
                 ),
               const SizedBox(width: 6),
               IconButton(
