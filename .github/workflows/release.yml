@@ -82,6 +82,8 @@ jobs:
       - name: Package macOS DMG
         if: matrix.target == 'macos'
         run: |
+          mkdir -p dist_macos
+          cp -R build/macos/Build/Products/Release/shop_management_flutter.app dist_macos/
           brew install create-dmg || true
           create-dmg \
             --volname "Shop Management" \
@@ -92,7 +94,7 @@ jobs:
             --hide-extension "shop_management_flutter.app" \
             --app-drop-link 425 120 \
             "ShopManagement-macOS.dmg" \
-            "build/macos/Build/Products/Release/" || hdiutil create -volname "ShopManagement" -srcfolder "build/macos/Build/Products/Release/" -ov -format UDZO ShopManagement-macOS.dmg
+            "dist_macos/" || hdiutil create -volname "ShopManagement" -srcfolder "dist_macos/" -ov -format UDZO ShopManagement-macOS.dmg
 
       - name: Upload Artifacts to GitHub Release
         if: matrix.target != 'web'
