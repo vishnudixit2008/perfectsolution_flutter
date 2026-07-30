@@ -34,7 +34,7 @@ jobs:
             os: macos-latest
             build_cmd: flutter build macos --release
             artifact_path: build/macos/Build/Products/Release/
-            asset_name: ShopManagement-macOS.zip
+            asset_name: ShopManagement-macOS.dmg
 
           - target: web
             os: ubuntu-latest
@@ -79,9 +79,20 @@ jobs:
         if: matrix.target == 'windows'
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ShopManagement-Windows.zip
 
-      - name: Package macOS Zip
+      - name: Package macOS DMG
         if: matrix.target == 'macos'
-        run: zip -r ShopManagement-macOS.zip build/macos/Build/Products/Release/
+        run: |
+          brew install create-dmg || true
+          create-dmg \
+            --volname "Shop Management" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "shop_management_flutter.app" 175 120 \
+            --hide-extension "shop_management_flutter.app" \
+            --app-drop-link 425 120 \
+            "ShopManagement-macOS.dmg" \
+            "build/macos/Build/Products/Release/" || hdiutil create -volname "ShopManagement" -srcfolder "build/macos/Build/Products/Release/" -ov -format UDZO ShopManagement-macOS.dmg
 
       - name: Upload Artifacts to GitHub Release
         if: matrix.target != 'web'
@@ -90,7 +101,7 @@ jobs:
           files: |
             ${{ matrix.target == 'android' && 'build/app/outputs/flutter-apk/app-release.apk' || '' }}
             ${{ matrix.target == 'windows' && 'ShopManagement-Windows.zip' || '' }}
-            ${{ matrix.target == 'macos' && 'ShopManagement-macOS.zip' || '' }}
+            ${{ matrix.target == 'macos' && 'ShopManagement-macOS.dmg' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
