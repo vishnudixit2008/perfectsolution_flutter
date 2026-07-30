@@ -141,6 +141,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filteredRepairs = viewModel.repairs.where((r) {
+          if (!UserPermissionService.isStatusVisible('inward', r.status)) {
+            return false;
+          }
           if (query.isEmpty) return true;
           final jobMatch = r.jobNo.toString().contains(query);
           final nameMatch = r.name.toLowerCase().contains(query);
@@ -1708,7 +1711,8 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                   dropdownColor: const Color(0xFF131A2E),
                   items:
                       (() {
-                        final list = StatusManagementService.getStatuses(
+                        final list =
+                            UserPermissionService.getAllowedSelectableStatuses(
                           'inward',
                         );
                         if (!list.contains(_status)) {

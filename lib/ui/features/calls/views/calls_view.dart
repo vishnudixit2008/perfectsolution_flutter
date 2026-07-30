@@ -87,14 +87,11 @@ class _CallsViewState extends State<CallsView> {
   String _selectedStatus = 'All';
   String _selectedAssigned = 'All';
 
-  // All status options from Excel data, ordered by priority
-  static const List<String> _allStatuses = [
-    'All',
-    'Pre-complete',
-    'Pending',
-    'Pending payment',
-    'Complete',
-  ];
+  // Dynamic status list from StatusManagementService
+  List<String> get _allStatuses => [
+        'All',
+        ...StatusManagementService.getStatuses('calls'),
+      ];
 
   // Status priority for sorting (lower = shows first)
   // ignore: unused_element
@@ -144,6 +141,9 @@ class _CallsViewState extends State<CallsView> {
         // Apply local filtering
         final query = _searchController.text.trim().toLowerCase();
         final filteredCalls = viewModel.calls.where((c) {
+          if (!UserPermissionService.isStatusVisible('calls', c.status)) {
+            return false;
+          }
           final matchesSearch =
               c.name.toLowerCase().contains(query) ||
               (c.mobileNo?.toLowerCase().contains(query) ?? false) ||
@@ -293,29 +293,108 @@ class _CallsViewState extends State<CallsView> {
                           color: Colors.white.withValues(alpha: 0.06),
                         ),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedStatus,
-                          dropdownColor: const Color(0xFF0F1524),
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 13,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Status: ',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          items: _allStatuses.map((status) {
-                            return DropdownMenuItem<String>(
-                              value: status,
-                              child: Text(status),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedStatus = val;
-                                _currentPage = 1;
-                              });
-                            }
-                          },
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedStatus,
+                              dropdownColor: const Color(0xFF0F1524),
+                              style: const TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 13,
+                              ),
+                              items: _allStatuses.map((status) {
+                                return DropdownMenuItem<String>(
+                                  value: status,
+                                  child: Text(status),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedStatus = val;
+                                    _currentPage = 1;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedAssigned != 'All'
+                            ? AppTheme.primary.withValues(alpha: 0.15)
+                            : Colors.white.withValues(alpha: 0.02),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _selectedAssigned != 'All'
+                              ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                              : Colors.white.withValues(alpha: 0.06),
                         ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person_search_rounded,
+                            size: 16,
+                            color: _selectedAssigned != 'All'
+                                ? AppTheme.primaryLight
+                                : AppTheme.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Assigned To: ',
+                            style: TextStyle(
+                              color: AppTheme.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedAssigned,
+                              dropdownColor: const Color(0xFF0F1524),
+                              style: TextStyle(
+                                color: _selectedAssigned != 'All'
+                                    ? AppTheme.primaryLight
+                                    : AppTheme.textPrimary,
+                                fontSize: 13,
+                                fontWeight: _selectedAssigned != 'All'
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              items: viewModel.availableAssignedPersons.map((a) {
+                                return DropdownMenuItem<String>(
+                                  value: a,
+                                  child: Text(a),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedAssigned = val;
+                                    _currentPage = 1;
+                                  });
+                                  viewModel.setSelectedAssigned(val);
+                                }
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -704,6 +783,12 @@ class _CallsViewState extends State<CallsView> {
                                   'assigned',
                                   (_assignedWidth + delta).clamp(120.0, 400.0),
                                 ),
+                                onTapDown: (details) => _showAssignedFilterMenu(
+                                  context,
+                                  viewModel,
+                                  details.globalPosition,
+                                ),
+                                isFilterActive: _selectedAssigned != 'All',
                               ),
                             ],
                           ),
@@ -818,26 +903,100 @@ class _CallsViewState extends State<CallsView> {
     );
   }
 
+  void _showAssignedFilterMenu(
+    BuildContext context,
+    CallsViewModel viewModel,
+    Offset globalPosition,
+  ) async {
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final selected = await showMenu<String>(
+      context: context,
+      color: const Color(0xFF131A2E),
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      items: viewModel.availableAssignedPersons.map((person) {
+        final isSelected = person == _selectedAssigned;
+        return PopupMenuItem<String>(
+          value: person,
+          child: Row(
+            children: [
+              Icon(
+                isSelected ? Icons.check_circle_rounded : Icons.person_outline_rounded,
+                size: 16,
+                color: isSelected ? AppTheme.primaryLight : AppTheme.textMuted,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                person,
+                style: TextStyle(
+                  color: isSelected ? AppTheme.primaryLight : AppTheme.textPrimary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedAssigned = selected;
+        _currentPage = 1;
+      });
+      viewModel.setSelectedAssigned(selected);
+    }
+  }
+
   Widget _buildResizableHeader(
     String label,
     double currentWidth,
-    ValueChanged<double> onResize,
-  ) {
+    ValueChanged<double> onResize, {
+    void Function(TapDownDetails)? onTapDown,
+    bool isFilterActive = false,
+  }) {
     return Container(
       width: currentWidth,
       padding: const EdgeInsets.only(left: 16, right: 2, top: 12, bottom: 12),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+            child: GestureDetector(
+              onTapDown: onTapDown,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isFilterActive
+                            ? AppTheme.primaryLight
+                            : AppTheme.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (onTapDown != null) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 18,
+                      color: isFilterActive
+                          ? AppTheme.primaryLight
+                          : AppTheme.textMuted,
+                    ),
+                  ],
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           MouseRegion(
@@ -1671,7 +1830,8 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                     decoration: _buildInputDecoration('Status'),
                     items:
                         (() {
-                          final list = StatusManagementService.getStatuses(
+                          final list =
+                              UserPermissionService.getAllowedSelectableStatuses(
                             'calls',
                           );
                           if (!list.contains(_status)) {

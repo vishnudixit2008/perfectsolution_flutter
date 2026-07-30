@@ -152,6 +152,9 @@ class _RequestsViewState extends State<RequestsView> {
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filtered = viewModel.requests.where((r) {
+          if (!UserPermissionService.isStatusVisible('requests', r.status)) {
+            return false;
+          }
           if (query.isEmpty) return true;
           final idMatch = r.id.toLowerCase().contains(query);
           final nameMatch = r.customerName.toLowerCase().contains(query);
@@ -1466,7 +1469,8 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                   dropdownColor: const Color(0xFF131A2E),
                   items:
                       (() {
-                        final list = StatusManagementService.getStatuses(
+                        final list =
+                            UserPermissionService.getAllowedSelectableStatuses(
                           'requests',
                         );
                         if (!list.contains(_status)) {

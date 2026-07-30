@@ -139,6 +139,9 @@ class _PurchasesViewState extends State<PurchasesView> {
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filtered = viewModel.purchases.where((p) {
+          if (!UserPermissionService.isStatusVisible('purchases', p.status)) {
+            return false;
+          }
           if (query.isEmpty) return true;
           final idMatch = p.id.toLowerCase().contains(query);
           final vendorMatch = p.purchasedFrom.toLowerCase().contains(query);
@@ -1396,7 +1399,8 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                   dropdownColor: const Color(0xFF131A2E),
                   items:
                       (() {
-                        final list = StatusManagementService.getStatuses(
+                        final list =
+                            UserPermissionService.getAllowedSelectableStatuses(
                           'purchases',
                         );
                         if (!list.contains(_status)) {

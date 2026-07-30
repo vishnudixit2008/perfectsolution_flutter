@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../shared/status_management_dialog.dart';
 
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key});
@@ -305,9 +306,11 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
   late Map<String, bool> _actionAccess;
   late Map<String, Map<String, bool>> _pageActionAccess;
   late Map<String, Map<String, FieldPermission>> _fieldAccess;
+  late Map<String, List<String>> _statusVisibilityAccess;
+  late Map<String, List<String>> _statusSelectableAccess;
 
   String _expandedModuleKey = 'inward';
-  final Map<String, String> _activeSubTab = {}; // 'actions' or 'fields'
+  final Map<String, String> _activeSubTab = {}; // 'actions', 'fields', or 'statuses'
 
   @override
   void initState() {
@@ -352,6 +355,20 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                   f: FieldPermission.allTrue()
               }
           };
+
+    _statusVisibilityAccess = u != null
+        ? {
+            for (var entry in u.statusVisibilityAccess.entries)
+              entry.key: List<String>.from(entry.value)
+          }
+        : {for (var m in AppUser.modules) m: ['*']};
+
+    _statusSelectableAccess = u != null
+        ? {
+            for (var entry in u.statusSelectableAccess.entries)
+              entry.key: List<String>.from(entry.value)
+          }
+        : {for (var m in AppUser.modules) m: ['*']};
 
     for (var m in AppUser.modules) {
       _activeSubTab[m] = 'actions';
@@ -432,6 +449,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
       actionAccess: _actionAccess,
       pageActionAccess: _pageActionAccess,
       fieldAccess: _fieldAccess,
+      statusVisibilityAccess: _statusVisibilityAccess,
+      statusSelectableAccess: _statusSelectableAccess,
     );
 
     await UserPermissionService.saveUser(user);
@@ -722,32 +741,44 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                                     const Divider(color: Colors.white10),
                                     const SizedBox(height: 8),
 
-                                    // Sub-Tab Switcher (Page Actions vs Column / Field Permissions)
-                                    Row(
-                                      children: [
-                                        _buildSubTabButton(
-                                          moduleKey,
-                                          'actions',
-                                          'Page Actions & Features',
-                                          Icons.touch_app_rounded,
-                                          subTab == 'actions',
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _buildSubTabButton(
-                                          moduleKey,
-                                          'fields',
-                                          'Column & Form Field Controls',
-                                          Icons.table_chart_rounded,
-                                          subTab == 'fields',
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 14),
+                                     // Sub-Tab Switcher (Page Actions, Column Fields & Status Permissions)
+                                     Row(
+                                       children: [
+                                         _buildSubTabButton(
+                                           moduleKey,
+                                           'actions',
+                                           'Actions',
+                                           Icons.touch_app_rounded,
+                                           subTab == 'actions',
+                                         ),
+                                         const SizedBox(width: 8),
+                                         _buildSubTabButton(
+                                           moduleKey,
+                                           'fields',
+                                           'Columns',
+                                           Icons.table_chart_rounded,
+                                           subTab == 'fields',
+                                         ),
+                                         if (moduleKey != 'pricelist' && moduleKey != 'settings') ...[
+                                           const SizedBox(width: 8),
+                                           _buildSubTabButton(
+                                             moduleKey,
+                                             'statuses',
+                                             'Status Access & Edits',
+                                             Icons.low_priority_rounded,
+                                             subTab == 'statuses',
+                                           ),
+                                         ],
+                                       ],
+                                     ),
+                                     const SizedBox(height: 14),
 
-                                    if (subTab == 'actions')
-                                      _buildModuleActionsGrid(moduleKey)
-                                    else
-                                      _buildModuleFieldsMatrix(moduleKey),
+                                     if (subTab == 'actions')
+                                       _buildModuleActionsGrid(moduleKey)
+                                     else if (subTab == 'fields')
+                                       _buildModuleFieldsMatrix(moduleKey)
+                                     else
+                                       _buildModuleStatusPermissionsMatrix(moduleKey),
                                   ],
                                 ),
                               ),
@@ -1099,6 +1130,261 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
           }),
         ],
       ),
+    );
+  }
+
+  Widget _buildQuickStatusActionChip(
+    String label,
+    bool isActive,
+    VoidCallback onPressed,
+  ) {
+    return ActionChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isActive ? AppTheme.success : AppTheme.textMuted,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: isActive
+          ? AppTheme.success.withValues(alpha: 0.15)
+          : Colors.white.withValues(alpha: 0.04),
+      side: BorderSide(
+        color: isActive
+            ? AppTheme.success.withValues(alpha: 0.4)
+            : Colors.white.withValues(alpha: 0.1),
+      ),
+      onPressed: onPressed,
+    );
+  }
+
+  Widget _buildModuleStatusPermissionsMatrix(String moduleKey) {
+    final configuredStatuses = StatusManagementService.getStatuses(moduleKey);
+    final currentVisibility = _statusVisibilityAccess[moduleKey] ?? ['*'];
+    final currentSelectable = _statusSelectableAccess[moduleKey] ?? ['*'];
+
+    final bool isVisAll =
+        currentVisibility.isEmpty || currentVisibility.contains('*');
+    final bool isSelAll =
+        currentSelectable.isEmpty || currentSelectable.contains('*');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section 1: Entry Visibility Rules
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1524),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.visibility_rounded,
+                    size: 18,
+                    color: AppTheme.primaryLight,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '1. Viewable Entry Statuses (List & Search Visibility)',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildQuickStatusActionChip(
+                    'All Statuses',
+                    isVisAll,
+                    () {
+                      setState(() {
+                        _statusVisibilityAccess[moduleKey] = ['*'];
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Unchecked status entries will be completely hidden from list view, search, and count totals for this user.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: configuredStatuses.map((st) {
+                  final bool isSelected = isVisAll ||
+                      currentVisibility.any(
+                        (s) => s.toLowerCase() == st.toLowerCase(),
+                      );
+
+                  return FilterChip(
+                    label: Text(st),
+                    selected: isSelected,
+                    selectedColor: AppTheme.primary.withValues(alpha: 0.25),
+                    checkmarkColor: AppTheme.primaryLight,
+                    backgroundColor: Colors.white.withValues(alpha: 0.03),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppTheme.primaryLight
+                          : Colors.white.withValues(alpha: 0.1),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? AppTheme.textPrimary
+                          : AppTheme.textMuted,
+                      fontSize: 12,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        List<String> list = isVisAll
+                            ? List<String>.from(configuredStatuses)
+                            : List<String>.from(currentVisibility);
+                        list.remove('*');
+                        if (selected) {
+                          if (!list.any(
+                            (s) => s.toLowerCase() == st.toLowerCase(),
+                          )) {
+                            list.add(st);
+                          }
+                        } else {
+                          list.removeWhere(
+                            (s) => s.toLowerCase() == st.toLowerCase(),
+                          );
+                        }
+                        if (list.length == configuredStatuses.length ||
+                            list.isEmpty) {
+                          _statusVisibilityAccess[moduleKey] = ['*'];
+                        } else {
+                          _statusVisibilityAccess[moduleKey] = list;
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Section 2: Allowed Selectable Statuses for Editing
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1524),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.edit_note_rounded,
+                    size: 18,
+                    color: AppTheme.secondary,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '2. Selectable Status Options (Edit & Status Change)',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  _buildQuickStatusActionChip(
+                    'All Statuses',
+                    isSelAll,
+                    () {
+                      setState(() {
+                        _statusSelectableAccess[moduleKey] = ['*'];
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Controls which status choices this user can pick in dropdowns when adding/editing a record or changing status.',
+                style: TextStyle(color: AppTheme.textMuted, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: configuredStatuses.map((st) {
+                  final bool isSelected = isSelAll ||
+                      currentSelectable.any(
+                        (s) => s.toLowerCase() == st.toLowerCase(),
+                      );
+
+                  return FilterChip(
+                    label: Text(st),
+                    selected: isSelected,
+                    selectedColor: AppTheme.secondary.withValues(alpha: 0.25),
+                    checkmarkColor: AppTheme.secondary,
+                    backgroundColor: Colors.white.withValues(alpha: 0.03),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppTheme.secondary
+                          : Colors.white.withValues(alpha: 0.1),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? AppTheme.textPrimary
+                          : AppTheme.textMuted,
+                      fontSize: 12,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (selected) {
+                      setState(() {
+                        List<String> list = isSelAll
+                            ? List<String>.from(configuredStatuses)
+                            : List<String>.from(currentSelectable);
+                        list.remove('*');
+                        if (selected) {
+                          if (!list.any(
+                            (s) => s.toLowerCase() == st.toLowerCase(),
+                          )) {
+                            list.add(st);
+                          }
+                        } else {
+                          list.removeWhere(
+                            (s) => s.toLowerCase() == st.toLowerCase(),
+                          );
+                        }
+                        if (list.length == configuredStatuses.length ||
+                            list.isEmpty) {
+                          _statusSelectableAccess[moduleKey] = ['*'];
+                        } else {
+                          _statusSelectableAccess[moduleKey] = list;
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

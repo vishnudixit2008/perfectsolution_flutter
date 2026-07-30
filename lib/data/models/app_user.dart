@@ -56,6 +56,8 @@ class AppUser {
   final Map<String, bool> actionAccess; // Legacy / fallback global action access
   final Map<String, Map<String, bool>> pageActionAccess;
   final Map<String, Map<String, FieldPermission>> fieldAccess;
+  final Map<String, List<String>> statusVisibilityAccess;
+  final Map<String, List<String>> statusSelectableAccess;
 
   AppUser({
     required this.email,
@@ -66,8 +68,14 @@ class AppUser {
     required this.actionAccess,
     Map<String, Map<String, bool>>? pageActionAccess,
     Map<String, Map<String, FieldPermission>>? fieldAccess,
+    Map<String, List<String>>? statusVisibilityAccess,
+    Map<String, List<String>>? statusSelectableAccess,
   })  : pageActionAccess = pageActionAccess ?? _defaultPageActionAccess(),
-        fieldAccess = fieldAccess ?? _defaultFieldAccess();
+        fieldAccess = fieldAccess ?? _defaultFieldAccess(),
+        statusVisibilityAccess =
+            statusVisibilityAccess ?? _defaultStatusAccess(),
+        statusSelectableAccess =
+            statusSelectableAccess ?? _defaultStatusAccess();
 
   static const List<String> permanentAdminEmails = [
     'perfectsolutionnoida@gmail.com',
@@ -77,7 +85,7 @@ class AppUser {
   static bool isPermanentAdmin(String email) =>
       permanentAdminEmails.contains(email.toLowerCase().trim());
 
-  bool get isAdmin => role.toLowerCase() == 'admin' || isPermanentAdmin(email);
+  bool get isAdmin => isPermanentAdmin(email);
 
   static const List<String> modules = [
     'inward',
@@ -259,6 +267,14 @@ class AppUser {
     return access;
   }
 
+  static Map<String, List<String>> _defaultStatusAccess() {
+    final Map<String, List<String>> access = {};
+    for (var mod in modules) {
+      access[mod] = ['*'];
+    }
+    return access;
+  }
+
   factory AppUser.defaultAdmin({
     String email = 'perfectsolutionnoida@gmail.com',
     String name = 'Perfect Solution Admin',
@@ -283,6 +299,8 @@ class AppUser {
       },
       pageActionAccess: _defaultPageActionAccess(),
       fieldAccess: _defaultFieldAccess(),
+      statusVisibilityAccess: _defaultStatusAccess(),
+      statusSelectableAccess: _defaultStatusAccess(),
     );
   }
 
@@ -313,6 +331,8 @@ class AppUser {
           }
       },
       fieldAccess: _defaultFieldAccess(),
+      statusVisibilityAccess: _defaultStatusAccess(),
+      statusSelectableAccess: _defaultStatusAccess(),
     );
   }
 
@@ -345,6 +365,28 @@ class AppUser {
       });
     }
 
+    final rawStatusVis = json['statusVisibilityAccess'];
+    Map<String, List<String>> parsedStatusVis = {};
+    if (rawStatusVis is Map) {
+      rawStatusVis.forEach((modKey, valList) {
+        if (valList is List) {
+          parsedStatusVis[modKey.toString()] =
+              valList.map((e) => e.toString()).toList();
+        }
+      });
+    }
+
+    final rawStatusSel = json['statusSelectableAccess'];
+    Map<String, List<String>> parsedStatusSel = {};
+    if (rawStatusSel is Map) {
+      rawStatusSel.forEach((modKey, valList) {
+        if (valList is List) {
+          parsedStatusSel[modKey.toString()] =
+              valList.map((e) => e.toString()).toList();
+        }
+      });
+    }
+
     return AppUser(
       email: json['email'] ?? '',
       name: json['name'] ?? '',
@@ -355,6 +397,10 @@ class AppUser {
       pageActionAccess:
           parsedPageActions.isEmpty ? _defaultPageActionAccess() : parsedPageActions,
       fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
+      statusVisibilityAccess:
+          parsedStatusVis.isEmpty ? _defaultStatusAccess() : parsedStatusVis,
+      statusSelectableAccess:
+          parsedStatusSel.isEmpty ? _defaultStatusAccess() : parsedStatusSel,
     );
   }
 
@@ -377,6 +423,8 @@ class AppUser {
       'actionAccess': actionAccess,
       'pageActionAccess': pageActionAccess,
       'fieldAccess': serializedFields,
+      'statusVisibilityAccess': statusVisibilityAccess,
+      'statusSelectableAccess': statusSelectableAccess,
     };
   }
 
@@ -389,6 +437,8 @@ class AppUser {
     Map<String, bool>? actionAccess,
     Map<String, Map<String, bool>>? pageActionAccess,
     Map<String, Map<String, FieldPermission>>? fieldAccess,
+    Map<String, List<String>>? statusVisibilityAccess,
+    Map<String, List<String>>? statusSelectableAccess,
   }) {
     return AppUser(
       email: email ?? this.email,
@@ -399,6 +449,10 @@ class AppUser {
       actionAccess: actionAccess ?? Map.from(this.actionAccess),
       pageActionAccess: pageActionAccess ?? Map.from(this.pageActionAccess),
       fieldAccess: fieldAccess ?? Map.from(this.fieldAccess),
+      statusVisibilityAccess:
+          statusVisibilityAccess ?? Map.from(this.statusVisibilityAccess),
+      statusSelectableAccess:
+          statusSelectableAccess ?? Map.from(this.statusSelectableAccess),
     );
   }
 }

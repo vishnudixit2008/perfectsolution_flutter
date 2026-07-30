@@ -139,6 +139,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filtered = viewModel.replacements.where((r) {
+          if (!UserPermissionService.isStatusVisible('replacements', r.status)) {
+            return false;
+          }
           if (query.isEmpty) return true;
           final jobMatch = r.jobNo.toLowerCase().contains(query);
           final nameMatch = r.name.toLowerCase().contains(query);
@@ -1458,7 +1461,8 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
             dropdownColor: const Color(0xFF131A2E),
             items:
                 (() {
-                  final list = StatusManagementService.getStatuses(
+                  final list =
+                      UserPermissionService.getAllowedSelectableStatuses(
                     'replacements',
                   );
                   if (!list.contains(_status)) {

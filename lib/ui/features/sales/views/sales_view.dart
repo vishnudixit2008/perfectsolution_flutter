@@ -180,6 +180,9 @@ class _SalesViewState extends State<SalesView> {
 
     // Filtered ledger sales list
     final filteredSales = viewModel.sales.where((sale) {
+      if (!UserPermissionService.isStatusVisible('sales', sale.orderStatus)) {
+        return false;
+      }
       final query = _ledgerSearchController.text.trim().toLowerCase();
       if (query.isEmpty) return true;
       final nameMatch =

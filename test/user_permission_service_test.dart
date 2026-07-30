@@ -61,6 +61,28 @@ void main() {
       expect(parsed.name, equals('Test User'));
       expect(parsed.pageActionAccess.keys, containsAll(AppUser.modules));
       expect(parsed.fieldAccess.keys, containsAll(AppUser.modules));
+      expect(parsed.statusVisibilityAccess.keys, containsAll(AppUser.modules));
+      expect(parsed.statusSelectableAccess.keys, containsAll(AppUser.modules));
+    });
+
+    test('Permanent Admins bypass status restrictions; non-admins enforce status rules', () {
+      final permanentAdmin = AppUser.defaultAdmin(email: 'perfectsolutionnoida@gmail.com');
+      final employee = AppUser.defaultEmployee('emp@shop.com', 'Emp User').copyWith(
+        statusVisibilityAccess: {
+          'calls': ['Pending', 'Pre-complete'],
+        },
+        statusSelectableAccess: {
+          'calls': ['Pending'],
+        },
+      );
+
+      // Admin check
+      expect(permanentAdmin.isAdmin, isTrue);
+
+      // Employee check
+      expect(employee.isAdmin, isFalse);
+      expect(employee.statusVisibilityAccess['calls'], equals(['Pending', 'Pre-complete']));
+      expect(employee.statusSelectableAccess['calls'], equals(['Pending']));
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_user.dart';
+import '../../ui/shared/status_management_dialog.dart';
 
 class UserPermissionService {
   static const String _boxName = 'app_users_box';
@@ -162,6 +163,8 @@ class UserPermissionService {
         'field_access': user.fieldAccess.map(
           (m, fields) => MapEntry(m, fields.map((f, p) => MapEntry(f, p.toJson()))),
         ),
+        'status_visibility_access': user.statusVisibilityAccess,
+        'status_selectable_access': user.statusSelectableAccess,
         'updated_at': DateTime.now().toIso8601String(),
       });
     } catch (_) {}
@@ -299,5 +302,41 @@ class UserPermissionService {
 
     final fieldPerm = user.fieldAccess[moduleKey]?[fieldKey];
     return fieldPerm?.editable ?? true;
+  }
+
+  /// Checks if the current user is permitted to see an entry with the specified status in [moduleKey]
+  static bool isStatusVisible(String moduleKey, String status) {
+    final user = getCurrentUser();
+    if (user.isAdmin) return true;
+    if (!user.isActive) return false;
+
+    final allowed = user.statusVisibilityAccess[moduleKey];
+    if (allowed == null || allowed.isEmpty || allowed.contains('*')) {
+      return true;
+    }
+    final cleanStatus = status.trim().toLowerCase();
+    return allowed.any((a) => a.trim().toLowerCase() == cleanStatus);
+  }
+
+  /// Returns the list of statuses the current user can select when editing/creating in [moduleKey]
+  static List<String> getAllowedSelectableStatuses(
+    String moduleKey, {
+    List<String>? allAvailableStatuses,
+  }) {
+    final configured = allAvailableStatuses ??
+        StatusManagementService.getStatuses(moduleKey);
+    final user = getCurrentUser();
+    if (user.isAdmin) return configured;
+
+    final allowed = user.statusSelectableAccess[moduleKey];
+    if (allowed == null || allowed.isEmpty || allowed.contains('*')) {
+      return configured;
+    }
+
+    final filtered = configured
+        .where((s) => allowed.any((a) => a.trim().toLowerCase() == s.trim().toLowerCase()))
+        .toList();
+
+    return filtered.isEmpty ? configured : filtered;
   }
 }
