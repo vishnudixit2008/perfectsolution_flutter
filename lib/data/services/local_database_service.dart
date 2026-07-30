@@ -603,8 +603,12 @@ class LocalDatabaseService {
     Map<int, Map<String, dynamic>> repairsMap,
     Map<int, List<Map<String, dynamic>>> itemsMap,
   ) async {
-    await _inwardBox.clear();
-    await _inwardItemsBox.clear();
+    final existingKeys = Set.of(_inwardBox.keys);
+    final validKeys = repairsMap.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _inwardBox.delete(key);
+      await _inwardItemsBox.delete(key);
+    }
     if (repairsMap.isNotEmpty) await _inwardBox.putAll(repairsMap);
     if (itemsMap.isNotEmpty) await _inwardItemsBox.putAll(itemsMap);
   }
@@ -612,17 +616,29 @@ class LocalDatabaseService {
   Future<void> saveAllReplacements(
     Map<String, Map<String, dynamic>> map,
   ) async {
-    await _replacementBox.clear();
+    final existingKeys = Set.of(_replacementBox.keys);
+    final validKeys = map.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _replacementBox.delete(key);
+    }
     if (map.isNotEmpty) await _replacementBox.putAll(map);
   }
 
   Future<void> saveAllRequests(Map<String, Map<String, dynamic>> map) async {
-    await _requestBox.clear();
+    final existingKeys = Set.of(_requestBox.keys);
+    final validKeys = map.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _requestBox.delete(key);
+    }
     if (map.isNotEmpty) await _requestBox.putAll(map);
   }
 
   Future<void> saveAllCalls(Map<int, Map<String, dynamic>> map) async {
-    await _callsBox.clear();
+    final existingKeys = Set.of(_callsBox.keys);
+    final validKeys = map.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _callsBox.delete(key);
+    }
     if (map.isNotEmpty) await _callsBox.putAll(map);
   }
 
@@ -630,8 +646,12 @@ class LocalDatabaseService {
     Map<int, Map<String, dynamic>> salesMap,
     Map<int, List<Map<String, dynamic>>> itemsMap,
   ) async {
-    await _salesBox.clear();
-    await _saleItemsBox.clear();
+    final existingKeys = Set.of(_salesBox.keys);
+    final validKeys = salesMap.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _salesBox.delete(key);
+      await _saleItemsBox.delete(key);
+    }
     if (salesMap.isNotEmpty) await _salesBox.putAll(salesMap);
     if (itemsMap.isNotEmpty) await _saleItemsBox.putAll(itemsMap);
   }
@@ -640,14 +660,22 @@ class LocalDatabaseService {
     Map<String, Map<String, dynamic>> purchasesMap,
     Map<String, List<Map<String, dynamic>>> itemsMap,
   ) async {
-    await _purchaseBox.clear();
-    await _purchaseItemsBox.clear();
+    final existingKeys = Set.of(_purchaseBox.keys);
+    final validKeys = purchasesMap.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _purchaseBox.delete(key);
+      await _purchaseItemsBox.delete(key);
+    }
     if (purchasesMap.isNotEmpty) await _purchaseBox.putAll(purchasesMap);
     if (itemsMap.isNotEmpty) await _purchaseItemsBox.putAll(itemsMap);
   }
 
   Future<void> saveAllPricelistItems(Map<int, Map<String, dynamic>> map) async {
-    await _pricelistBox.clear();
+    final existingKeys = Set.of(_pricelistBox.keys);
+    final validKeys = map.keys.toSet();
+    for (final key in existingKeys.difference(validKeys)) {
+      await _pricelistBox.delete(key);
+    }
     if (map.isNotEmpty) await _pricelistBox.putAll(map);
   }
 

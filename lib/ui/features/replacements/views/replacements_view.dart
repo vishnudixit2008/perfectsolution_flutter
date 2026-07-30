@@ -159,9 +159,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         final int currentPage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
         final int startIndex = (currentPage - 1) * _itemsPerPage;
         final int endIndex = (startIndex + _itemsPerPage).clamp(0, filtered.length);
-        final pagedReplacements = isDesktop
-            ? (filtered.isEmpty ? <Replacement>[] : filtered.sublist(startIndex, endIndex))
-            : filtered;
+        final pagedReplacements = filtered.isEmpty
+            ? <Replacement>[]
+            : filtered.sublist(startIndex, endIndex);
 
         final groupedReplacements = _getGroupedReplacements(pagedReplacements);
 
@@ -180,11 +180,27 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                 title: 'Replacements',
                 subtitle: 'Warranty & Parts Replacement Tracker',
                 actions: [
-                  if (UserPermissionService.canPerformModuleAction('replacements', 'canAdd'))
+                  if (isDesktop && UserPermissionService.canPerformModuleAction('replacements', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'New Replacement',
                       icon: Icons.add_rounded,
                       onPressed: () => _showAddEditDialog(context),
+                    ),
+                  if (!isDesktop)
+                    IconButton(
+                      onPressed: () async {
+                        final localDb = context.read<ShopRepository>().localDb;
+                        await SupabaseSyncService.instance.manualSync(localDb);
+                        if (context.mounted) {
+                          context.read<ReplacementsViewModel>().loadReplacements();
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.sync_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 20,
+                      ),
+                      tooltip: 'Sync Cloud Data',
                     ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -280,10 +296,49 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                             currentPage,
                             totalPages,
                           )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedReplacements,
+                        : Stack(
+                            children: [
+                              Positioned.fill(
+                                child: _buildMobileCardsList(
+                                  context,
+                                  viewModel,
+                                  groupedReplacements,
+                                ),
+                              ),
+                              if (totalPages > 1)
+                                Positioned(
+                                  bottom: 12,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: _buildFloatingPaginationIsland(
+                                      currentPage: currentPage,
+                                      totalPages: totalPages,
+                                      itemsPerPage: _itemsPerPage,
+                                      onItemsPerPageChanged: (val) {
+                                        setState(() {
+                                          _itemsPerPage = val;
+                                          _currentPage = 1;
+                                        });
+                                      },
+                                      onPreviousPage: () {
+                                        if (_currentPage > 1) {
+                                          setState(() {
+                                            _currentPage--;
+                                          });
+                                        }
+                                      },
+                                      onNextPage: () {
+                                        if (_currentPage < totalPages) {
+                                          setState(() {
+                                            _currentPage++;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                            ],
                           )),
               ),
             ],

@@ -175,9 +175,9 @@ class _CallsViewState extends State<CallsView> {
         final int currentPage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
         final int startIndex = (currentPage - 1) * _itemsPerPage;
         final int endIndex = (startIndex + _itemsPerPage).clamp(0, filteredCalls.length);
-        final pagedCalls = isDesktop
-            ? (filteredCalls.isEmpty ? <CallModel>[] : filteredCalls.sublist(startIndex, endIndex))
-            : filteredCalls;
+        final pagedCalls = filteredCalls.isEmpty
+            ? <CallModel>[]
+            : filteredCalls.sublist(startIndex, endIndex);
 
         final groupedCalls = _getGroupedCalls(pagedCalls);
 
@@ -196,11 +196,27 @@ class _CallsViewState extends State<CallsView> {
                 title: 'Calls',
                 subtitle: 'Customer Support & Inquiries',
                 actions: [
-                  if (UserPermissionService.canPerformModuleAction('calls', 'canAdd'))
+                  if (isDesktop && UserPermissionService.canPerformModuleAction('calls', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'New Call',
                       icon: Icons.add_ic_call_rounded,
                       onPressed: () => _showAddEditDialog(context),
+                    ),
+                  if (!isDesktop)
+                    IconButton(
+                      onPressed: () async {
+                        final localDb = context.read<ShopRepository>().localDb;
+                        await SupabaseSyncService.instance.manualSync(localDb);
+                        if (context.mounted) {
+                          context.read<CallsViewModel>().loadCalls();
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.sync_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 20,
+                      ),
+                      tooltip: 'Sync Cloud Data',
                     ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -451,10 +467,49 @@ class _CallsViewState extends State<CallsView> {
                             currentPage,
                             totalPages,
                           )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedCalls,
+                        : Stack(
+                            children: [
+                              Positioned.fill(
+                                child: _buildMobileCardsList(
+                                  context,
+                                  viewModel,
+                                  groupedCalls,
+                                ),
+                              ),
+                              if (totalPages > 1)
+                                Positioned(
+                                  bottom: 12,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: _buildFloatingPaginationIsland(
+                                      currentPage: currentPage,
+                                      totalPages: totalPages,
+                                      itemsPerPage: _itemsPerPage,
+                                      onItemsPerPageChanged: (val) {
+                                        setState(() {
+                                          _itemsPerPage = val;
+                                          _currentPage = 1;
+                                        });
+                                      },
+                                      onPreviousPage: () {
+                                        if (_currentPage > 1) {
+                                          setState(() {
+                                            _currentPage--;
+                                          });
+                                        }
+                                      },
+                                      onNextPage: () {
+                                        if (_currentPage < totalPages) {
+                                          setState(() {
+                                            _currentPage++;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                            ],
                           )),
               ),
             ],

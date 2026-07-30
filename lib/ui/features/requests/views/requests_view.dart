@@ -175,9 +175,9 @@ class _RequestsViewState extends State<RequestsView> {
         final int currentPage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
         final int startIndex = (currentPage - 1) * _itemsPerPage;
         final int endIndex = (startIndex + _itemsPerPage).clamp(0, filtered.length);
-        final pagedRequests = isDesktop
-            ? (filtered.isEmpty ? <RequestOrder>[] : filtered.sublist(startIndex, endIndex))
-            : filtered;
+        final pagedRequests = filtered.isEmpty
+            ? <RequestOrder>[]
+            : filtered.sublist(startIndex, endIndex);
 
         final groupedRequests = _getGroupedRequests(pagedRequests);
 
@@ -196,11 +196,27 @@ class _RequestsViewState extends State<RequestsView> {
                 title: 'Requests',
                 subtitle: 'Special Parts & Customer Pre-orders',
                 actions: [
-                  if (UserPermissionService.canPerformModuleAction('requests', 'canAdd'))
+                  if (isDesktop && UserPermissionService.canPerformModuleAction('requests', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'New Request',
                       icon: Icons.add_rounded,
                       onPressed: () => _showAddEditDialog(context),
+                    ),
+                  if (!isDesktop)
+                    IconButton(
+                      onPressed: () async {
+                        final localDb = context.read<ShopRepository>().localDb;
+                        await SupabaseSyncService.instance.manualSync(localDb);
+                        if (context.mounted) {
+                          context.read<RequestsViewModel>().loadRequests();
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.sync_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 20,
+                      ),
+                      tooltip: 'Sync Cloud Data',
                     ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -292,10 +308,49 @@ class _RequestsViewState extends State<RequestsView> {
                             currentPage,
                             totalPages,
                           )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedRequests,
+                        : Stack(
+                            children: [
+                              Positioned.fill(
+                                child: _buildMobileCardsList(
+                                  context,
+                                  viewModel,
+                                  groupedRequests,
+                                ),
+                              ),
+                              if (totalPages > 1)
+                                Positioned(
+                                  bottom: 12,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: _buildFloatingPaginationIsland(
+                                      currentPage: currentPage,
+                                      totalPages: totalPages,
+                                      itemsPerPage: _itemsPerPage,
+                                      onItemsPerPageChanged: (val) {
+                                        setState(() {
+                                          _itemsPerPage = val;
+                                          _currentPage = 1;
+                                        });
+                                      },
+                                      onPreviousPage: () {
+                                        if (_currentPage > 1) {
+                                          setState(() {
+                                            _currentPage--;
+                                          });
+                                        }
+                                      },
+                                      onNextPage: () {
+                                        if (_currentPage < totalPages) {
+                                          setState(() {
+                                            _currentPage++;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                            ],
                           )),
               ),
             ],

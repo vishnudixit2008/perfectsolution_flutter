@@ -235,7 +235,7 @@ class _SalesViewState extends State<SalesView> {
             title: 'Sales Ledger',
             subtitle: 'Ledger & Invoice History',
             actions: [
-              if (UserPermissionService.canPerformModuleAction('sales', 'canAdd'))
+              if (isDesktop && UserPermissionService.canPerformModuleAction('sales', 'canAdd'))
                 AppHeaderActionButton(
                   label: 'New Sale',
                   icon: Icons.add_rounded,
@@ -244,6 +244,22 @@ class _SalesViewState extends State<SalesView> {
                       _showBillingDesk = true;
                     });
                   },
+                ),
+              if (!isDesktop)
+                IconButton(
+                  onPressed: () async {
+                    final localDb = context.read<ShopRepository>().localDb;
+                    await SupabaseSyncService.instance.manualSync(localDb);
+                    if (context.mounted) {
+                      context.read<RecentSalesViewModel>().loadSales();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.sync_rounded,
+                    color: AppTheme.primaryLight,
+                    size: 20,
+                  ),
+                  tooltip: 'Sync Cloud Data',
                 ),
               const SizedBox(width: 6),
               IconButton(

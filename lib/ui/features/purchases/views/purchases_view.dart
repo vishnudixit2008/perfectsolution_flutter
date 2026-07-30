@@ -159,11 +159,9 @@ class _PurchasesViewState extends State<PurchasesView> {
           0,
           filtered.length,
         );
-        final pagedPurchases = isDesktop
-            ? (filtered.isEmpty
-                  ? <PurchaseOrder>[]
-                  : filtered.sublist(startIndex, endIndex))
-            : filtered;
+        final pagedPurchases = filtered.isEmpty
+            ? <PurchaseOrder>[]
+            : filtered.sublist(startIndex, endIndex);
 
         final groupedPurchases = _getGroupedPurchases(pagedPurchases);
 
@@ -187,11 +185,27 @@ class _PurchasesViewState extends State<PurchasesView> {
                 title: 'Purchases',
                 subtitle: 'Vendor Procurement & Stock Inwarding',
                 actions: [
-                  if (UserPermissionService.canPerformModuleAction('purchases', 'canAdd'))
+                  if (isDesktop && UserPermissionService.canPerformModuleAction('purchases', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'New Purchase',
                       icon: Icons.add_rounded,
                       onPressed: () => _showAddEditDialog(context),
+                    ),
+                  if (!isDesktop)
+                    IconButton(
+                      onPressed: () async {
+                        final localDb = context.read<ShopRepository>().localDb;
+                        await SupabaseSyncService.instance.manualSync(localDb);
+                        if (context.mounted) {
+                          context.read<PurchasesViewModel>().loadPurchases();
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.sync_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 20,
+                      ),
+                      tooltip: 'Sync Cloud Data',
                     ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -283,10 +297,49 @@ class _PurchasesViewState extends State<PurchasesView> {
                               currentPage,
                               totalPages,
                             )
-                          : _buildMobileCardsList(
-                              context,
-                              viewModel,
-                              groupedPurchases,
+                          : Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _buildMobileCardsList(
+                                    context,
+                                    viewModel,
+                                    groupedPurchases,
+                                  ),
+                                ),
+                                if (totalPages > 1)
+                                  Positioned(
+                                    bottom: 12,
+                                    left: 0,
+                                    right: 0,
+                                    child: Center(
+                                      child: _buildFloatingPaginationIsland(
+                                        currentPage: currentPage,
+                                        totalPages: totalPages,
+                                        itemsPerPage: _itemsPerPage,
+                                        onItemsPerPageChanged: (val) {
+                                          setState(() {
+                                            _itemsPerPage = val;
+                                            _currentPage = 1;
+                                          });
+                                        },
+                                        onPreviousPage: () {
+                                          if (_currentPage > 1) {
+                                            setState(() {
+                                              _currentPage--;
+                                            });
+                                          }
+                                        },
+                                        onNextPage: () {
+                                          if (_currentPage < totalPages) {
+                                            setState(() {
+                                              _currentPage++;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             )),
               ),
             ],
