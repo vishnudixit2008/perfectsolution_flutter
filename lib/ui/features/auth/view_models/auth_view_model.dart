@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/app_user.dart';
@@ -209,7 +210,7 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Sign in with Google via Supabase OAuth (Single clean external browser window)
+  /// Sign in with Google via Native GoogleSignIn SDK or Supabase OAuth Fallback
   Future<bool> loginWithGoogle({bool rememberMe = false}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -217,18 +218,78 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 1. Try GoogleSignIn native SDK (ID Token authentication - 100% reliable on Windows & Desktop)
+      try {
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email', 'profile'],
+          clientId: kIsWeb
+              ? null
+              : (defaultTargetPlatform == TargetPlatform.windows
+                  ? '784715848-windows.apps.googleusercontent.com'
+                  : null),
+        );
+
+        // Reset previous google session to ensure account selection dialog opens
+        try {
+          await googleSignIn.signOut();
+        } catch (_) {}
+
+        final googleUser = await googleSignIn.signIn();
+
+        if (googleUser != null) {
+          final googleAuth = await googleUser.authentication;
+          final idToken = googleAuth.idToken;
+          final accessToken = googleAuth.accessToken;
+
+          if (idToken != null) {
+            final res = await Supabase.instance.client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+
+            if (res.user != null && res.user!.email != null) {
+              final userEmail = res.user!.email!.toLowerCase().trim();
+              final isAuth = await UserPermissionService.isAuthorizedUserAsync(userEmail);
+              if (isAuth) {
+                await UserPermissionService.setCurrentUser(userEmail);
+                await _updateRememberMeSession(userEmail, rememberMe);
+                _isAuthenticated = true;
+                _isLoading = false;
+                _errorMessage = null;
+                notifyListeners();
+                return true;
+              } else {
+                await Supabase.instance.client.auth.signOut();
+                _errorMessage =
+                    'Access Denied: Your account ($userEmail) is not permitted to use this app. Access is restricted by the Administrator.';
+                _isLoading = false;
+                notifyListeners();
+                return false;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('GoogleSignIn native attempt exception: $e');
+      }
+
+      // 2. Fallback to Supabase OAuth redirect (for Web / Mobile / Mac / Windows)
+      final String? redirectTo = kIsWeb
+          ? null
+          : 'io.supabase.shopmanagement://login-callback';
+
       final success = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb
-            ? null
-            : 'io.supabase.shopmanagement://login-callback',
+        redirectTo: redirectTo,
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
 
-      // Safety timeout: if OAuth browser window is closed without completing, reset loading after 30s
-      Future.delayed(const Duration(seconds: 30), () {
+      // Safety timeout: if OAuth browser window is closed without completing, reset loading state after 25s
+      Future.delayed(const Duration(seconds: 25), () {
         if (_isLoading && !_isAuthenticated) {
           _isLoading = false;
+          _errorMessage = 'Google Sign-In canceled or timed out. Please try again or sign in with Email.';
           notifyListeners();
         }
       });

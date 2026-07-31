@@ -82,10 +82,10 @@ jobs:
           $issContent = @"
           [Setup]
           AppName=Perfect Solution
-          AppVersion=0.9.9
+          AppVersion=1.0.0-beta
           DefaultDirName={autopf}\Perfect Solution
           DefaultGroupName=Perfect Solution
-          UninstallDisplayIcon={app}\"Perfect Solution.exe"
+          UninstallDisplayIcon={app}\shop_management_flutter.exe
           Compression=lzma2
           SolidCompression=yes
           OutputDir=.
@@ -95,11 +95,11 @@ jobs:
           Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
           
           [Icons]
-          Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\Perfect Solution.exe"
-          Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\Perfect Solution.exe"
+          Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
+          Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
 
           [Run]
-          Filename: "{app}\Perfect Solution.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
+          Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
           "@
           Set-Content -Path installer.iss -Value $issContent
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
