@@ -1396,7 +1396,7 @@ class _CallsViewState extends State<CallsView> {
                   onTap: () => _launchPhone(call.mobileNo ?? ''),
                 ),
                 ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 18 * scale),
+                  iconWidget: WhatsAppIcon(size: 32 * scale),
                   label: 'WhatsApp',
                   scaleFactor: scale,
                   onTap: () => _launchWhatsApp(call),

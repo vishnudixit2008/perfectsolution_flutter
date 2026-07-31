@@ -558,22 +558,6 @@ class _StatusManagementDialogState extends State<StatusManagementDialog> {
                                       ),
                                     ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete_outline_rounded,
-                                      color: Colors.redAccent,
-                                      size: 18,
-                                    ),
-                                    onPressed: () async {
-                                      await StatusManagementService.deleteStatus(
-                                        widget.moduleKey,
-                                        status,
-                                      );
-                                      _loadStatuses();
-                                      widget.onStatusesUpdated();
-                                    },
-                                    tooltip: 'Delete Status',
-                                  ),
                                 ],
                               ),
                             );

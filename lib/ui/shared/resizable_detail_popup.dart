@@ -363,7 +363,7 @@ class ScaledActionButton extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 18 * scaleFactor,
-              backgroundColor: buttonColor.withValues(alpha: 0.1),
+              backgroundColor: iconWidget != null ? Colors.transparent : buttonColor.withValues(alpha: 0.1),
               child:
                   iconWidget ??
                   Icon(icon, color: buttonColor, size: 18 * scaleFactor),

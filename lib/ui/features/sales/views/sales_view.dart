@@ -542,31 +542,113 @@ class _SalesViewState extends State<SalesView> {
                 ),
               ),
             ),
-            // Net Total & Status (expanded)
+            // Net Total (expanded)
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
                 ),
-                child: Row(
-                  children: [
-                    Text(
-                      '₹${sale.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const Spacer(),
-                    _buildStatusChip(sale.orderStatus),
-                  ],
+                child: Text(
+                  '₹${sale.totalAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Map<String, List<Sale>> _getGroupedSales(List<Sale> sales) {
+    final List<String> configuredStatuses = StatusManagementService.getStatuses('sales');
+    final Map<String, List<Sale>> grouped = {};
+
+    for (final status in configuredStatuses) {
+      grouped[status] = [];
+    }
+
+    for (final sale in sales) {
+      final statusName = sale.orderStatus.trim();
+      final existingKey = grouped.keys.firstWhere(
+        (k) => k.toLowerCase() == statusName.toLowerCase(),
+        orElse: () => '',
+      );
+
+      if (existingKey.isNotEmpty) {
+        grouped[existingKey]!.add(sale);
+      } else {
+        if (!grouped.containsKey(statusName)) {
+          grouped[statusName] = [];
+        }
+        grouped[statusName]!.add(sale);
+      }
+    }
+
+    grouped.removeWhere((key, list) => list.isEmpty);
+    return grouped;
+  }
+
+  Widget _buildStatusSectionHeader(String status, int count) {
+    final Color color = _getStatusColor(status);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$count ${count == 1 ? 'Invoice' : 'Invoices'}',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -643,6 +725,8 @@ class _SalesViewState extends State<SalesView> {
     List<Sale> sales,
     bool isDesktop,
   ) {
+    final groupedSales = _getGroupedSales(sales);
+
     if (isDesktop) {
       return Container(
         width: double.infinity,
@@ -746,26 +830,13 @@ class _SalesViewState extends State<SalesView> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      child: Row(
-                        children: const [
-                          Text(
-                            'Net Total',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Spacer(),
-                          Text(
-                            'Status',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      child: const Text(
+                        'Net Total',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
@@ -773,15 +844,21 @@ class _SalesViewState extends State<SalesView> {
               ),
             ),
 
-            // Scrollable Body Rows
+            // Scrollable Body Rows grouped by Status
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.vertical,
                 padding: const EdgeInsets.only(bottom: 80),
                 child: Column(
-                  children: sales
-                      .map((sale) => _buildSaleRow(context, viewModel, sale))
-                      .toList(),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final entry in groupedSales.entries) ...[
+                      _buildStatusSectionHeader(entry.key, entry.value.length),
+                      for (final sale in entry.value) ...[
+                        _buildSaleRow(context, viewModel, sale),
+                      ],
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -797,76 +874,67 @@ class _SalesViewState extends State<SalesView> {
           await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
           if (context.mounted) viewModel.loadSales();
         },
-        child: ListView.builder(
-          itemCount: sales.length,
+        child: ListView(
           padding: const EdgeInsets.only(bottom: 120),
-          itemBuilder: (context, index) {
-            final sale = sales[index];
-            final formattedDate = DateFormat(
-              'dd MMM yyyy, hh:mm a',
-            ).format(sale.saleDate);
-            final metadata = <Widget>[];
-
-            if (sale.customerNumber != null &&
-                sale.customerNumber!.trim().isNotEmpty &&
-                sale.customerNumber != 'N/A') {
-              metadata.add(
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.phone_rounded,
-                      size: 13,
-                      color: AppTheme.textMuted,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      sale.customerNumber!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
+          children: [
+            for (final entry in groupedSales.entries) ...[
+              _buildStatusSectionHeader(entry.key, entry.value.length),
+              for (final sale in entry.value) ...[
+                AppListCard(
+                  title: 'Invoice #${sale.invoiceNo}',
+                  subtitle: sale.customerName?.isNotEmpty == true
+                      ? sale.customerName!
+                      : 'Walk-in Customer',
+                  metadataRows: [
+                    if (sale.customerNumber != null &&
+                        sale.customerNumber!.trim().isNotEmpty &&
+                        sale.customerNumber != 'N/A')
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.phone_rounded,
+                            size: 13,
+                            color: AppTheme.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            sale.customerNumber!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.success,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('dd MMM yyyy, hh:mm a').format(sale.saleDate),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
+                  onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
+                  onDelete: () =>
+                      _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
                 ),
-              );
-            }
-
-            metadata.add(const SizedBox(height: 4));
-            metadata.add(
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.success,
-                    ),
-                  ),
-                  Text(
-                    formattedDate,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            );
-
-            return AppListCard(
-              title: 'Invoice #${sale.invoiceNo}',
-              subtitle: sale.customerName?.isNotEmpty == true
-                  ? sale.customerName!
-                  : 'Walk-in Customer',
-              statusBadge: _buildStatusChip(sale.orderStatus),
-              metadataRows: metadata,
-              onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
-              onDelete: () =>
-                  _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
-            );
-          },
+              ],
+            ],
+          ],
         ),
       );
     }
@@ -967,9 +1035,15 @@ class _SalesViewState extends State<SalesView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppPageHeader(
-          title: 'Create Invoice',
-          subtitle: 'Search catalog, override prices, and confirm checkout.',
+          title: cartVM.isEditing
+              ? 'Edit Invoice #${cartVM.editingInvoiceNo}'
+              : 'Create Invoice',
+          subtitle: cartVM.isEditing
+              ? 'Update line items, rates, customer info, or order status.'
+              : 'Search catalog, override prices, and confirm checkout.',
           onBack: () {
+            cartVM.clearCart();
+            _clearLocalForm();
             setState(() {
               _showBillingDesk = false;
             });
@@ -977,11 +1051,20 @@ class _SalesViewState extends State<SalesView> {
           actions: [
             OutlinedButton.icon(
               onPressed: () {
+                final wasEditing = cartVM.isEditing;
                 cartVM.clearCart();
                 _clearLocalForm();
+                if (wasEditing) {
+                  setState(() {
+                    _showBillingDesk = false;
+                  });
+                }
               },
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Reset Desk'),
+              icon: Icon(
+                cartVM.isEditing ? Icons.close_rounded : Icons.refresh_rounded,
+                size: 16,
+              ),
+              label: Text(cartVM.isEditing ? 'Cancel Edit' : 'Reset Desk'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -1319,6 +1402,35 @@ class _SalesViewState extends State<SalesView> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              key: Key('notes_${item.id}'),
+                              initialValue: item.notes ?? '',
+                              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 11),
+                              decoration: InputDecoration(
+                                hintText: 'Add item description / details for invoice...',
+                                hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                filled: true,
+                                fillColor: Colors.black.withOpacity(0.15),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: const BorderSide(color: AppTheme.primaryLight),
+                                ),
+                              ),
+                              onChanged: (val) {
+                                viewModel.updateItemNotes(item.id, val.trim().isEmpty ? null : val.trim());
+                              },
+                            ),
                             const SizedBox(height: 8),
                             const Divider(color: Colors.white10, height: 1),
                             const SizedBox(height: 8),
@@ -1550,7 +1662,7 @@ class _SalesViewState extends State<SalesView> {
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
-                  items: ['UPI', 'Cash'].map((mode) {
+                  items: ['UPI', 'Cash', 'Card'].map((mode) {
                     return DropdownMenuItem<String>(
                       value: mode,
                       child: Text(mode),
@@ -1565,6 +1677,47 @@ class _SalesViewState extends State<SalesView> {
               ),
             ],
           ),
+          if (cartVM.isEditing) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Order Status:',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.04),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  child: DropdownButton<String>(
+                    value: ['Confirmed', 'PENDING'].contains(cartVM.editingOrderStatus)
+                        ? cartVM.editingOrderStatus
+                        : 'Confirmed',
+                    underline: const SizedBox(),
+                    dropdownColor: const Color(0xFF131A2E),
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
+                      DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        cartVM.setEditingOrderStatus(val);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           const Divider(color: Colors.white10, height: 32),
 
@@ -1622,13 +1775,14 @@ class _SalesViewState extends State<SalesView> {
           ),
           const SizedBox(height: 24),
 
-          // Confirm Checkout
+          // Confirm Checkout / Update Invoice
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: cartVM.cartItems.isEmpty
                   ? null
                   : () async {
+                      final isEditing = cartVM.isEditing;
                       final invoiceNo = await cartVM.checkout();
                       if (!context.mounted) return;
                       if (invoiceNo != null) {
@@ -1636,7 +1790,9 @@ class _SalesViewState extends State<SalesView> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Order #$invoiceNo created in PENDING verification.',
+                              isEditing
+                                  ? 'Invoice #$invoiceNo updated successfully.'
+                                  : 'Order #$invoiceNo created in PENDING verification.',
                             ),
                             backgroundColor: AppTheme.success,
                           ),
@@ -1656,7 +1812,6 @@ class _SalesViewState extends State<SalesView> {
                           ),
                         );
                       }
-
                     },
               icon: cartVM.isSaving
                   ? const SizedBox(
@@ -1667,9 +1822,17 @@ class _SalesViewState extends State<SalesView> {
                         strokeWidth: 2,
                       ),
                     )
-                  : const Icon(Icons.check_circle_rounded),
+                  : Icon(
+                      cartVM.isEditing
+                          ? Icons.save_rounded
+                          : Icons.check_circle_rounded,
+                    ),
               label: Text(
-                cartVM.isSaving ? 'Processing...' : 'Confirm Sale (Pending)',
+                cartVM.isSaving
+                    ? 'Processing...'
+                    : (cartVM.isEditing
+                        ? 'Update Invoice #${cartVM.editingInvoiceNo}'
+                        : 'Confirm Sale (Pending)'),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
@@ -2024,7 +2187,7 @@ class _SalesViewState extends State<SalesView> {
                         final editBtn = ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            _showEditSaleDialog(context, viewModel, sale);
+                            _startEditingSaleInBillingDesk(context, sale);
                           },
                           icon: const Icon(Icons.edit_note_rounded, size: 18),
                           label: const Text('Edit Sale'),
@@ -2288,388 +2451,21 @@ class _SalesViewState extends State<SalesView> {
     );
   }
 
-  void _showEditSaleDialog(
-    BuildContext context,
-    RecentSalesViewModel viewModel,
-    Sale sale,
-  ) {
+  void _startEditingSaleInBillingDesk(BuildContext context, Sale sale) {
     final repo = context.read<ShopRepository>();
-    final initialItems = repo.localDb.getSaleItems(sale.invoiceNo);
+    final items = repo.localDb.getSaleItems(sale.invoiceNo);
+    final cartVM = context.read<SalesViewModel>();
 
-    final nameController = TextEditingController(text: sale.customerName ?? '');
-    final numberController = TextEditingController(text: sale.customerNumber ?? '');
-    final discountController = TextEditingController(
-      text: sale.discount > 0 ? sale.discount.toStringAsFixed(2) : '',
-    );
-    final advanceController = TextEditingController(
-      text: sale.advance > 0 ? sale.advance.toStringAsFixed(2) : '',
-    );
+    cartVM.loadSaleForEditing(sale, items);
+    _customerNameController.text = sale.customerName ?? '';
+    _customerPhoneController.text = sale.customerNumber ?? '';
+    _discountController.text =
+        sale.discount > 0 ? sale.discount.toStringAsFixed(2) : '';
+    _advanceController.text =
+        sale.advance > 0 ? sale.advance.toStringAsFixed(2) : '';
 
-    String paymentMode = sale.paymentMode;
-    String orderStatus = sale.orderStatus;
-
-    final List<Map<String, dynamic>> editedItems = initialItems.map((item) {
-      return {
-        'item': item,
-        'nameController': TextEditingController(text: item.itemDescription ?? ''),
-        'priceController': TextEditingController(text: item.activePrice.toStringAsFixed(2)),
-        'qtyController': TextEditingController(text: item.quantity.toString()),
-      };
-    }).toList();
-
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          double computedSubtotal = 0;
-          for (var itemMap in editedItems) {
-            final qty = int.tryParse(itemMap['qtyController'].text) ?? 1;
-            final price = double.tryParse(itemMap['priceController'].text) ?? 0.0;
-            computedSubtotal += (qty * price);
-          }
-          final disc = double.tryParse(discountController.text) ?? 0.0;
-          final computedTotal = (computedSubtotal - disc).clamp(0.0, double.infinity);
-
-          return AlertDialog(
-            backgroundColor: const Color(0xFF131A2E),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.edit_note_rounded, color: AppTheme.primaryLight),
-                const SizedBox(width: 8),
-                Text(
-                  'Edit Sale Entry #${sale.invoiceNo}',
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 600,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Customer Information',
-                      style: TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: nameController,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            decoration: const InputDecoration(
-                              labelText: 'Customer Name',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: numberController,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            decoration: const InputDecoration(
-                              labelText: 'Mobile Number',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Order Settings & Payment',
-                      style: TextStyle(
-                        color: AppTheme.textMuted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: ['Cash', 'Online / UPI', 'Card', 'Credit / Due', 'UPI'].contains(paymentMode) ? paymentMode : 'Cash',
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Payment Method',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            dropdownColor: const Color(0xFF1B243B),
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            items: const [
-                              DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                              DropdownMenuItem(value: 'Online / UPI', child: Text('Online / UPI')),
-                              DropdownMenuItem(value: 'UPI', child: Text('UPI')),
-                              DropdownMenuItem(value: 'Card', child: Text('Card')),
-                              DropdownMenuItem(value: 'Credit / Due', child: Text('Credit / Due')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setDialogState(() => paymentMode = val);
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: ['Confirmed', 'PENDING'].contains(orderStatus) ? orderStatus : 'Confirmed',
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Order Status',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                            dropdownColor: const Color(0xFF1B243B),
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            items: const [
-                              DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
-                              DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setDialogState(() => orderStatus = val);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: discountController,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            onChanged: (_) => setDialogState(() {}),
-                            decoration: const InputDecoration(
-                              labelText: 'Discount (₹)',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: advanceController,
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                            onChanged: (_) => setDialogState(() {}),
-                            decoration: const InputDecoration(
-                              labelText: 'Advance Paid (₹)',
-                              isDense: true,
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Sale Line Items',
-                          style: TextStyle(
-                            color: AppTheme.textMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {
-                            final newId = 'edit_${DateTime.now().millisecondsSinceEpoch}';
-                            setDialogState(() {
-                              editedItems.add({
-                                'item': SaleItem(
-                                  id: newId,
-                                  invoiceNo: sale.invoiceNo,
-                                  lineType: 'Product',
-                                  itemDescription: 'Custom Item',
-                                  quantity: 1,
-                                  itemPrice: 0.0,
-                                  totalAmount: 0.0,
-                                ),
-                                'nameController': TextEditingController(text: 'Custom Item'),
-                                'priceController': TextEditingController(text: '0'),
-                                'qtyController': TextEditingController(text: '1'),
-                              });
-                            });
-                          },
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Item'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    for (int i = 0; i < editedItems.length; i++) ...[
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.03),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: TextField(
-                                controller: editedItems[i]['nameController'],
-                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
-                                decoration: const InputDecoration(
-                                  labelText: 'Item Name',
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              flex: 1,
-                              child: TextField(
-                                controller: editedItems[i]['qtyController'],
-                                keyboardType: TextInputType.number,
-                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
-                                onChanged: (_) => setDialogState(() {}),
-                                decoration: const InputDecoration(
-                                  labelText: 'Qty',
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              flex: 2,
-                              child: TextField(
-                                controller: editedItems[i]['priceController'],
-                                keyboardType: TextInputType.number,
-                                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
-                                onChanged: (_) => setDialogState(() {}),
-                                decoration: const InputDecoration(
-                                  labelText: 'Price (₹)',
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                            if (editedItems.length > 1)
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline, color: AppTheme.danger, size: 18),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    editedItems.removeAt(i);
-                                  });
-                                },
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryLight.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Updated Net Total:',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '₹${computedTotal.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: AppTheme.primaryLight,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final finalItems = <SaleItem>[];
-                  for (var itemMap in editedItems) {
-                    final origItem = itemMap['item'] as SaleItem;
-                    final qty = int.tryParse(itemMap['qtyController'].text) ?? 1;
-                    final price = double.tryParse(itemMap['priceController'].text) ?? 0.0;
-                    final desc = itemMap['nameController'].text.trim();
-
-                    finalItems.add(
-                      origItem.copyWith(
-                        itemDescription: desc.isNotEmpty ? desc : origItem.itemDescription,
-                        quantity: qty,
-                        itemPrice: price,
-                        totalAmount: qty * price,
-                      ),
-                    );
-                  }
-
-                  final updatedSale = sale.copyWith(
-                    customerName: nameController.text.trim().isNotEmpty ? nameController.text.trim() : null,
-                    customerNumber: numberController.text.trim().isNotEmpty ? numberController.text.trim() : null,
-                    paymentMode: paymentMode,
-                    orderStatus: orderStatus,
-                    discount: double.tryParse(discountController.text) ?? 0.0,
-                    advance: double.tryParse(advanceController.text) ?? 0.0,
-                    totalAmount: computedTotal,
-                  );
-
-                  Navigator.pop(ctx);
-
-                  final success = await viewModel.updateSale(updatedSale, finalItems);
-                  if (success && context.mounted) {
-                    context.read<PricelistViewModel>().loadItems();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Invoice #${sale.invoiceNo} updated successfully.'),
-                        backgroundColor: AppTheme.success,
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Save Changes'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+    setState(() {
+      _showBillingDesk = true;
+    });
   }
 }

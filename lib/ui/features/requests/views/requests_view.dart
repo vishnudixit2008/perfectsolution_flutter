@@ -34,6 +34,7 @@ class _RequestsViewState extends State<RequestsView> {
   final TextEditingController _searchController = TextEditingController();
 
   // Table columns widths
+  // ignore: unused_field
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _nameWidth = 180.0;
@@ -494,14 +495,6 @@ class _RequestsViewState extends State<RequestsView> {
                   child: Row(
                     children: [
                       _buildResizableHeader(
-                        'ID',
-                        _idWidth,
-                        (delta) => _updateColumnWidth(
-                          'id',
-                          (_idWidth + delta).clamp(60.0, 300.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
                         'Date',
                         _dateWidth,
                         (delta) => _updateColumnWidth(
@@ -591,9 +584,6 @@ class _RequestsViewState extends State<RequestsView> {
     RequestOrder req,
   ) {
     final formattedDate = DateFormat('dd/MM/yy').format(req.date);
-    final String shortId = req.id.length > 8
-        ? '${req.id.substring(0, 8)}...'
-        : req.id;
     return InkWell(
       onTap: () => _showDetailDialog(context, req, viewModel),
       child: Container(
@@ -607,22 +597,8 @@ class _RequestsViewState extends State<RequestsView> {
         child: Row(
           children: [
             Container(
-              width: _idWidth,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              child: Text(
-                shortId,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
-                ),
-              ),
-            ),
-            Container(
               width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Text(formattedDate),
             ),
             Container(
@@ -966,7 +942,7 @@ class _RequestsViewState extends State<RequestsView> {
                   onTap: () => _launchPhone(req.mobileNo ?? ''),
                 ),
                 ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 18 * scale),
+                  iconWidget: WhatsAppIcon(size: 32 * scale),
                   label: 'WhatsApp',
                   scaleFactor: scale,
                   onTap: () => _launchWhatsApp(req),

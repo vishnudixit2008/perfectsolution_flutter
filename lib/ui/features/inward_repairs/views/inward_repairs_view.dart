@@ -1010,7 +1010,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                   onTap: () => _launchPhone(repair.mobileNo ?? ''),
                 ),
                 ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 18 * scale),
+                  iconWidget: WhatsAppIcon(size: 32 * scale),
                   label: 'WhatsApp',
                   scaleFactor: scale,
                   onTap: () => _launchWhatsApp(repair),
@@ -1223,13 +1223,15 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  void _launchWhatsApp(InwardRepair r) {
+  static void launchWhatsAppForRepair(InwardRepair r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
     final message =
         "Hello ${r.name}, We have received your ${r.devices}, Job no. of your device is ${r.jobNo} our team is thoroughly working to diagnose and resolve the problem. We will provide you with a timely update once the issue has been addressed. Thank you for your cooperation. Perfect Solution";
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
+
+  void _launchWhatsApp(InwardRepair r) => launchWhatsAppForRepair(r);
 
   void _duplicateInward(
     BuildContext context,
@@ -1605,14 +1607,24 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
       );
     }).toList();
 
+    final bool isNewEntry = widget.existingRepair == null;
     await viewModel.saveRepair(repair, finalEstimates);
+
+    // Auto-trigger WhatsApp message if adding new inward entry as sale.perfectsolutionnoida@gmail.com
+    if (isNewEntry) {
+      final currentUserEmail =
+          UserPermissionService.getCurrentUser().email.trim().toLowerCase();
+      if (currentUserEmail == 'sale.perfectsolutionnoida@gmail.com') {
+        _InwardRepairsViewState.launchWhatsAppForRepair(repair);
+      }
+    }
 
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.existingRepair == null
+            isNewEntry
                 ? 'Inward repair created successfully'
                 : 'Repair job updated successfully',
           ),

@@ -35,6 +35,7 @@ class _PurchasesViewState extends State<PurchasesView> {
   final TextEditingController _searchController = TextEditingController();
 
   // Table columns widths
+  // ignore: unused_field
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _vendorWidth = 220.0;
@@ -490,14 +491,6 @@ class _PurchasesViewState extends State<PurchasesView> {
                   child: Row(
                     children: [
                       _buildResizableHeader(
-                        'ID',
-                        _idWidth,
-                        (delta) => _updateColumnWidth(
-                          'id',
-                          (_idWidth + delta).clamp(60.0, 300.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
                         'Date',
                         _dateWidth,
                         (delta) => _updateColumnWidth(
@@ -574,9 +567,6 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchaseOrder pur,
   ) {
     final formattedDate = DateFormat('dd/MM/yy').format(pur.date);
-    final String shortId = pur.id.length > 8
-        ? '${pur.id.substring(0, 8)}...'
-        : pur.id;
     return InkWell(
       onTap: () => _showDetailDialog(context, pur, viewModel),
       child: Container(
@@ -588,19 +578,8 @@ class _PurchasesViewState extends State<PurchasesView> {
         child: Row(
           children: [
             Container(
-              width: _idWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(
-                shortId,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
-                ),
-              ),
-            ),
-            Container(
               width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Text(formattedDate),
             ),
             Container(

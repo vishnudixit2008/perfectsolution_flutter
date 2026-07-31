@@ -908,7 +908,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                   onTap: () => _launchPhone(repl.mobileNo ?? ''),
                 ),
                 ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 18 * scale),
+                  iconWidget: WhatsAppIcon(size: 32 * scale),
                   label: 'WhatsApp',
                   scaleFactor: scale,
                   onTap: () => _launchWhatsApp(repl),

@@ -31,7 +31,7 @@ class WindowsOAuthService {
         // If request is for callback hash handler (access_token in hash fragment)
         if (path.contains('callback_hash')) {
           final queryParams = uri.query;
-          final fullUri = Uri.parse('http://localhost:$port/auth/v1/callback?$queryParams');
+          final fullUri = Uri.parse('http://localhost:$port/auth/v1/callback#$queryParams');
           if (_completer != null && !_completer!.isCompleted) {
             _completer!.complete(fullUri);
           }

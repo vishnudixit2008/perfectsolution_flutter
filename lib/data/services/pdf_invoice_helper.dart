@@ -198,6 +198,7 @@ Future<Uint8List> _buildInvoicePdf(Map<String, dynamic> args) async {
                 ),
                 ...displayItems.map((item) {
                   final desc = item.itemDescription ?? 'Line Item';
+                  final notes = item.notes?.trim();
                   final qty = item.quantity;
                   final price = item.activePrice;
                   final amt = item.totalAmount;
@@ -205,9 +206,28 @@ Future<Uint8List> _buildInvoicePdf(Map<String, dynamic> args) async {
                     children: [
                       pw.Padding(
                         padding: const pw.EdgeInsets.all(4),
-                        child: pw.Text(
-                          desc,
-                          style: const pw.TextStyle(fontSize: 8),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          mainAxisSize: pw.MainAxisSize.min,
+                          children: [
+                            pw.Text(
+                              desc,
+                              style: pw.TextStyle(
+                                fontSize: 8,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                            if (notes != null && notes.isNotEmpty) ...[
+                              pw.SizedBox(height: 1),
+                              pw.Text(
+                                notes,
+                                style: const pw.TextStyle(
+                                  fontSize: 6.5,
+                                  color: PdfColors.grey700,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       pw.Padding(
@@ -310,17 +330,15 @@ Future<Uint8List> _buildInvoicePdf(Map<String, dynamic> args) async {
                       ),
                     ),
                     pw.SizedBox(height: 4),
-                    if (sale.paymentMode == 'UPI') ...[
-                      pw.Text(
-                        'Scan to Pay via UPI:',
-                        style: pw.TextStyle(
-                          fontSize: 7,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                    pw.Text(
+                      'Scan to Pay via UPI:',
+                      style: pw.TextStyle(
+                        fontSize: 7,
+                        fontWeight: pw.FontWeight.bold,
                       ),
-                      pw.SizedBox(height: 2),
-                      _buildQr(upiUrl, 48),
-                    ],
+                    ),
+                    pw.SizedBox(height: 2),
+                    _buildQr(upiUrl, 48),
                   ],
                 ),
               ],

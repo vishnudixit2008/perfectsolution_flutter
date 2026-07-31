@@ -24,6 +24,12 @@ class SalesViewModel extends ChangeNotifier {
   bool _isSaving = false;
   List<String> _savedServices = [];
 
+  // Editing Sale state
+  int? _editingInvoiceNo;
+  String? _editingOrderStatus;
+  DateTime? _editingSaleDate;
+  String? _editingPhoto;
+
   // Getters
   List<SaleItem> get cartItems => _cartItems;
   String get customerName => _customerName;
@@ -34,6 +40,10 @@ class SalesViewModel extends ChangeNotifier {
   bool get isSaving => _isSaving;
   String get searchQuery => _searchQuery;
   List<String> get savedServices => _savedServices;
+
+  bool get isEditing => _editingInvoiceNo != null;
+  int? get editingInvoiceNo => _editingInvoiceNo;
+  String? get editingOrderStatus => _editingOrderStatus;
 
   // Load available catalog list for item selector
   void loadCatalog() {
@@ -98,7 +108,7 @@ class SalesViewModel extends ChangeNotifier {
   }
 
   // Add Custom Service to Cart
-  Future<void> addCustomServiceToCart(String serviceName, double price) async {
+  Future<void> addCustomServiceToCart(String serviceName, double price, {String? notes}) async {
     await _repository.saveCustomServiceName(serviceName);
     loadSavedServices();
 
@@ -110,6 +120,7 @@ class SalesViewModel extends ChangeNotifier {
       quantity: 1,
       itemPrice: price,
       totalAmount: price,
+      notes: notes,
     );
     _cartItems.add(newItem);
     notifyListeners();
@@ -122,6 +133,7 @@ class SalesViewModel extends ChangeNotifier {
     required String itemDescription,
     required int quantity,
     required double itemPrice,
+    String? notes,
   }) {
     final int qty = quantity > 0 ? quantity : 1;
     final newItem = SaleItem(
@@ -133,9 +145,22 @@ class SalesViewModel extends ChangeNotifier {
       quantity: qty,
       itemPrice: itemPrice,
       totalAmount: qty * itemPrice,
+      notes: notes,
     );
     _cartItems.add(newItem);
     notifyListeners();
+  }
+
+  // Update item notes / secondary description
+  void updateItemNotes(String cartItemId, String? notes) {
+    final idx = _cartItems.indexWhere((item) => item.id == cartItemId);
+    if (idx >= 0) {
+      final item = _cartItems[idx];
+      _cartItems[idx] = item.copyWith(
+        notes: notes,
+      );
+      notifyListeners();
+    }
   }
 
   // Update item quantity
@@ -210,7 +235,33 @@ class SalesViewModel extends ChangeNotifier {
     return net < 0.0 ? 0.0 : net;
   }
 
-  // Checkout (saves sale as PENDING, deferring stock deduction)
+  // Load existing sale into cart for editing
+  void loadSaleForEditing(Sale sale, List<SaleItem> items) {
+    _editingInvoiceNo = sale.invoiceNo;
+    _editingOrderStatus = sale.orderStatus;
+    _editingSaleDate = sale.saleDate;
+    _editingPhoto = sale.photo;
+
+    _cartItems.clear();
+    _cartItems.addAll(items);
+
+    _customerName = sale.customerName ?? '';
+    _customerNumber = sale.customerNumber ?? '';
+    _paymentMode = ['UPI', 'Cash', 'Card'].contains(sale.paymentMode)
+        ? sale.paymentMode
+        : 'UPI';
+    _advance = sale.advance;
+    _discount = sale.discount;
+    _searchQuery = '';
+    notifyListeners();
+  }
+
+  void setEditingOrderStatus(String status) {
+    _editingOrderStatus = status;
+    notifyListeners();
+  }
+
+  // Checkout (creates new sale or updates existing sale if editing)
   Future<int?> checkout() async {
     if (_cartItems.isEmpty) return null;
 
@@ -218,8 +269,10 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final invoiceNo = _repository.getNextInvoiceNo();
-      final DateTime now = DateTime.now();
+      final int invoiceNo =
+          _editingInvoiceNo ?? _repository.getNextInvoiceNo();
+      final DateTime saleDate = _editingSaleDate ?? DateTime.now();
+      final String orderStatus = _editingOrderStatus ?? 'PENDING';
 
       final List<SaleItem> finalItems = _cartItems.map((item) {
         return item.copyWith(invoiceNo: invoiceNo);
@@ -227,7 +280,7 @@ class SalesViewModel extends ChangeNotifier {
 
       final sale = Sale(
         invoiceNo: invoiceNo,
-        saleDate: now,
+        saleDate: saleDate,
         customerName: _customerName.trim().isEmpty
             ? null
             : _customerName.trim(),
@@ -238,8 +291,8 @@ class SalesViewModel extends ChangeNotifier {
         advance: _advance,
         discount: _discount,
         totalAmount: totalAmount,
-        orderStatus:
-            'PENDING', // Initial status is PENDING, waits for admin complete
+        orderStatus: orderStatus,
+        photo: _editingPhoto,
       );
 
       await _repository.saveSale(sale, finalItems);
@@ -266,6 +319,10 @@ class SalesViewModel extends ChangeNotifier {
     _advance = 0.0;
     _discount = 0.0;
     _searchQuery = '';
+    _editingInvoiceNo = null;
+    _editingOrderStatus = null;
+    _editingSaleDate = null;
+    _editingPhoto = null;
     notifyListeners();
   }
 }
