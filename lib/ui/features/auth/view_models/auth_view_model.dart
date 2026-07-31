@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/services/windows_oauth_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
   static const String _prefBoxName = 'ui_preferences';
@@ -218,18 +219,71 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Try GoogleSignIn native SDK (ID Token authentication - 100% reliable on Windows & Desktop)
+      // 1. On Windows Desktop, use WindowsOAuthService local loopback server for 100% reliable redirect
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        try {
+          final redirectUrl = await WindowsOAuthService.startLocalServer();
+
+          final success = await Supabase.instance.client.auth.signInWithOAuth(
+            OAuthProvider.google,
+            redirectTo: redirectUrl,
+            authScreenLaunchMode: LaunchMode.externalApplication,
+          );
+
+          if (!success) {
+            await WindowsOAuthService.stopLocalServer();
+            _errorMessage = 'Failed to launch Google authentication browser.';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+
+          // Wait for browser callback on localhost server
+          final callbackUri = await WindowsOAuthService.waitForCallback(
+            timeout: const Duration(seconds: 45),
+          );
+
+          if (callbackUri != null) {
+            await Supabase.instance.client.auth.getSessionFromUrl(callbackUri);
+            final session = Supabase.instance.client.auth.currentSession;
+            if (session != null && session.user.email != null) {
+              final userEmail = session.user.email!.trim().toLowerCase();
+              final isAuth = await UserPermissionService.isAuthorizedUserAsync(userEmail);
+              if (isAuth) {
+                await UserPermissionService.setCurrentUser(userEmail);
+                await _updateRememberMeSession(userEmail, rememberMe);
+                _isAuthenticated = true;
+                _isLoading = false;
+                _errorMessage = null;
+                notifyListeners();
+                return true;
+              } else {
+                await Supabase.instance.client.auth.signOut();
+                _errorMessage =
+                    'Access Denied: Your account ($userEmail) is not permitted to use this app. Access is restricted by the Administrator.';
+                _isLoading = false;
+                notifyListeners();
+                return false;
+              }
+            }
+          } else {
+            _errorMessage = 'Google Sign-In canceled or timed out. Please try again.';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+        } catch (e) {
+          await WindowsOAuthService.stopLocalServer();
+          if (kDebugMode) print('Windows OAuth error: $e');
+        }
+      }
+
+      // 2. Try GoogleSignIn native SDK (for Mobile / macOS / Web)
       try {
         final GoogleSignIn googleSignIn = GoogleSignIn(
           scopes: ['email', 'profile'],
-          clientId: kIsWeb
-              ? null
-              : (defaultTargetPlatform == TargetPlatform.windows
-                  ? '784715848-windows.apps.googleusercontent.com'
-                  : null),
         );
 
-        // Reset previous google session to ensure account selection dialog opens
         try {
           await googleSignIn.signOut();
         } catch (_) {}
@@ -274,7 +328,7 @@ class AuthViewModel extends ChangeNotifier {
         if (kDebugMode) print('GoogleSignIn native attempt exception: $e');
       }
 
-      // 2. Fallback to Supabase OAuth redirect (for Web / Mobile / Mac / Windows)
+      // 3. Fallback to Supabase OAuth redirect (for Web / Mobile / macOS)
       final String? redirectTo = kIsWeb
           ? null
           : 'io.supabase.shopmanagement://login-callback';
@@ -285,7 +339,7 @@ class AuthViewModel extends ChangeNotifier {
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
 
-      // Safety timeout: if OAuth browser window is closed without completing, reset loading state after 25s
+      // Safety timeout
       Future.delayed(const Duration(seconds: 25), () {
         if (_isLoading && !_isAuthenticated) {
           _isLoading = false;
