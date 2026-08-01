@@ -336,11 +336,36 @@ class SupabaseSyncService extends ChangeNotifier {
       // 4. Calls
       final callData = await client.from('calls').select();
       final callMap = <int, Map<String, dynamic>>{};
+      final List<Map<String, dynamic>> callsToRepushWithPhoto = [];
       for (final json in callData) {
-        final call = CallModel.fromJson(Map<String, dynamic>.from(json));
-        callMap[call.id] = call.toJson();
+        final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
+        Map<String, dynamic> callJson = cloudCall.toJson();
+
+        // Preserve local photo if cloud has no photo (photo may be Base64 stored only locally)
+        if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
+          final localRaw = localDb.getCallById(cloudCall.id);
+          if (localRaw != null) {
+            final localPhoto = localRaw['photo']?.toString();
+            if (localPhoto != null && localPhoto.isNotEmpty) {
+              callJson['photo'] = localPhoto;
+              // Re-push the photo to Supabase so it persists in cloud too
+              callsToRepushWithPhoto.add(callJson);
+            }
+          }
+        }
+
+        callMap[cloudCall.id] = callJson;
       }
       await localDb.saveAllCalls(callMap);
+
+      // Push back any calls where local had photo but cloud didn't
+      for (final callJson in callsToRepushWithPhoto) {
+        try {
+          await client.from('calls').upsert(callJson);
+        } catch (e) {
+          if (kDebugMode) print('Re-push call photo error (id=${callJson['id']}): $e');
+        }
+      }
 
       // 5. Sales
       final salesData = await client.from('sales').select();

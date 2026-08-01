@@ -543,6 +543,13 @@ class LocalDatabaseService {
     await _callsBox.put(call.id, call.toJson());
   }
 
+  /// Returns the raw Hive map for a specific call by ID (used for photo preservation during sync)
+  Map<String, dynamic>? getCallById(int id) {
+    final raw = _callsBox.get(id);
+    if (raw == null) return null;
+    return Map<String, dynamic>.from(raw);
+  }
+
   Future<void> deleteCall(int id) async {
     await _callsBox.delete(id);
   }
