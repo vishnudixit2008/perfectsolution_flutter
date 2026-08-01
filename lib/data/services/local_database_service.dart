@@ -797,6 +797,19 @@ class LocalDatabaseService {
         .toList();
   }
 
+  /// Returns true if the given purchase status represents a 'stock-added' state.
+  /// Treats 'CONFIRMED', 'confirmed', 'Complete', 'complete', 'COMPLETE' as equivalent.
+  bool _isPurchaseConfirmedStatus(String status) {
+    final s = status.trim().toLowerCase();
+    return s == 'confirmed' || s == 'complete';
+  }
+
+  /// Returns true if the given purchase status represents a 'pending / not yet stocked' state.
+  bool _isPurchasePendingStatus(String status) {
+    final s = status.trim().toLowerCase();
+    return s == 'pending';
+  }
+
   Future<void> savePurchaseOrder(
     PurchaseOrder order,
     List<PurchaseOrderItem> items,
@@ -806,13 +819,24 @@ class LocalDatabaseService {
       final existing = PurchaseOrder.fromJson(
         Map<String, dynamic>.from(rawExisting),
       );
-      if (existing.status == 'PENDING' && order.status == 'CONFIRMED') {
+      final wasConfirmed = _isPurchaseConfirmedStatus(existing.status);
+      final nowConfirmed = _isPurchaseConfirmedStatus(order.status);
+
+      if (!wasConfirmed && nowConfirmed) {
+        // Transitioned to complete/confirmed — add stock
         await _adjustStockForPurchase(items, isAdding: true);
-      } else if (existing.status == 'CONFIRMED' && order.status == 'PENDING') {
+      } else if (wasConfirmed && !nowConfirmed) {
+        // Reverted from complete/confirmed — remove stock
         await _adjustStockForPurchase(items, isAdding: false);
+      } else if (wasConfirmed && nowConfirmed) {
+        // Was confirmed, still confirmed but items may have changed — re-adjust
+        final oldItems = getPurchaseOrderItems(order.id);
+        await _adjustStockForPurchase(oldItems, isAdding: false);
+        await _adjustStockForPurchase(items, isAdding: true);
       }
     } else {
-      if (order.status == 'CONFIRMED') {
+      // New purchase order
+      if (_isPurchaseConfirmedStatus(order.status)) {
         await _adjustStockForPurchase(items, isAdding: true);
       }
     }
@@ -826,7 +850,7 @@ class LocalDatabaseService {
     final raw = _purchaseBox.get(purchaseId);
     if (raw != null) {
       final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
-      if (order.status == 'CONFIRMED') {
+      if (_isPurchaseConfirmedStatus(order.status)) {
         final items = getPurchaseOrderItems(purchaseId);
         await _adjustStockForPurchase(items, isAdding: false);
       }
@@ -839,7 +863,7 @@ class LocalDatabaseService {
     final raw = _purchaseBox.get(purchaseId);
     if (raw == null) return false;
     final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
-    if (order.status == 'CONFIRMED') return false;
+    if (_isPurchaseConfirmedStatus(order.status)) return false;
 
     final updated = order.copyWith(status: 'CONFIRMED');
     await _purchaseBox.put(purchaseId, updated.toJson());
@@ -853,7 +877,7 @@ class LocalDatabaseService {
     final raw = _purchaseBox.get(purchaseId);
     if (raw == null) return false;
     final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
-    if (order.status == 'PENDING') return false;
+    if (_isPurchasePendingStatus(order.status)) return false;
 
     final updated = order.copyWith(status: 'PENDING');
     await _purchaseBox.put(purchaseId, updated.toJson());

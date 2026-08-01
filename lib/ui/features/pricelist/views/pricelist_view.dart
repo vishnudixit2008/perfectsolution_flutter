@@ -1126,9 +1126,10 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
   final descController = TextEditingController(
     text: existingItem?.itemDescription ?? '',
   );
-  final categoryController = TextEditingController(
-    text: existingItem?.category ?? '',
-  );
+  // Category is now a searchable dropdown — store selected value as state
+  String? selectedCategory = existingItem?.category?.trim().isEmpty == false
+      ? existingItem!.category!.trim()
+      : null;
   final priceController = TextEditingController(
     text: existingItem?.price.toString() ?? '',
   );
@@ -1153,9 +1154,9 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
               final item = PricelistItem(
                 id: itemId,
                 itemName: nameController.text.trim(),
-                category: categoryController.text.trim().isEmpty
+                category: (selectedCategory == null || selectedCategory!.trim().isEmpty)
                     ? 'General'
-                    : categoryController.text.trim(),
+                    : selectedCategory!.trim(),
                 price: double.tryParse(priceController.text) ?? 0.0,
                 stockQty: int.tryParse(stockController.text) ?? 0,
                 openingStock: int.tryParse(alertController.text) ?? 5,
@@ -1205,12 +1206,11 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 ),
                 const SizedBox(height: 12),
 
-                TextFormField(
-                  controller: categoryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Category',
-                    hintText: 'e.g. MOUSE, KEYBOARD, ADAPTOR',
-                  ),
+                // ── Searchable Category Dropdown ─────────────────────────────────
+                _CategoryDropdown(
+                  categories: viewModel.categories,
+                  selectedCategory: selectedCategory,
+                  onChanged: (val) => setDialogState(() => selectedCategory = val),
                 ),
                 const SizedBox(height: 12),
 
@@ -1481,3 +1481,342 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
       ),
     );
   }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Searchable Category Dropdown Widget (used in Add/Edit Pricelist Item Dialog)
+// ─────────────────────────────────────────────────────────────────────────────
+class _CategoryDropdown extends StatefulWidget {
+  final List<String> categories;
+  final String? selectedCategory;
+  final ValueChanged<String?> onChanged;
+
+  const _CategoryDropdown({
+    required this.categories,
+    required this.selectedCategory,
+    required this.onChanged,
+  });
+
+  @override
+  State<_CategoryDropdown> createState() => _CategoryDropdownState();
+}
+
+class _CategoryDropdownState extends State<_CategoryDropdown> {
+  final TextEditingController _searchController = TextEditingController();
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _removeOverlay();
+    super.dispose();
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    _isOpen = false;
+  }
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _removeOverlay();
+      setState(() {});
+      return;
+    }
+    _searchController.clear();
+    _searchQuery = '';
+    _overlayEntry = _buildOverlay();
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOpen = true);
+  }
+
+  void _selectCategory(String? value) {
+    _removeOverlay();
+    setState(() => _isOpen = false);
+    widget.onChanged(value);
+  }
+
+  Future<void> _addNewCategory() async {
+    _removeOverlay();
+    setState(() => _isOpen = false);
+    final nameCtrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardBg,
+        title: const Text(
+          'Add New Category',
+          style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          style: const TextStyle(color: AppTheme.textPrimary),
+          decoration: InputDecoration(
+            labelText: 'Category Name',
+            hintText: 'e.g. MOUSE, KEYBOARD, ADAPTOR',
+            labelStyle: const TextStyle(color: AppTheme.textSecondary),
+            hintStyle: const TextStyle(color: AppTheme.textMuted),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppTheme.textMuted.withOpacity(0.4)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppTheme.primaryLight),
+            ),
+          ),
+          onSubmitted: (_) {
+            final val = nameCtrl.text.trim();
+            if (val.isNotEmpty) Navigator.pop(ctx, val);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.primaryLight),
+            onPressed: () {
+              final val = nameCtrl.text.trim();
+              if (val.isNotEmpty) Navigator.pop(ctx, val);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty) {
+      widget.onChanged(result.toUpperCase());
+    }
+  }
+
+  OverlayEntry _buildOverlay() {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+
+    return OverlayEntry(
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setOverlayState) {
+          final filtered = widget.categories
+              .where((c) => c.toLowerCase().contains(_searchQuery.toLowerCase()))
+              .toList();
+
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              _removeOverlay();
+              setState(() => _isOpen = false);
+            },
+            child: Stack(
+              children: [
+                Positioned.fill(child: Container(color: Colors.transparent)),
+                CompositedTransformFollower(
+                  link: _layerLink,
+                  offset: Offset(0, size.height + 4),
+                  showWhenUnlinked: false,
+                  child: Material(
+                    elevation: 8,
+                    borderRadius: BorderRadius.circular(10),
+                    color: AppTheme.cardBg,
+                    child: GestureDetector(
+                      onTap: () {}, // prevent tap-through
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: size.width,
+                          maxHeight: 280,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Search bar
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                              child: TextField(
+                                controller: _searchController,
+                                autofocus: true,
+                                style: const TextStyle(
+                                    color: AppTheme.textPrimary, fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'Search category...',
+                                  hintStyle: const TextStyle(
+                                      color: AppTheme.textMuted, fontSize: 13),
+                                  prefixIcon: const Icon(Icons.search,
+                                      color: AppTheme.textMuted, size: 18),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 8, horizontal: 8),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                        color:
+                                            AppTheme.textMuted.withOpacity(0.3)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                        color: AppTheme.primaryLight),
+                                  ),
+                                ),
+                                onChanged: (val) {
+                                  setOverlayState(
+                                      () => _searchQuery = val);
+                                },
+                              ),
+                            ),
+                            const Divider(height: 1, color: Colors.white10),
+                            // Category list
+                            Flexible(
+                              child: ListView(
+                                shrinkWrap: true,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                children: [
+                                  if (filtered.isEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.all(12),
+                                      child: Text(
+                                        'No categories found',
+                                        style: TextStyle(
+                                            color: AppTheme.textMuted,
+                                            fontSize: 13),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ...filtered.map((cat) {
+                                    final isSelected =
+                                        widget.selectedCategory == cat;
+                                    return InkWell(
+                                      onTap: () => _selectCategory(cat),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 10),
+                                        color: isSelected
+                                            ? AppTheme.primaryLight
+                                                .withOpacity(0.12)
+                                            : Colors.transparent,
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                cat,
+                                                style: TextStyle(
+                                                  color: isSelected
+                                                      ? AppTheme.primaryLight
+                                                      : AppTheme.textPrimary,
+                                                  fontSize: 13,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                ),
+                                              ),
+                                            ),
+                                            if (isSelected)
+                                              const Icon(Icons.check,
+                                                  size: 16,
+                                                  color: AppTheme.primaryLight),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  const Divider(
+                                      height: 1, color: Colors.white10),
+                                  // "+ Add New Category" option
+                                  InkWell(
+                                    onTap: _addNewCategory,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 10),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.add_circle_outline,
+                                              size: 16,
+                                              color: AppTheme.success),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            '+ Add New Category',
+                                            style: TextStyle(
+                                              color: AppTheme.success,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: _toggleDropdown,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _isOpen
+                  ? AppTheme.primaryLight
+                  : AppTheme.textMuted.withOpacity(0.4),
+              width: _isOpen ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.selectedCategory?.isNotEmpty == true
+                      ? widget.selectedCategory!
+                      : 'Select Category',
+                  style: TextStyle(
+                    color: widget.selectedCategory?.isNotEmpty == true
+                        ? AppTheme.textPrimary
+                        : AppTheme.textMuted,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              if (widget.selectedCategory?.isNotEmpty == true)
+                GestureDetector(
+                  onTap: () => widget.onChanged(null),
+                  child: const Icon(Icons.close,
+                      size: 16, color: AppTheme.textMuted),
+                )
+              else
+                Icon(
+                  _isOpen
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: AppTheme.textMuted,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

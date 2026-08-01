@@ -248,20 +248,45 @@ class UserPermissionService {
     return null;
   }
 
-  /// Verifies password against user credentials
+  /// Verifies password against user credentials — always does live cloud fetch first
   static Future<bool> verifyUserPassword(String email, String password) async {
     final cleanEmail = email.toLowerCase().trim();
     final cleanPass = password.trim();
     if (cleanEmail.isEmpty || cleanPass.isEmpty) return false;
 
-    final isAuth = await isAuthorizedUserAsync(cleanEmail);
-    if (!isAuth) return false;
+    // 1. Always do a LIVE cloud fetch first to get the latest password set by admin
+    try {
+      final res = await Supabase.instance.client
+          .from('app_users')
+          .select()
+          .eq('email', cleanEmail)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
 
-    var user = getUser(cleanEmail);
-    if (user == null) {
-      await syncUsersFromCloud();
-      user = getUser(cleanEmail);
+      if (res != null) {
+        final map = Map<String, dynamic>.from(res);
+        final cloudUser = AppUser.fromJson(map);
+
+        // Save latest user to local cache
+        final box = _getBox();
+        if (box != null) {
+          await box.put(cleanEmail, cloudUser.toJson());
+        }
+
+        if (!cloudUser.isActive) return false;
+
+        if (cloudUser.password != null && cloudUser.password!.trim().isNotEmpty) {
+          return cloudUser.password!.trim() == cleanPass;
+        }
+        // User exists but has no password set → deny
+        return false;
+      }
+    } catch (_) {
+      // Cloud fetch failed — fall back to local Hive cache below
     }
+
+    // 2. Fallback: check local Hive cache
+    final user = getUser(cleanEmail);
     if (user == null || !user.isActive) return false;
 
     if (user.password != null && user.password!.isNotEmpty) {
@@ -270,6 +295,7 @@ class UserPermissionService {
 
     return false;
   }
+
 
   static bool isAuthorizedUser(String email) {
     final cleanEmail = email.toLowerCase().trim();
