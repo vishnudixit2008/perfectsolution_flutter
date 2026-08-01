@@ -21,6 +21,7 @@ import '../../../shared/status_management_dialog.dart';
 import '../../../shared/components/app_pagination_bar.dart';
 
 import '../../pricelist/view_models/pricelist_view_model.dart';
+import '../../pricelist/views/pricelist_view.dart';
 import '../view_models/purchases_view_model.dart';
 import '../../../../data/services/user_permission_service.dart';
 
@@ -1461,10 +1462,24 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                 return nameMatch || catMatch;
               }).toList();
 
+              if (matches.isEmpty) {
+                return [
+                  PricelistItem(
+                    id: -1,
+                    itemName: textEditingValue.text.trim(),
+                    category: '',
+                    price: 0,
+                    stockQty: 0,
+                    openingStock: 0,
+                  ),
+                ];
+              }
+
               return matches;
             },
             displayStringForOption: (PricelistItem option) => option.itemName,
             onSelected: (PricelistItem selection) {
+              if (selection.id == -1) return;
               setState(() {
                 _selectedCatalogItem = selection;
                 _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
@@ -1502,7 +1517,8 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             },
             optionsViewBuilder: (context, onSelected, options) {
               final query = _searchItemController.text.trim();
-              final hasExactMatch = options.any(
+              final realOptions = options.where((opt) => opt.id != -1).toList();
+              final hasExactMatch = realOptions.any(
                 (opt) => opt.itemName.toLowerCase() == query.toLowerCase(),
               );
 
@@ -1530,10 +1546,14 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                         if (query.isNotEmpty && !hasExactMatch) ...[
                           ListTile(
                             dense: true,
-                            tileColor: AppTheme.primary.withValues(alpha: 0.1),
-                            leading: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primaryLight, size: 18),
+                            tileColor: AppTheme.primary.withValues(alpha: 0.15),
+                            leading: const Icon(
+                              Icons.add_circle_outline_rounded,
+                              color: AppTheme.primaryLight,
+                              size: 20,
+                            ),
                             title: Text(
-                              'Add "$query" to Pricelist',
+                              'Add "$query" to Pricelist Catalog',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.primaryLight,
@@ -1541,19 +1561,31 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                               ),
                             ),
                             subtitle: const Text(
-                              'New product will be saved to Catalog',
+                              'Open Add Product window and pre-fill details',
                               style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                             ),
-                            onTap: () {
+                            onTap: () async {
                               FocusScope.of(context).unfocus();
-                              setState(() {
-                                _selectedCatalogItem = null;
-                              });
+                              final pricelistVM = context.read<PricelistViewModel>();
+                              final newItem = await showAddEditPricelistItemDialog(
+                                context,
+                                pricelistVM,
+                                initialName: query,
+                              );
+                              if (newItem != null) {
+                                setState(() {
+                                  _selectedCatalogItem = newItem;
+                                  _searchItemController.text = newItem.itemName;
+                                  _priceController.text = newItem.price > 0
+                                      ? newItem.price.toStringAsFixed(0)
+                                      : '';
+                                });
+                              }
                             },
                           ),
                           const Divider(color: Colors.white10, height: 1),
                         ],
-                        ...options.map((PricelistItem option) {
+                        ...realOptions.map((PricelistItem option) {
                           final bool isLowStock = option.stockQty <= option.openingStock;
                           return ListTile(
                             dense: true,

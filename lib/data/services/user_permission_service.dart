@@ -35,37 +35,6 @@ class UserPermissionService {
       }
     }
 
-    // Seed testing employee accounts if missing
-    const staffEmail = 'staff@perfectsolution.com';
-    if (!box.containsKey(staffEmail)) {
-      final staffUser = AppUser.defaultEmployee(staffEmail, 'Standard Staff Member');
-      await box.put(staffEmail, staffUser.toJson());
-    }
-
-    const viewOnlyEmail = 'viewonly@perfectsolution.com';
-    if (!box.containsKey(viewOnlyEmail)) {
-      final viewOnlyUser = AppUser(
-        email: viewOnlyEmail,
-        name: 'View-Only Staff',
-        role: 'employee',
-        isActive: true,
-        pageAccess: {for (var m in AppUser.modules) m: true},
-        actionAccess: {for (var k in ['canAdd', 'canEdit', 'canDelete', 'canPrint', 'canExport']) k: false},
-        pageActionAccess: {
-          for (var m in AppUser.modules)
-            m: {for (var act in (AppUser.moduleActions[m] ?? {}).keys) act: false},
-        },
-        fieldAccess: {
-          for (var m in AppUser.modules)
-            m: {
-              for (var f in (AppUser.moduleFields[m] ?? {}).keys)
-                f: FieldPermission.readOnly(),
-            },
-        },
-      );
-      await box.put(viewOnlyEmail, viewOnlyUser.toJson());
-    }
-
     // Explicitly purge vishnu2008dixit@gmail.com from local storage and remote database if present
     const removedEmail = 'vishnu2008dixit@gmail.com';
     if (box.containsKey(removedEmail)) {
@@ -150,6 +119,7 @@ class UserPermissionService {
   }
 
   /// Sync all users from Supabase app_users table to local Hive storage
+  /// Purges local Hive user entries that were deleted on Supabase Cloud.
   static Future<void> syncUsersFromCloud() async {
     try {
       final response = await Supabase.instance.client
@@ -157,17 +127,27 @@ class UserPermissionService {
           .select()
           .timeout(const Duration(seconds: 10));
 
-      if (response.isNotEmpty) {
-        final box = _getBox();
-        if (box != null) {
-          for (final row in response) {
-            final map = Map<String, dynamic>.from(row);
-            final email = (map['email'] ?? '').toString().toLowerCase().trim();
-            if (email.isNotEmpty) {
-              final user = AppUser.fromJson(map);
-              await box.put(email, user.toJson());
-            }
-          }
+      final box = _getBox();
+      if (box == null) return;
+
+      final Set<String> cloudEmails = {};
+      for (final row in response) {
+        final map = Map<String, dynamic>.from(row);
+        final email = (map['email'] ?? '').toString().toLowerCase().trim();
+        if (email.isNotEmpty) {
+          cloudEmails.add(email);
+          final user = AppUser.fromJson(map);
+          await box.put(email, user.toJson());
+        }
+      }
+
+      // Purge local users that no longer exist in Supabase Cloud
+      final localKeys = box.keys.map((e) => e.toString().toLowerCase().trim()).toList();
+      for (final key in localKeys) {
+        if (key == _currentEmailKey) continue;
+        if (AppUser.isPermanentAdmin(key)) continue;
+        if (!cloudEmails.contains(key)) {
+          await box.delete(key);
         }
       }
     } catch (_) {}

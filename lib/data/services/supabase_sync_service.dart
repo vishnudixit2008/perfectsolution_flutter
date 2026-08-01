@@ -122,8 +122,8 @@ class SupabaseSyncService extends ChangeNotifier {
 
   Future<void> _performBackgroundSync(LocalDatabaseService localDb) async {
     try {
-      await pushAllLocalRecordsToCloud(localDb);
       await syncAllTablesFromCloud(localDb);
+      await pushAllLocalRecordsToCloud(localDb);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
     }
@@ -134,8 +134,8 @@ class SupabaseSyncService extends ChangeNotifier {
     if (!_isInitialized) return;
     _setStatus(SyncStatus.syncing, 'Syncing...');
     try {
-      await pushAllLocalRecordsToCloud(localDb);
       await syncAllTablesFromCloud(localDb);
+      await pushAllLocalRecordsToCloud(localDb);
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
@@ -252,7 +252,7 @@ class SupabaseSyncService extends ChangeNotifier {
         final allPurchaseItems = <Map<String, dynamic>>[];
         for (final p in purchases) {
           allPurchaseItems.addAll(
-            localDb.getPurchaseOrderItems(p.id).map((i) => i.toJson()),
+            localDb.getPurchaseOrderItems(p.id).map((i) => i.toSupabaseJson()),
           );
         }
         if (allPurchaseItems.isNotEmpty) {
@@ -488,6 +488,32 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save estimate items cloud error ($jobNo): $e');
+      _setStatus(SyncStatus.error, 'Sync Error');
+    }
+  }
+
+  /// Batch saves purchase order items after parent purchase order is saved
+  Future<void> savePurchaseItemsForPurchase(
+    String purchaseId,
+    List<PurchaseOrderItem> items,
+  ) async {
+    if (!_isInitialized) return;
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing purchase items...');
+      final client = Supabase.instance.client;
+      await client
+          .from('purchase_order_items')
+          .delete()
+          .eq('purchase_id', purchaseId);
+
+      if (items.isNotEmpty) {
+        final payload = items.map((e) => e.toSupabaseJson()).toList();
+        await client.from('purchase_order_items').upsert(payload);
+      }
+      _setStatus(SyncStatus.synced, 'Live Synced');
+    } catch (e) {
+      if (kDebugMode) print('Save purchase items cloud error ($purchaseId): $e');
       _setStatus(SyncStatus.error, 'Sync Error');
     }
   }

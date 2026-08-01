@@ -235,12 +235,10 @@ class ShopRepository {
       'purchases',
       order.toJson(),
     );
-    for (final item in items) {
-      await SupabaseSyncService.instance.pushRecordToCloud(
-        'purchase_order_items',
-        item.toJson(),
-      );
-    }
+    await SupabaseSyncService.instance.savePurchaseItemsForPurchase(
+      order.id,
+      items,
+    );
   }
 
   Future<void> deletePurchaseOrder(String purchaseId) async {

@@ -1098,287 +1098,281 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel, {
     PricelistItem? existingItem,
   }) {
-    final bool isEdit = existingItem != null;
-    final int itemId = isEdit ? existingItem.id : viewModel.getNextId();
+    showAddEditPricelistItemDialog(
+      context,
+      viewModel,
+      existingItem: existingItem,
+      onDeleteRequested: existingItem != null
+          ? () => _confirmDeleteItem(context, viewModel, existingItem)
+          : null,
+    );
+  }
+}
 
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController(
-      text: existingItem?.itemName ?? '',
-    );
-    final descController = TextEditingController(
-      text: existingItem?.itemDescription ?? '',
-    );
-    final categoryController = TextEditingController(
-      text: existingItem?.category ?? '',
-    );
-    final priceController = TextEditingController(
-      text: existingItem?.price.toString() ?? '',
-    );
-    final stockController = TextEditingController(
-      text: existingItem?.stockQty.toString() ?? '0',
-    );
-    final alertController = TextEditingController(
-      text: existingItem?.openingStock.toString() ?? '5',
-    );
-    String? photoUrl = existingItem?.photo;
+Future<PricelistItem?> showAddEditPricelistItemDialog(
+  BuildContext context,
+  PricelistViewModel viewModel, {
+  PricelistItem? existingItem,
+  String? initialName,
+  VoidCallback? onDeleteRequested,
+}) async {
+  final bool isEdit = existingItem != null;
+  final int itemId = isEdit ? existingItem.id : viewModel.getNextId();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        final bool isMobile = MediaQuery.of(context).size.width < 700;
+  final formKey = GlobalKey<FormState>();
+  final nameController = TextEditingController(
+    text: existingItem?.itemName ?? initialName ?? '',
+  );
+  final descController = TextEditingController(
+    text: existingItem?.itemDescription ?? '',
+  );
+  final categoryController = TextEditingController(
+    text: existingItem?.category ?? '',
+  );
+  final priceController = TextEditingController(
+    text: existingItem?.price.toString() ?? '',
+  );
+  final stockController = TextEditingController(
+    text: existingItem?.stockQty.toString() ?? '0',
+  );
+  final alertController = TextEditingController(
+    text: existingItem?.openingStock.toString() ?? '5',
+  );
+  String? photoUrl = existingItem?.photo;
 
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            void saveItem() {
-              if (formKey.currentState!.validate()) {
-                final item = PricelistItem(
-                  id: itemId,
-                  itemName: nameController.text.trim(),
-                  category: categoryController.text.trim().isEmpty
-                      ? 'General'
-                      : categoryController.text.trim(),
-                  price: double.parse(priceController.text),
-                  stockQty: int.parse(stockController.text),
-                  openingStock: int.parse(alertController.text),
-                  itemDescription: descController.text.trim().isEmpty
-                      ? null
-                      : descController.text.trim(),
-                  photo: photoUrl,
-                );
+  return showDialog<PricelistItem>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      final bool isMobile = MediaQuery.of(context).size.width < 700;
 
-                if (isEdit) {
-                  viewModel.updateItem(item);
-                } else {
-                  viewModel.addItem(item);
-                }
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          void saveItem() {
+            if (formKey.currentState!.validate()) {
+              final item = PricelistItem(
+                id: itemId,
+                itemName: nameController.text.trim(),
+                category: categoryController.text.trim().isEmpty
+                    ? 'General'
+                    : categoryController.text.trim(),
+                price: double.tryParse(priceController.text) ?? 0.0,
+                stockQty: int.tryParse(stockController.text) ?? 0,
+                openingStock: int.tryParse(alertController.text) ?? 5,
+                itemDescription: descController.text.trim().isEmpty
+                    ? null
+                    : descController.text.trim(),
+                photo: photoUrl,
+              );
 
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isEdit
-                          ? '"${item.itemName}" updated successfully.'
-                          : '"${item.itemName}" added to catalog.',
-                    ),
-                    backgroundColor: AppTheme.success,
-                  ),
-                );
+              if (isEdit) {
+                viewModel.updateItem(item);
+              } else {
+                viewModel.addItem(item);
               }
-            }
 
-            final Widget formContent = Form(
-              key: formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Name *',
-                      hintText: 'e.g. MOUSE WIRELESS IVOOMI',
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) {
-                        return 'Please enter product name';
-                      }
-                      return null;
-                    },
+              Navigator.pop(context, item);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isEdit
+                        ? '"${item.itemName}" updated successfully.'
+                        : '"${item.itemName}" added to catalog.',
                   ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: categoryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      hintText: 'e.g. MOUSE, KEYBOARD, ADAPTOR',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: priceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Selling Price (₹) *',
-                            hintText: '0.00',
-                          ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          validator: (val) {
-                            if (val == null || double.tryParse(val) == null) {
-                              return 'Enter valid price';
-                            }
-                            if (double.parse(val) < 0) {
-                              return 'Cannot be negative';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: stockController,
-                          decoration: const InputDecoration(
-                            labelText: 'Initial Stock Qty *',
-                            hintText: '0',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (val) {
-                            if (val == null || int.tryParse(val) == null) {
-                              return 'Enter integer quantity';
-                            }
-                            if (int.parse(val) < 0) {
-                              return 'Cannot be negative';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: alertController,
-                    decoration: const InputDecoration(
-                      labelText: 'Min Alert Stock Threshold *',
-                      hintText: '5',
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (val) {
-                      if (val == null || int.tryParse(val) == null) {
-                        return 'Enter valid integer alert limit';
-                      }
-                      if (int.parse(val) < 0) {
-                        return 'Cannot be negative';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: descController,
-                    decoration: const InputDecoration(
-                      labelText: 'Product Description / Notes',
-                      hintText: 'e.g. 1 year warranty, USB support',
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-
-                  PhotoAttachmentWidget(
-                    initialPhotoUrl: photoUrl,
-                    label: 'Product Image / Catalog Photo(s)',
-                    onPhotoChanged: (urls) {
-                      photoUrl = urls;
-                    },
-                  ),
-                ],
-              ),
-            );
-
-            if (isMobile) {
-              return Dialog.fullscreen(
-                backgroundColor: const Color(0xFF0F1322),
-                child: Scaffold(
-                  backgroundColor: const Color(0xFF0F1322),
-                  appBar: AppBar(
-                    backgroundColor: const Color(0xFF131A2E),
-                    elevation: 0,
-                    leading: IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppTheme.textPrimary,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    title: Text(
-                      isEdit ? 'Edit Product Catalog' : 'Add New Product',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: saveItem,
-                        child: const Text(
-                          'Save Product',
-                          style: TextStyle(
-                            color: AppTheme.primaryLight,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  body: SafeArea(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: formContent,
-                    ),
-                  ),
+                  backgroundColor: AppTheme.success,
                 ),
               );
             }
+          }
 
-            return AlertDialog(
-              backgroundColor: const Color(0xFF131A2E),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-              ),
-              title: Text(
-                isEdit
-                    ? 'Edit Product Catalog Details'
-                    : 'Add New Product to Catalog',
-                style: const TextStyle(color: AppTheme.textPrimary),
-              ),
-              content: Container(
-                constraints: const BoxConstraints(maxWidth: 500),
-                width: MediaQuery.of(context).size.width * 0.9,
-                child: SingleChildScrollView(child: formContent),
-              ),
-              actions: [
-                if (isEdit)
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _confirmDeleteItem(context, viewModel, existingItem);
-                    },
-                    icon: const Icon(
-                      Icons.delete_forever_rounded,
-                      color: AppTheme.danger,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      'Delete Product',
-                      style: TextStyle(color: AppTheme.danger),
-                    ),
+          final Widget formContent = Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Product Name *',
+                    hintText: 'e.g. MOUSE WIRELESS IVOOMI',
                   ),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: AppTheme.textSecondary),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Please enter product name';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                TextFormField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    hintText: 'e.g. MOUSE, KEYBOARD, ADAPTOR',
                   ),
                 ),
-                ElevatedButton(onPressed: saveItem, child: const Text('Save')),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: priceController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Base Price (₹) *',
+                          hintText: 'e.g. 350',
+                        ),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Enter price';
+                          }
+                          if (double.tryParse(val.trim()) == null) {
+                            return 'Invalid price';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: stockController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Stock Qty',
+                          hintText: 'e.g. 10',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: alertController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Low Stock Alert Limit',
+                          hintText: 'Default 5',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                TextFormField(
+                  controller: descController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Specifications / Details',
+                    hintText: 'Optional item specifications...',
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Photo attachment widget
+                PhotoAttachmentWidget(
+                  initialPhotoUrl: photoUrl,
+                  onPhotoChanged: (url) {
+                    setDialogState(() {
+                      photoUrl = url;
+                    });
+                  },
+                  label: 'Product Image',
+                ),
               ],
+            ),
+          );
+
+          if (isMobile) {
+            return Dialog.fullscreen(
+              child: Scaffold(
+                backgroundColor: const Color(0xFF131A2E),
+                appBar: AppBar(
+                  backgroundColor: const Color(0xFF0F1524),
+                  title: Text(
+                    isEdit ? 'Edit Product' : 'Add New Product to Catalog',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: saveItem,
+                      child: const Text(
+                        'Save',
+                        style: TextStyle(
+                          color: AppTheme.primaryLight,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: formContent,
+                ),
+              ),
             );
-          },
-        );
-      },
-    );
-  }
+          }
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF131A2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            title: Text(
+              isEdit
+                  ? 'Edit Product Catalog Details'
+                  : 'Add New Product to Catalog',
+              style: const TextStyle(color: AppTheme.textPrimary),
+            ),
+            content: Container(
+              constraints: const BoxConstraints(maxWidth: 500),
+              width: MediaQuery.of(context).size.width * 0.9,
+              child: SingleChildScrollView(child: formContent),
+            ),
+            actions: [
+              if (isEdit)
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    if (onDeleteRequested != null) {
+                      onDeleteRequested();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: AppTheme.danger,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Delete Product',
+                    style: TextStyle(color: AppTheme.danger),
+                  ),
+                ),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+              ),
+              ElevatedButton(onPressed: saveItem, child: const Text('Save')),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   // ignore: unused_element
   Widget _buildFloatingPaginationIsland({
@@ -1487,4 +1481,3 @@ class _PricelistViewState extends State<PricelistView> {
       ),
     );
   }
-}

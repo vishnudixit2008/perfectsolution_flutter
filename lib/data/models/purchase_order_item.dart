@@ -50,7 +50,6 @@ class PurchaseOrderItem {
   Map<String, dynamic> toJson() {
     return {
       'line_id': lineId,
-      'id': lineId,
       'purchase_id': purchaseId,
       'item_id': itemId,
       'item_name': itemName,
@@ -61,6 +60,8 @@ class PurchaseOrderItem {
       'total_amount': amount,
     };
   }
+
+  Map<String, dynamic> toSupabaseJson() => toJson();
 
   PurchaseOrderItem copyWith({
     String? lineId,
