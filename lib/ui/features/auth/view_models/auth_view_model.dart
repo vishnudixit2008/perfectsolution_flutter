@@ -211,7 +211,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Sign in with Google via Native GoogleSignIn SDK or Supabase OAuth Fallback
   Future<bool> loginWithGoogle({bool rememberMe = false}) async {
     _isLoading = true;
     _errorMessage = null;
@@ -219,7 +218,85 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. On Windows Desktop, use WindowsOAuthService local loopback server for 100% reliable redirect
+      // ── Web: Google Identity Services (GIS) Popup / signInWithIdToken ─────────
+      if (kIsWeb) {
+        try {
+          final GoogleSignIn googleSignIn = GoogleSignIn(
+            clientId:
+                '277669825525-190ehfo8er1ncq76tugtpuih0u1kue3c.apps.googleusercontent.com',
+            scopes: ['email', 'profile'],
+          );
+
+          try {
+            await googleSignIn.signOut();
+          } catch (_) {}
+
+          final googleUser = await googleSignIn.signIn();
+
+          if (googleUser != null) {
+            final googleAuth = await googleUser.authentication;
+            final idToken = googleAuth.idToken;
+            final accessToken = googleAuth.accessToken;
+
+            if (idToken != null) {
+              final res = await Supabase.instance.client.auth.signInWithIdToken(
+                provider: OAuthProvider.google,
+                idToken: idToken,
+                accessToken: accessToken,
+              );
+
+              if (res.user != null && res.user!.email != null) {
+                final userEmail = res.user!.email!.toLowerCase().trim();
+                final isAuth =
+                    await UserPermissionService.isAuthorizedUserAsync(userEmail);
+                if (isAuth) {
+                  await UserPermissionService.setCurrentUser(userEmail);
+                  await _updateRememberMeSession(userEmail, rememberMe);
+                  _isAuthenticated = true;
+                  _isLoading = false;
+                  _errorMessage = null;
+                  notifyListeners();
+                  return true;
+                } else {
+                  await Supabase.instance.client.auth.signOut();
+                  _errorMessage =
+                      'Access Denied: Your account ($userEmail) is not permitted to use this app.';
+                  _isLoading = false;
+                  notifyListeners();
+                  return false;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) print('Web GIS attempt exception: $e');
+        }
+
+        // Web Fallback: If popup was closed or GIS fallback required,
+        // use whitelisted localhost:54321 callback or origin
+        final String webOrigin = Uri.base.origin;
+        final String webRedirectTo = webOrigin.contains('localhost') || webOrigin.contains('127.0.0.1')
+            ? 'http://localhost:54321/auth/v1/callback'
+            : '$webOrigin/';
+
+        final success = await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: webRedirectTo,
+          authScreenLaunchMode: LaunchMode.platformDefault,
+        );
+
+        Future.delayed(const Duration(seconds: 40), () {
+          if (_isLoading && !_isAuthenticated) {
+            _isLoading = false;
+            _errorMessage = 'Google Sign-In canceled or timed out. Please try again.';
+            notifyListeners();
+          }
+        });
+
+        return success;
+      }
+
+      // ── Windows Desktop: use local loopback server ────────────────────────────
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
         try {
           final redirectUrl = await WindowsOAuthService.startLocalServer();
@@ -238,7 +315,6 @@ class AuthViewModel extends ChangeNotifier {
             return false;
           }
 
-          // Wait for browser callback on localhost server
           final callbackUri = await WindowsOAuthService.waitForCallback(
             timeout: const Duration(seconds: 45),
           );
@@ -248,7 +324,8 @@ class AuthViewModel extends ChangeNotifier {
             final session = Supabase.instance.client.auth.currentSession;
             if (session != null && session.user.email != null) {
               final userEmail = session.user.email!.trim().toLowerCase();
-              final isAuth = await UserPermissionService.isAuthorizedUserAsync(userEmail);
+              final isAuth =
+                  await UserPermissionService.isAuthorizedUserAsync(userEmail);
               if (isAuth) {
                 await UserPermissionService.setCurrentUser(userEmail);
                 await _updateRememberMeSession(userEmail, rememberMe);
@@ -260,14 +337,15 @@ class AuthViewModel extends ChangeNotifier {
               } else {
                 await Supabase.instance.client.auth.signOut();
                 _errorMessage =
-                    'Access Denied: Your account ($userEmail) is not permitted to use this app. Access is restricted by the Administrator.';
+                    'Access Denied: Your account ($userEmail) is not permitted to use this app.';
                 _isLoading = false;
                 notifyListeners();
                 return false;
               }
             }
           } else {
-            _errorMessage = 'Google Sign-In canceled or timed out. Please try again.';
+            _errorMessage =
+                'Google Sign-In canceled or timed out. Please try again.';
             _isLoading = false;
             notifyListeners();
             return false;
@@ -278,72 +356,74 @@ class AuthViewModel extends ChangeNotifier {
         }
       }
 
-      // 2. Try GoogleSignIn native SDK (for Mobile / macOS / Web)
-      try {
-        final GoogleSignIn googleSignIn = GoogleSignIn(
-          scopes: ['email', 'profile'],
-        );
-
+      // ── Mobile / macOS: Try native GoogleSignIn SDK first ─────────────────────
+      if (!kIsWeb) {
         try {
-          await googleSignIn.signOut();
-        } catch (_) {}
+          final GoogleSignIn googleSignIn = GoogleSignIn(
+            scopes: ['email', 'profile'],
+          );
 
-        final googleUser = await googleSignIn.signIn();
+          try {
+            await googleSignIn.signOut();
+          } catch (_) {}
 
-        if (googleUser != null) {
-          final googleAuth = await googleUser.authentication;
-          final idToken = googleAuth.idToken;
-          final accessToken = googleAuth.accessToken;
+          final googleUser = await googleSignIn.signIn();
 
-          if (idToken != null) {
-            final res = await Supabase.instance.client.auth.signInWithIdToken(
-              provider: OAuthProvider.google,
-              idToken: idToken,
-              accessToken: accessToken,
-            );
+          if (googleUser != null) {
+            final googleAuth = await googleUser.authentication;
+            final idToken = googleAuth.idToken;
+            final accessToken = googleAuth.accessToken;
 
-            if (res.user != null && res.user!.email != null) {
-              final userEmail = res.user!.email!.toLowerCase().trim();
-              final isAuth = await UserPermissionService.isAuthorizedUserAsync(userEmail);
-              if (isAuth) {
-                await UserPermissionService.setCurrentUser(userEmail);
-                await _updateRememberMeSession(userEmail, rememberMe);
-                _isAuthenticated = true;
-                _isLoading = false;
-                _errorMessage = null;
-                notifyListeners();
-                return true;
-              } else {
-                await Supabase.instance.client.auth.signOut();
-                _errorMessage =
-                    'Access Denied: Your account ($userEmail) is not permitted to use this app. Access is restricted by the Administrator.';
-                _isLoading = false;
-                notifyListeners();
-                return false;
+            if (idToken != null) {
+              final res = await Supabase.instance.client.auth.signInWithIdToken(
+                provider: OAuthProvider.google,
+                idToken: idToken,
+                accessToken: accessToken,
+              );
+
+              if (res.user != null && res.user!.email != null) {
+                final userEmail = res.user!.email!.toLowerCase().trim();
+                final isAuth =
+                    await UserPermissionService.isAuthorizedUserAsync(userEmail);
+                if (isAuth) {
+                  await UserPermissionService.setCurrentUser(userEmail);
+                  await _updateRememberMeSession(userEmail, rememberMe);
+                  _isAuthenticated = true;
+                  _isLoading = false;
+                  _errorMessage = null;
+                  notifyListeners();
+                  return true;
+                } else {
+                  await Supabase.instance.client.auth.signOut();
+                  _errorMessage =
+                      'Access Denied: Your account ($userEmail) is not permitted to use this app.';
+                  _isLoading = false;
+                  notifyListeners();
+                  return false;
+                }
               }
             }
           }
+        } catch (e) {
+          if (kDebugMode) print('GoogleSignIn native attempt exception: $e');
         }
-      } catch (e) {
-        if (kDebugMode) print('GoogleSignIn native attempt exception: $e');
       }
 
-      // 3. Fallback to Supabase OAuth redirect (for Web / Mobile / macOS)
-      final String? redirectTo = kIsWeb
-          ? null
-          : 'io.supabase.shopmanagement://login-callback';
+      // ── Mobile / macOS fallback: Supabase OAuth with deep-link scheme ─────────
+      const String nativeRedirectTo =
+          'io.supabase.shopmanagement://login-callback';
 
       final success = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: redirectTo,
+        redirectTo: nativeRedirectTo,
         authScreenLaunchMode: LaunchMode.externalApplication,
       );
 
-      // Safety timeout
       Future.delayed(const Duration(seconds: 25), () {
         if (_isLoading && !_isAuthenticated) {
           _isLoading = false;
-          _errorMessage = 'Google Sign-In canceled or timed out. Please try again or sign in with Email.';
+          _errorMessage =
+              'Google Sign-In canceled or timed out. Please try again or sign in with Email.';
           notifyListeners();
         }
       });

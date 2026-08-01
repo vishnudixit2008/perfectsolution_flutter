@@ -95,5 +95,42 @@ void main() {
 
       expect(parsed.password, equals('SecretPassword123'));
     });
+
+    test('Supabase snake_case JSON deserialization syncs all permission fields', () {
+      final supabaseJson = {
+        'email': 'staff@cloud.com',
+        'name': 'Cloud Staff',
+        'role': 'employee',
+        'is_active': true,
+        'user_password': 'CloudPassword123',
+        'page_access': {'inward': true, 'sales': false},
+        'action_access': {'canAdd': true, 'canDelete': false},
+        'page_action_access': {
+          'inward': {'canAdd': true, 'canDelete': false},
+        },
+        'field_access': {
+          'inward': {
+            'estimateItems': {'visible': true, 'creatable': true, 'editable': false},
+          },
+        },
+        'status_visibility_access': {
+          'inward': ['PENDING', 'APPROVED'],
+        },
+        'status_selectable_access': {
+          'inward': ['PENDING'],
+        },
+      };
+
+      final parsed = AppUser.fromJson(supabaseJson);
+
+      expect(parsed.email, equals('staff@cloud.com'));
+      expect(parsed.password, equals('CloudPassword123'));
+      expect(parsed.pageAccess['inward'], isTrue);
+      expect(parsed.pageAccess['sales'], isFalse);
+      expect(parsed.pageActionAccess['inward']?['canDelete'], isFalse);
+      expect(parsed.fieldAccess['inward']?['estimateItems']?.editable, isFalse);
+      expect(parsed.statusVisibilityAccess['inward'], equals(['PENDING', 'APPROVED']));
+      expect(parsed.statusSelectableAccess['inward'], equals(['PENDING']));
+    });
   });
 }

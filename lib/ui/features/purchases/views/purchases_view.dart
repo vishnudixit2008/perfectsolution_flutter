@@ -884,7 +884,11 @@ class _PurchasesViewState extends State<PurchasesView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        it.itemName ?? it.customItemName ?? 'Item',
+                        (it.itemName != null && it.itemName!.isNotEmpty)
+                            ? it.itemName!
+                            : (it.customItemName != null && it.customItemName!.isNotEmpty)
+                                ? it.customItemName!
+                                : 'Purchase Item (${it.lineId})',
                         style: TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 12 * scale,
@@ -1193,10 +1197,9 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
 
   // Controllers for adding item
   PricelistItem? _selectedCatalogItem;
-  final _customNameController = TextEditingController();
+  final _searchItemController = TextEditingController();
   final _priceController = TextEditingController();
   final _qtyController = TextEditingController();
-  bool _isCustomItem = false;
 
   @override
   void initState() {
@@ -1237,7 +1240,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
   void dispose() {
     _vendorController.dispose();
     _notesController.dispose();
-    _customNameController.dispose();
+    _searchItemController.dispose();
     _priceController.dispose();
     _qtyController.dispose();
     super.dispose();
@@ -1246,59 +1249,63 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
   double get _calculatedTotal =>
       _items.fold(0.0, (sum, item) => sum + item.amount);
 
-  void _addItem() {
+  void _addItem() async {
     final qty = int.tryParse(_qtyController.text) ?? 1;
     final price = double.tryParse(_priceController.text) ?? 0.0;
+    final textVal = _searchItemController.text.trim();
 
-    if (_isCustomItem) {
-      final name = _customNameController.text.trim();
-      if (name.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter custom item name')),
-        );
-        return;
-      }
+    PricelistItem? targetItem = _selectedCatalogItem;
 
-      final newItem = PurchaseOrderItem(
-        lineId: 'line_${DateTime.now().millisecondsSinceEpoch}',
-        purchaseId: '',
-        customItemName: name,
-        quantity: qty,
-        unitPrice: price,
-        amount: qty * price,
+    if (targetItem == null && textVal.isNotEmpty) {
+      final pricelistVM = context.read<PricelistViewModel>();
+      final existingMatches = pricelistVM.items.where(
+        (i) => i.itemName.trim().toLowerCase() == textVal.toLowerCase(),
       );
 
-      setState(() {
-        _items.add(newItem);
-        _customNameController.clear();
-        _priceController.clear();
-        _qtyController.clear();
-      });
-    } else {
-      if (_selectedCatalogItem == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a catalog product')),
+      if (existingMatches.isNotEmpty) {
+        targetItem = existingMatches.first;
+      } else {
+        // Create new item in pricelist!
+        final newPricelistItem = PricelistItem(
+          id: pricelistVM.getNextId(),
+          itemName: textVal,
+          price: price,
+          stockQty: 0,
+          openingStock: 0,
+          category: 'General',
         );
-        return;
+
+        await pricelistVM.addItem(newPricelistItem);
+        targetItem = newPricelistItem;
       }
-
-      final newItem = PurchaseOrderItem(
-        lineId: 'line_${DateTime.now().millisecondsSinceEpoch}',
-        purchaseId: '',
-        itemId: _selectedCatalogItem!.id,
-        itemName: _selectedCatalogItem!.itemName,
-        quantity: qty,
-        unitPrice: price > 0.0 ? price : _selectedCatalogItem!.price,
-        amount: qty * (price > 0.0 ? price : _selectedCatalogItem!.price),
-      );
-
-      setState(() {
-        _items.add(newItem);
-        _selectedCatalogItem = null;
-        _priceController.clear();
-        _qtyController.clear();
-      });
     }
+
+    if (targetItem == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select or type an item name')),
+      );
+      return;
+    }
+
+    final unitCost = price > 0.0 ? price : targetItem.price;
+
+    final newItem = PurchaseOrderItem(
+      lineId: 'line_${DateTime.now().millisecondsSinceEpoch}',
+      purchaseId: '',
+      itemId: targetItem.id,
+      itemName: targetItem.itemName,
+      quantity: qty,
+      unitPrice: unitCost,
+      amount: qty * unitCost,
+    );
+
+    setState(() {
+      _items.add(newItem);
+      _selectedCatalogItem = null;
+      _searchItemController.clear();
+      _priceController.clear();
+      _qtyController.clear();
+    });
   }
 
   void _saveForm() async {
@@ -1436,200 +1443,198 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                   color: AppTheme.textPrimary,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _isCustomItem ? 'Custom Name' : 'Catalog Select',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: _isCustomItem
-                            ? AppTheme.primaryLight
-                            : AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Switch(
-                      value: _isCustomItem,
-                      activeThumbColor: AppTheme.primaryLight,
-                      activeTrackColor: AppTheme.primary.withValues(alpha: 0.5),
-                      inactiveThumbColor: AppTheme.textMuted,
-                      inactiveTrackColor: Colors.white12,
-                      onChanged: (val) => setState(() => _isCustomItem = val),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
 
-          if (isMobile) ...[
-            _isCustomItem
-                ? TextFormField(
-                    controller: _customNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Custom Item Name',
-                      hintText: 'Keyboard, adaptor...',
-                    ),
-                  )
-                : DropdownButtonFormField<PricelistItem>(
-                    initialValue: _selectedCatalogItem,
-                    hint: const Text('Select Catalog Product'),
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    dropdownColor: const Color(0xFF131A2E),
-                    items: catalogItems.map((item) {
-                      return DropdownMenuItem(
-                        value: item,
-                        child: Text(
-                          item.itemName,
-                          style: const TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedCatalogItem = val;
-                      });
-                    },
-                  ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceController,
-                    decoration: InputDecoration(
-                      labelText: 'Cost Price (₹)',
-                      hintText: _selectedCatalogItem != null
-                          ? _selectedCatalogItem!.price.toString()
-                          : '0.00',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    controller: _qtyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qty',
-                      hintText: '1',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _addItem,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                  ),
-                  child: const Icon(Icons.add),
-                ),
-              ],
-            ),
-          ] else ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: _isCustomItem
-                      ? TextFormField(
-                          controller: _customNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Custom Item Name',
-                            hintText: 'Keyboard, adaptor...',
-                          ),
-                        )
-                      : DropdownButtonFormField<PricelistItem>(
-                          initialValue: _selectedCatalogItem,
-                          hint: const Text('Select Catalog Product'),
-                          decoration: const InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          dropdownColor: const Color(0xFF131A2E),
-                          items: catalogItems.map((item) {
-                            return DropdownMenuItem(
-                              value: item,
-                              child: Text(
-                                item.itemName,
-                                style: const TextStyle(fontSize: 12),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
+          RawAutocomplete<PricelistItem>(
+            textEditingController: _searchItemController,
+            focusNode: FocusNode(),
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              final query = textEditingValue.text.toLowerCase().trim();
+              if (query.isEmpty) {
+                return catalogItems;
+              }
+              final matches = catalogItems.where((item) {
+                final nameMatch = item.itemName.toLowerCase().contains(query);
+                final catMatch = item.category?.toLowerCase().contains(query) ?? false;
+                return nameMatch || catMatch;
+              }).toList();
+
+              return matches;
+            },
+            displayStringForOption: (PricelistItem option) => option.itemName,
+            onSelected: (PricelistItem selection) {
+              setState(() {
+                _selectedCatalogItem = selection;
+                _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
+              });
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Search or enter item name...',
+                  hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 18),
+                  suffixIcon: controller.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, color: AppTheme.textMuted, size: 18),
+                          onPressed: () {
+                            controller.clear();
                             setState(() {
-                              _selectedCatalogItem = val;
+                              _selectedCatalogItem = null;
                             });
                           },
-                        ),
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.02),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _priceController,
-                    decoration: InputDecoration(
-                      labelText: 'Cost Price (₹)',
-                      hintText: _selectedCatalogItem != null
-                          ? _selectedCatalogItem!.price.toString()
-                          : '0.00',
+              );
+            },
+            optionsViewBuilder: (context, onSelected, options) {
+              final query = _searchItemController.text.trim();
+              final hasExactMatch = options.any(
+                (opt) => opt.itemName.toLowerCase() == query.toLowerCase(),
+              );
+
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  color: const Color(0xFF131A2E),
+                  elevation: 4.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                  ),
+                  child: Container(
+                    width: MediaQuery.of(context).size.width * 0.8,
+                    constraints: const BoxConstraints(
+                      maxWidth: 450,
+                      maxHeight: 260,
+                    ),
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      children: [
+                        if (query.isNotEmpty && !hasExactMatch) ...[
+                          ListTile(
+                            dense: true,
+                            tileColor: AppTheme.primary.withValues(alpha: 0.1),
+                            leading: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primaryLight, size: 18),
+                            title: Text(
+                              'Add "$query" to Pricelist',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryLight,
+                                fontSize: 13,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'New product will be saved to Catalog',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                            ),
+                            onTap: () {
+                              FocusScope.of(context).unfocus();
+                              setState(() {
+                                _selectedCatalogItem = null;
+                              });
+                            },
+                          ),
+                          const Divider(color: Colors.white10, height: 1),
+                        ],
+                        ...options.map((PricelistItem option) {
+                          final bool isLowStock = option.stockQty <= option.openingStock;
+                          return ListTile(
+                            dense: true,
+                            title: Text(
+                              option.itemName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Category: ${option.category ?? "General"}  |  Stock: ${option.stockQty} left',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isLowStock ? AppTheme.danger : AppTheme.textMuted,
+                              ),
+                            ),
+                            trailing: Text(
+                              '₹${option.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            onTap: () {
+                              onSelected(option);
+                            },
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: TextFormField(
-                    controller: _qtyController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qty',
-                      hintText: '1',
-                    ),
-                    keyboardType: TextInputType.number,
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _priceController,
+                  decoration: InputDecoration(
+                    labelText: 'Cost Price (₹)',
+                    hintText: _selectedCatalogItem != null
+                        ? _selectedCatalogItem!.price.toStringAsFixed(0)
+                        : '0.00',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
                 ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _addItem,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _qtyController,
+                  decoration: const InputDecoration(
+                    labelText: 'Qty',
+                    hintText: '1',
                   ),
-                  child: const Icon(Icons.add),
+                  keyboardType: TextInputType.number,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _addItem,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add Item'),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Added items list

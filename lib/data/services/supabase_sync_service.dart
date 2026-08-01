@@ -267,6 +267,12 @@ class SupabaseSyncService extends ChangeNotifier {
             .from('pricelist')
             .upsert(pricelist.map((e) => e.toJson()).toList());
       }
+
+      // Users & Permissions
+      final users = UserPermissionService.getAllUsers();
+      for (final u in users) {
+        await UserPermissionService.saveUser(u);
+      }
     } catch (e) {
       if (kDebugMode) print('Push all local error: $e');
     }

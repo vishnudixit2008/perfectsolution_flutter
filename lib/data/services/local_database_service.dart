@@ -779,8 +779,17 @@ class LocalDatabaseService {
   }
 
   List<PurchaseOrderItem> getPurchaseOrderItems(String purchaseId) {
-    final List<dynamic>? rawList = _purchaseItemsBox.get(purchaseId);
-    if (rawList == null) return [];
+    dynamic rawList = _purchaseItemsBox.get(purchaseId);
+    rawList ??= _purchaseItemsBox.get(purchaseId.toString());
+    if (rawList == null) {
+      for (final k in _purchaseItemsBox.keys) {
+        if (k.toString() == purchaseId.toString()) {
+          rawList = _purchaseItemsBox.get(k);
+          break;
+        }
+      }
+    }
+    if (rawList == null || rawList is! List) return [];
     return rawList
         .map(
           (raw) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(raw)),

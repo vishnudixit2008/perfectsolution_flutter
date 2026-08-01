@@ -339,7 +339,7 @@ class AppUser {
   }
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
-    final rawPageActions = json['pageActionAccess'];
+    final rawPageActions = json['pageActionAccess'] ?? json['page_action_access'];
     Map<String, Map<String, bool>> parsedPageActions = {};
     if (rawPageActions is Map) {
       rawPageActions.forEach((modKey, actMap) {
@@ -350,7 +350,7 @@ class AppUser {
       });
     }
 
-    final rawFieldAccess = json['fieldAccess'];
+    final rawFieldAccess = json['fieldAccess'] ?? json['field_access'];
     Map<String, Map<String, FieldPermission>> parsedFields = {};
     if (rawFieldAccess is Map) {
       rawFieldAccess.forEach((modKey, fieldMap) {
@@ -367,7 +367,7 @@ class AppUser {
       });
     }
 
-    final rawStatusVis = json['statusVisibilityAccess'];
+    final rawStatusVis = json['statusVisibilityAccess'] ?? json['status_visibility_access'];
     Map<String, List<String>> parsedStatusVis = {};
     if (rawStatusVis is Map) {
       rawStatusVis.forEach((modKey, valList) {
@@ -378,7 +378,7 @@ class AppUser {
       });
     }
 
-    final rawStatusSel = json['statusSelectableAccess'];
+    final rawStatusSel = json['statusSelectableAccess'] ?? json['status_selectable_access'];
     Map<String, List<String>> parsedStatusSel = {};
     if (rawStatusSel is Map) {
       rawStatusSel.forEach((modKey, valList) {
