@@ -65,42 +65,6 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # ── Windows: Ensure CMake & MSVC tools are on PATH ──────────────────────
-      - name: Setup Visual Studio Developer Environment (Windows)
-        if: matrix.target == 'windows'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      - name: Add CMake to PATH (Windows)
-        if: matrix.target == 'windows'
-        shell: pwsh
-        run: |
-          # Find cmake.exe shipped with Visual Studio and add it to PATH
-          $cmakePaths = @(
-            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
-            "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
-            "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
-            "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin",
-            "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin"
-          )
-          $found = $false
-          foreach ($p in $cmakePaths) {
-            if (Test-Path "$p\cmake.exe") {
-              Write-Host "Found CMake at: $p"
-              echo "$p" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
-              $found = $true
-              break
-            }
-          }
-          if (-not $found) {
-            # Fallback: use Chocolatey cmake
-            Write-Host "CMake not found in VS paths, installing via Chocolatey..."
-            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
-          }
-          cmake --version
-
-      # ── macOS: CocoaPods setup ───────────────────────────────────────────────
       - name: Prepare macOS Native Configs
         if: matrix.target == 'macos'
         run: |
