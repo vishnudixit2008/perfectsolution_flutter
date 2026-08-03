@@ -58,6 +58,22 @@ def generate_excel():
             try:
                 data = fetch_all_table_data(supabase, table)
                 df = pd.DataFrame(data)
+                
+                # Sort rows so newest entries appear at the bottom
+                if not df.empty:
+                    # Check for common timestamp or ID columns to order ascending
+                    order_col = None
+                    for col in ["created_at", "createdAt", "date", "id"]:
+                        if col in df.columns:
+                            order_col = col
+                            break
+                    
+                    if order_col:
+                        df = df.sort_values(by=order_col, ascending=True)
+                    else:
+                        # Reverse rows if default API returned newest first
+                        df = df.iloc[::-1].reset_index(drop=True)
+
                 sheet_name = table[:30]
                 df.to_excel(writer, sheet_name=sheet_name, index=False)
                 print(f"  ✓ Exported table '{table}' ({len(data)} rows)")
