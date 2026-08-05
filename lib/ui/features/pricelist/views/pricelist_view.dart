@@ -15,6 +15,8 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../../data/services/user_permission_service.dart';
 import 'product_history_dialog.dart';
 
+import '../../../../data/services/pdf_stock_list_helper.dart';
+
 class PricelistView extends StatefulWidget {
   const PricelistView({super.key});
 
@@ -72,6 +74,27 @@ class _PricelistViewState extends State<PricelistView> {
                 title: 'Pricelist',
                 subtitle: 'Product Catalog & Inventory',
                 actions: [
+                  if (UserPermissionService.canPerformModuleAction('pricelist', 'canDownloadStockPdf'))
+                    AppHeaderActionButton(
+                      label: isDesktop ? 'Export Stock PDF' : 'Stock PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      isOutlined: true,
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: AppTheme.textPrimary,
+                      borderColor: Colors.white.withValues(alpha: 0.15),
+                      onPressed: () async {
+                        final items = viewModel.filteredItems.isNotEmpty
+                            ? viewModel.filteredItems
+                            : viewModel.items;
+                        if (items.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No stock items to export.')),
+                          );
+                          return;
+                        }
+                        await PdfStockListHelper.generateAndOpenStockListPdf(items);
+                      },
+                    ),
                   if (isDesktop && UserPermissionService.canPerformModuleAction('pricelist', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'Add Item',

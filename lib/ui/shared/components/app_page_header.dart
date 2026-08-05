@@ -6,6 +6,9 @@ class AppHeaderActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
   final Color? backgroundColor;
+  final Color? foregroundColor;
+  final Color? borderColor;
+  final bool isOutlined;
 
   const AppHeaderActionButton({
     super.key,
@@ -13,10 +16,40 @@ class AppHeaderActionButton extends StatelessWidget {
     this.icon = Icons.add_rounded,
     required this.onPressed,
     this.backgroundColor,
+    this.foregroundColor,
+    this.borderColor,
+    this.isOutlined = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isOutlined) {
+      return OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17, color: foregroundColor ?? AppTheme.textPrimary),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: foregroundColor ?? AppTheme.textPrimary,
+            letterSpacing: 0.2,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          side: BorderSide(
+            color: borderColor ?? Colors.white.withValues(alpha: 0.15),
+            width: 1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 18),
@@ -30,9 +63,9 @@ class AppHeaderActionButton extends StatelessWidget {
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor ?? AppTheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: foregroundColor ?? Colors.white,
         elevation: 2,
-        shadowColor: AppTheme.primary.withValues(alpha: 0.4),
+        shadowColor: (backgroundColor ?? AppTheme.primary).withValues(alpha: 0.4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
