@@ -131,8 +131,16 @@ class AppPageHeader extends StatelessWidget {
                 ),
               ),
               if (actions != null && actions!.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                ...actions!,
+                const SizedBox(width: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 0; i < actions!.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 10),
+                      actions![i],
+                    ],
+                  ],
+                ),
               ],
             ],
           ),
