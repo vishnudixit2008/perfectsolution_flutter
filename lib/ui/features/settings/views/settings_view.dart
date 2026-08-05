@@ -91,6 +91,29 @@ class _SettingsViewState extends State<SettingsView> {
                         _buildLayoutAndPrinterCard(context, viewModel),
                       ],
                     ),
+              const SizedBox(height: 32),
+              const Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'Perfect Solution App',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Version 1.0.7 (Build 19)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );

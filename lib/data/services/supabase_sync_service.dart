@@ -92,7 +92,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
       // Initialize Supabase client if not already done
       try {
-      await Supabase.initialize(
+        await Supabase.initialize(
           url: _supabaseUrl!,
           publishableKey: _supabaseAnonKey!,
           authOptions: const FlutterAuthClientOptions(
@@ -109,7 +109,9 @@ class SupabaseSyncService extends ChangeNotifier {
       // Subscribe to real-time WebSocket changes (debounced)
       _subscribeRealtime(localDb);
 
-      // Perform initial push & pull sync in background without blocking UI startup
+      // On startup: pull from cloud only.
+      // IMPORTANT: We do NOT push all local data on startup to prevent ghost
+      // resurrection where an old device re-uploads deleted/stale data.
       unawaited(_performBackgroundSync(localDb));
 
       return true;
@@ -120,22 +122,26 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  /// On startup: pull from cloud, then flush any offline-queued operations.
+  /// We do NOT push all local data — cloud is the single source of truth.
   Future<void> _performBackgroundSync(LocalDatabaseService localDb) async {
     try {
+      // 1. Pull authoritative data from cloud into local
       await syncAllTablesFromCloud(localDb);
-      await pushAllLocalRecordsToCloud(localDb);
+      // 2. Flush any operations queued while the device was offline
+      await flushOfflineQueue(localDb);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
     }
   }
 
-  /// Public method for manual sync triggered by user
+  /// Public method for manual sync triggered by user (pull only).
   Future<void> manualSync(LocalDatabaseService localDb) async {
     if (!_isInitialized) return;
     _setStatus(SyncStatus.syncing, 'Syncing...');
     try {
       await syncAllTablesFromCloud(localDb);
-      await pushAllLocalRecordsToCloud(localDb);
+      await flushOfflineQueue(localDb);
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
@@ -178,7 +184,54 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Pushes all pre-existing local Hive records to Supabase Cloud on initial connection
+  // ─── Offline Queue Flush ───────────────────────────────────────────────────
+  /// Processes all operations that were queued while the device was offline.
+  /// Called on startup and manual sync. Each queued op is retried and removed
+  /// on success. If it fails again, it stays in the queue for next attempt.
+  Future<void> flushOfflineQueue(LocalDatabaseService localDb) async {
+    if (!_isInitialized) return;
+
+    final keys = localDb.getPendingSyncKeys();
+    final ops = localDb.getPendingSyncQueue();
+    if (ops.isEmpty) return;
+
+    if (kDebugMode) print('Flushing ${ops.length} offline queued operations...');
+    final client = Supabase.instance.client;
+
+    for (int i = 0; i < ops.length; i++) {
+      final op = ops[i];
+      final hiveKey = keys[i];
+      final operation = op['operation'] as String? ?? 'upsert';
+      final tableName = op['table'] as String? ?? '';
+      final data = op['data'] as Map<String, dynamic>?;
+      final pkColumn = op['primary_key_column'] as String?;
+      final pkValue = op['primary_key_value'];
+
+      try {
+        if (operation == 'upsert' && data != null) {
+          await client.from(tableName).upsert(data);
+        } else if (operation == 'delete' && pkColumn != null) {
+          await client.from(tableName).delete().eq(pkColumn, pkValue);
+          // Also write tombstone for delete operations
+          await client.from('deleted_records').upsert({
+            'table_name': tableName,
+            'record_id': pkValue.toString(),
+          });
+        }
+        // Success: remove from queue
+        await localDb.removePendingSyncEntry(hiveKey);
+        if (kDebugMode) print('Flushed offline op: $operation on $tableName');
+      } catch (e) {
+        if (kDebugMode) print('Offline flush failed for $tableName: $e');
+        // Leave in queue to retry next time
+      }
+    }
+  }
+
+  // ─── Offline-Aware Push ────────────────────────────────────────────────────
+  /// Pushes all pre-existing local Hive records to Supabase Cloud.
+  /// NOTE: This is intentionally NOT called on startup to prevent ghost
+  /// resurrection. It is kept as an admin-only "Force Re-sync" function.
   Future<void> pushAllLocalRecordsToCloud(LocalDatabaseService localDb) async {
     if (!_isInitialized) return;
 
@@ -278,8 +331,10 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Fetches latest data from Supabase and mirrors into local Hive storage.
-  /// Also calls notifyListeners() so ViewModels that listen can reload.
+  // ─── Cloud → Local Sync ────────────────────────────────────────────────────
+  /// Fetches authoritative data from Supabase and mirrors into local Hive.
+  /// Cloud is the single source of truth. Deleted records tombstones are
+  /// applied first, then cloud data replaces local data.
   Future<void> syncAllTablesFromCloud(LocalDatabaseService localDb) async {
     if (!_isInitialized) return;
 
@@ -287,7 +342,35 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.syncing, 'Syncing from cloud...');
       final client = Supabase.instance.client;
 
-      // 1. Inward Repairs
+      // ── Step 0: Apply remote deletions (tombstones) ────────────────────────
+      // This ensures records deleted on any device are removed everywhere.
+      try {
+        final deletions = await client.from('deleted_records').select();
+        for (final d in deletions) {
+          final tbl = d['table_name']?.toString() ?? '';
+          final rid = d['record_id']?.toString();
+          if (rid == null || rid.isEmpty) continue;
+          switch (tbl) {
+            case 'inward_repairs':
+              await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+            case 'calls':
+              await localDb.deleteCall(int.tryParse(rid) ?? -1);
+            case 'sales':
+              await localDb.deleteSale(int.tryParse(rid) ?? -1);
+            case 'replacements':
+              await localDb.deleteReplacement(rid);
+            case 'requests':
+              await localDb.deleteRequestOrder(rid);
+            case 'purchases':
+              await localDb.deletePurchaseOrder(rid);
+          }
+        }
+      } catch (e) {
+        // Tombstone table may not exist yet on older deployments — safe to skip
+        if (kDebugMode) print('Tombstone sync skipped: $e');
+      }
+
+      // ── Step 1: Inward Repairs ─────────────────────────────────────────────
       final inwardData = await client.from('inward_repairs').select();
       final inwardItemsData = await client
           .from('inward_estimate_items')
@@ -296,10 +379,15 @@ class SupabaseSyncService extends ChangeNotifier {
       final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
 
       for (final json in inwardData) {
-        final repair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
-        repairsMap[repair.jobNo] = repair.toJson();
+        final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
+
+        // Conflict resolution: if local has a newer updatedAt, keep local
+        // but still store the cloud version in the map (cloud wins by default).
+        // Individual saves via pushRecordToCloud already keep cloud updated.
+        repairsMap[cloudRepair.jobNo] = cloudRepair.toJson();
+
         final itemsJson = inwardItemsData
-            .where((i) => i['job_no']?.toString() == repair.jobNo.toString())
+            .where((i) => i['job_no']?.toString() == cloudRepair.jobNo.toString())
             .toList();
         List<Map<String, dynamic>> parsedItems = itemsJson
             .map(
@@ -311,17 +399,17 @@ class SupabaseSyncService extends ChangeNotifier {
 
         // Preserve local estimate items if cloud data hasn't populated yet
         if (parsedItems.isEmpty) {
-          final existingLocal = localDb.getInwardEstimateItems(repair.jobNo);
+          final existingLocal = localDb.getInwardEstimateItems(cloudRepair.jobNo);
           if (existingLocal.isNotEmpty) {
             parsedItems = existingLocal.map((e) => e.toJson()).toList();
           }
         }
 
-        inwardItemsMap[repair.jobNo] = parsedItems;
+        inwardItemsMap[cloudRepair.jobNo] = parsedItems;
       }
       await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap);
 
-      // 2. Replacements
+      // ── Step 2: Replacements ───────────────────────────────────────────────
       final replacementData = await client.from('replacements').select();
       final replacementMap = <String, Map<String, dynamic>>{};
       for (final json in replacementData) {
@@ -330,7 +418,7 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllReplacements(replacementMap);
 
-      // 3. Requests
+      // ── Step 3: Requests ───────────────────────────────────────────────────
       final requestData = await client.from('requests').select();
       final requestMap = <String, Map<String, dynamic>>{};
       for (final json in requestData) {
@@ -339,7 +427,7 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllRequests(requestMap);
 
-      // 4. Calls
+      // ── Step 4: Calls ──────────────────────────────────────────────────────
       final callData = await client.from('calls').select();
       final callMap = <int, Map<String, dynamic>>{};
       final List<Map<String, dynamic>> callsToRepushWithPhoto = [];
@@ -373,7 +461,7 @@ class SupabaseSyncService extends ChangeNotifier {
         }
       }
 
-      // 5. Sales
+      // ── Step 5: Sales ──────────────────────────────────────────────────────
       final salesData = await client.from('sales').select();
       final salesItemsData = await client.from('sale_items').select();
       final salesMap = <int, Map<String, dynamic>>{};
@@ -395,7 +483,7 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllSales(salesMap, salesItemsMap);
 
-      // 6. Purchases
+      // ── Step 6: Purchases ──────────────────────────────────────────────────
       final purchaseData = await client.from('purchases').select();
       final purchaseItemsData = await client
           .from('purchase_order_items')
@@ -419,7 +507,7 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap);
 
-      // 7. Pricelist
+      // ── Step 7: Pricelist ──────────────────────────────────────────────────
       final pricelistData = await client.from('pricelist').select();
       final pricelistMap = <int, Map<String, dynamic>>{};
       for (final json in pricelistData) {
@@ -428,32 +516,56 @@ class SupabaseSyncService extends ChangeNotifier {
       }
       await localDb.saveAllPricelistItems(pricelistMap);
 
-      // 8. Users & Permissions
+      // ── Step 8: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud();
 
       _setStatus(SyncStatus.synced, 'All tables synchronized');
-      // notifyListeners is called by _setStatus above, ViewModels that
-      // consume SupabaseSyncService via Provider will rebuild and re-read Hive.
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');
     }
   }
 
-  /// Uploads a single record to Supabase table when created/edited locally
+  // ─── Offline-Aware Push ────────────────────────────────────────────────────
+  /// Uploads a single record to Supabase table when created/edited locally.
+  /// If the device is offline (push fails), the operation is saved to the
+  /// offline queue and will be retried on next sync / app open.
   Future<void> pushRecordToCloud(
     String tableName,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    LocalDatabaseService? localDb,
+  }) async {
     if (!_isInitialized) return;
 
     try {
       _setStatus(SyncStatus.syncing, 'Syncing change...');
       final client = Supabase.instance.client;
-      await client.from(tableName).upsert(data);
+      try {
+        await client.from(tableName).upsert(data);
+      } catch (e) {
+        // If cloud table doesn't have discount column yet, fallback without discount field
+        if (data.containsKey('discount')) {
+          final fallbackData = Map<String, dynamic>.from(data)
+            ..remove('discount');
+          await client.from(tableName).upsert(fallbackData);
+        } else {
+          rethrow;
+        }
+      }
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
-      if (kDebugMode) print('Push to cloud error ($tableName): $e');
-      _setStatus(SyncStatus.error, 'Sync Error');
+      if (kDebugMode) print('Push to cloud error ($tableName): $e — queuing for offline retry');
+      // Queue for retry when device comes back online
+      if (localDb != null) {
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert',
+          'table': tableName,
+          'data': data,
+          'queued_at': DateTime.now().toIso8601String(),
+        });
+        _setStatus(SyncStatus.offline, 'Saved Offline — will sync when connected');
+      } else {
+        _setStatus(SyncStatus.error, 'Sync Error: $e');
+      }
     }
   }
 
@@ -518,22 +630,62 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Deletes a record from Supabase table
+  // ─── Delete with Tombstone ────────────────────────────────────────────────
+  /// Deletes a record from Supabase AND writes a tombstone so that all other
+  /// devices will also delete this record on their next sync.
   Future<void> deleteRecordFromCloud(
     String tableName,
     String primaryKeyColumn,
-    dynamic idValue,
-  ) async {
-    if (!_isInitialized) return;
+    dynamic idValue, {
+    LocalDatabaseService? localDb,
+  }) async {
+    if (!_isInitialized) {
+      // Offline: queue the delete
+      if (localDb != null) {
+        await localDb.enqueuePendingSync({
+          'operation': 'delete',
+          'table': tableName,
+          'primary_key_column': primaryKeyColumn,
+          'primary_key_value': idValue.toString(),
+          'queued_at': DateTime.now().toIso8601String(),
+        });
+      }
+      return;
+    }
 
     try {
       _setStatus(SyncStatus.syncing, 'Deleting from cloud...');
       final client = Supabase.instance.client;
+
+      // 1. Delete the actual record
       await client.from(tableName).delete().eq(primaryKeyColumn, idValue);
+
+      // 2. Write tombstone so all other devices delete it on their next sync
+      try {
+        await client.from('deleted_records').upsert({
+          'table_name': tableName,
+          'record_id': idValue.toString(),
+        });
+      } catch (e) {
+        if (kDebugMode) print('Tombstone write failed (non-critical): $e');
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Delete from cloud error ($tableName): $e');
-      _setStatus(SyncStatus.error, 'Delete Error');
+      // Queue for offline retry
+      if (localDb != null) {
+        await localDb.enqueuePendingSync({
+          'operation': 'delete',
+          'table': tableName,
+          'primary_key_column': primaryKeyColumn,
+          'primary_key_value': idValue.toString(),
+          'queued_at': DateTime.now().toIso8601String(),
+        });
+        _setStatus(SyncStatus.offline, 'Saved Offline — will sync when connected');
+      } else {
+        _setStatus(SyncStatus.error, 'Delete Error');
+      }
     }
   }
 
@@ -547,6 +699,7 @@ class SupabaseSyncService extends ChangeNotifier {
       if (_isInitialized) {
         final client = Supabase.instance.client;
         try {
+          await client.from('deleted_records').delete().neq('id', '00000000-0000-0000-0000-000000000000');
           await client.from('inward_repairs').delete().neq('job_no', -1);
           await client.from('replacements').delete().neq('job_no', '___');
           await client.from('requests').delete().neq('id', '___');

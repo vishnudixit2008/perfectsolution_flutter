@@ -11,6 +11,7 @@ class Replacement {
   final DateTime? receiveDate;
   final String status; // Pending, Recieved, Pre-Complete, Complete
   final String? photo;
+  final DateTime updatedAt;
 
   Replacement({
     required this.jobNo,
@@ -23,7 +24,8 @@ class Replacement {
     this.receiveDate,
     this.status = 'Pending',
     this.photo,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -45,6 +47,7 @@ class Replacement {
           : null,
       status: json['status'] ?? 'Pending',
       photo: json['photo']?.toString(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -60,6 +63,7 @@ class Replacement {
       'receive_date': receiveDate?.toIso8601String(),
       'status': status,
       'photo': photo,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -74,6 +78,7 @@ class Replacement {
     DateTime? receiveDate,
     String? status,
     String? photo,
+    DateTime? updatedAt,
   }) {
     return Replacement(
       jobNo: jobNo ?? this.jobNo,
@@ -86,6 +91,7 @@ class Replacement {
       receiveDate: receiveDate ?? this.receiveDate,
       status: status ?? this.status,
       photo: photo ?? this.photo,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

@@ -12,6 +12,8 @@ class InwardRepair {
   final String status; // Pre-complete, LAPTOP, Completed, etc.
   final DateTime? completionDate;
   final String? photo;
+  final double discount;
+  final DateTime updatedAt;
 
   InwardRepair({
     required this.jobNo,
@@ -25,7 +27,9 @@ class InwardRepair {
     this.status = 'Pre-complete',
     this.completionDate,
     this.photo,
-  });
+    this.discount = 0.0,
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -48,6 +52,10 @@ class InwardRepair {
           ? DateTime.tryParse(json['completion_date'].toString())
           : null,
       photo: json['photo']?.toString(),
+      discount: json['discount'] is num
+          ? (json['discount'] as num).toDouble()
+          : double.tryParse(json['discount']?.toString() ?? '') ?? 0.0,
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -64,6 +72,8 @@ class InwardRepair {
       'status': status,
       'completion_date': completionDate?.toIso8601String(),
       'photo': photo,
+      'discount': discount,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -79,6 +89,8 @@ class InwardRepair {
     String? status,
     DateTime? completionDate,
     String? photo,
+    double? discount,
+    DateTime? updatedAt,
   }) {
     return InwardRepair(
       jobNo: jobNo ?? this.jobNo,
@@ -92,6 +104,8 @@ class InwardRepair {
       status: status ?? this.status,
       completionDate: completionDate ?? this.completionDate,
       photo: photo ?? this.photo,
+      discount: discount ?? this.discount,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

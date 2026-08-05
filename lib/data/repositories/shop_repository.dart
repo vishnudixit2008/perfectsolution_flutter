@@ -37,6 +37,7 @@ class ShopRepository {
       'pricelist',
       'id',
       id,
+      localDb: _localDb,
     );
   }
 
@@ -88,11 +89,13 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
+      localDb: _localDb,
     );
     for (final item in items) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'sale_items',
         item.toJson(),
+        localDb: _localDb,
       );
     }
   }
@@ -153,6 +156,7 @@ class ShopRepository {
       'sales',
       'invoice_no',
       invoiceNo,
+      localDb: _localDb,
     );
     return res;
   }
@@ -165,6 +169,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'calls',
       call.toJson(),
+      localDb: _localDb,
     );
     if (call.photo != null && call.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);
@@ -173,7 +178,12 @@ class ShopRepository {
 
   Future<void> deleteCall(int id) async {
     await _localDb.deleteCall(id);
-    await SupabaseSyncService.instance.deleteRecordFromCloud('calls', 'id', id);
+    await SupabaseSyncService.instance.deleteRecordFromCloud(
+      'calls',
+      'id',
+      id,
+      localDb: _localDb,
+    );
   }
 
   // Inward Repairs
@@ -189,6 +199,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'inward_repairs',
       repair.toJson(),
+      localDb: _localDb,
     );
     await SupabaseSyncService.instance.saveEstimateItemsForJob(
       repair.jobNo,
@@ -205,6 +216,7 @@ class ShopRepository {
       'inward_repairs',
       'job_no',
       jobNo,
+      localDb: _localDb,
     );
     await SupabaseSyncService.instance.deleteEstimateItemsForJob(jobNo);
   }
@@ -217,6 +229,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'replacements',
       repl.toJson(),
+      localDb: _localDb,
     );
     if (repl.photo != null && repl.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);
@@ -229,6 +242,7 @@ class ShopRepository {
       'replacements',
       'job_no',
       jobNo,
+      localDb: _localDb,
     );
   }
 
@@ -240,6 +254,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'requests',
       order.toJson(),
+      localDb: _localDb,
     );
   }
 
@@ -249,6 +264,7 @@ class ShopRepository {
       'requests',
       'id',
       id,
+      localDb: _localDb,
     );
   }
 
@@ -265,6 +281,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'purchases',
       order.toJson(),
+      localDb: _localDb,
     );
     await SupabaseSyncService.instance.savePurchaseItemsForPurchase(
       order.id,
@@ -274,6 +291,7 @@ class ShopRepository {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         p.toJson(),
+        localDb: _localDb,
       );
     }
     if (order.photo != null && order.photo!.contains('data:image/')) {
@@ -287,11 +305,13 @@ class ShopRepository {
       'purchases',
       'id',
       purchaseId,
+      localDb: _localDb,
     );
     for (final prod in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         prod.toJson(),
+        localDb: _localDb,
       );
     }
   }
@@ -306,11 +326,13 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'purchases',
       order.toJson(),
+      localDb: _localDb,
     );
     for (final prod in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         prod.toJson(),
+        localDb: _localDb,
       );
     }
     return updatedProducts.isNotEmpty || order.status == 'CONFIRMED';
@@ -326,11 +348,13 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'purchases',
       order.toJson(),
+      localDb: _localDb,
     );
     for (final prod in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         prod.toJson(),
+        localDb: _localDb,
       );
     }
     return true;

@@ -19,6 +19,7 @@ import '../features/requests/view_models/requests_view_model.dart';
 import '../features/purchases/view_models/purchases_view_model.dart';
 import '../features/dashboard/view_models/recent_sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
+import '../shared/components/app_bottom_nav_bar.dart';
 import '../shared/update_dialog.dart';
 
 import '../../data/services/user_permission_service.dart';
@@ -527,6 +528,20 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                 ),
               );
             },
+          ),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12.0, top: 4.0),
+            child: Center(
+              child: Text(
+                'v1.0.7 (b19)',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textMuted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -91,6 +91,7 @@ class _SalesViewState extends State<SalesView> {
 
     final salesVM = context.read<SalesViewModel>();
     salesVM.clearCart();
+    _clearLocalForm();
 
     final String name = prefill['customerName'] ?? prefill['name'] ?? '';
     final String mobile =
@@ -109,6 +110,14 @@ class _SalesViewState extends State<SalesView> {
       if (adv > 0) {
         _advanceController.text = adv.toStringAsFixed(2);
         salesVM.setAdvance(adv);
+      }
+    }
+
+    if (prefill['discount'] != null) {
+      final double disc = (prefill['discount'] as num).toDouble();
+      if (disc > 0) {
+        _discountController.text = disc.toStringAsFixed(2);
+        salesVM.setDiscount(disc);
       }
     }
 

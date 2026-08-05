@@ -12,6 +12,7 @@ class RequestOrder {
   final String status; // Pending, Received, Complete, etc.
   final String? estimate;
   final String? photo;
+  final DateTime updatedAt;
 
   RequestOrder({
     required this.id,
@@ -25,7 +26,8 @@ class RequestOrder {
     this.status = 'Pending',
     this.estimate,
     this.photo,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -48,6 +50,7 @@ class RequestOrder {
       status: json['status'] ?? 'Pending',
       estimate: json['estimate']?.toString(),
       photo: json['photo']?.toString(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -64,6 +67,7 @@ class RequestOrder {
       'status': status,
       'estimate': estimate,
       'photo': photo,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -79,6 +83,7 @@ class RequestOrder {
     String? status,
     String? estimate,
     String? photo,
+    DateTime? updatedAt,
   }) {
     return RequestOrder(
       id: id ?? this.id,
@@ -92,6 +97,7 @@ class RequestOrder {
       status: status ?? this.status,
       estimate: estimate ?? this.estimate,
       photo: photo ?? this.photo,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

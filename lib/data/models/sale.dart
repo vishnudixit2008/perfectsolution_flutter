@@ -12,6 +12,7 @@ class Sale {
   final String? invoicePdf;
   final String orderStatus; // 'PENDING' or 'Confirmed'
   final String? photo;
+  final DateTime updatedAt;
 
   Sale({
     required this.invoiceNo,
@@ -25,7 +26,8 @@ class Sale {
     this.invoicePdf,
     this.orderStatus = 'PENDING',
     this.photo,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -44,6 +46,7 @@ class Sale {
     String? invoicePdf,
     String? orderStatus,
     String? photo,
+    DateTime? updatedAt,
   }) {
     return Sale(
       invoiceNo: invoiceNo ?? this.invoiceNo,
@@ -57,6 +60,7 @@ class Sale {
       invoicePdf: invoicePdf ?? this.invoicePdf,
       orderStatus: orderStatus ?? this.orderStatus,
       photo: photo ?? this.photo,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -83,6 +87,7 @@ class Sale {
       invoicePdf: json['invoice_pdf'],
       orderStatus: json['order_status'] ?? 'PENDING',
       photo: json['photo']?.toString(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -99,6 +104,7 @@ class Sale {
       'invoice_pdf': invoicePdf,
       'order_status': orderStatus,
       'photo': photo,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 }

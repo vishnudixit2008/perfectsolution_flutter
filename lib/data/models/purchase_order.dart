@@ -8,6 +8,7 @@ class PurchaseOrder {
   final String status; // PENDING, CONFIRMED
   final String? notes;
   final String? photo;
+  final DateTime updatedAt;
 
   PurchaseOrder({
     required this.id,
@@ -17,7 +18,8 @@ class PurchaseOrder {
     this.status = 'PENDING',
     this.notes,
     this.photo,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -34,6 +36,7 @@ class PurchaseOrder {
       status: json['status'] ?? 'PENDING',
       notes: json['notes']?.toString(),
       photo: json['photo']?.toString(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -46,6 +49,7 @@ class PurchaseOrder {
       'status': status,
       'notes': notes,
       'photo': photo,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -57,6 +61,7 @@ class PurchaseOrder {
     String? status,
     String? notes,
     String? photo,
+    DateTime? updatedAt,
   }) {
     return PurchaseOrder(
       id: id ?? this.id,
@@ -66,6 +71,7 @@ class PurchaseOrder {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       photo: photo ?? this.photo,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

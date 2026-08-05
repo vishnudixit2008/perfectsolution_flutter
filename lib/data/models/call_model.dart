@@ -12,6 +12,7 @@ class CallModel {
   final String status;
   final String? notes;
   final String? photo;
+  final DateTime updatedAt;
 
   CallModel({
     required this.id,
@@ -25,7 +26,8 @@ class CallModel {
     this.status = 'Pending',
     this.notes,
     this.photo,
-  });
+    DateTime? updatedAt,
+  }) : updatedAt = updatedAt ?? DateTime.now();
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
@@ -46,6 +48,7 @@ class CallModel {
       status: json['status'] ?? 'Pending',
       notes: json['notes']?.toString(),
       photo: json['photo']?.toString(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
 
@@ -62,6 +65,7 @@ class CallModel {
       'status': status,
       'notes': notes,
       'photo': photo,
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -77,6 +81,7 @@ class CallModel {
     String? status,
     String? notes,
     String? photo,
+    DateTime? updatedAt,
   }) {
     return CallModel(
       id: id ?? this.id,
@@ -90,6 +95,7 @@ class CallModel {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       photo: photo ?? this.photo,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

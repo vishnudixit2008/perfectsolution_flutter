@@ -4,6 +4,7 @@ import '../../core/app_theme.dart';
 import '../../navigation/navigation_view_model.dart';
 import '../../features/pricelist/view_models/pricelist_view_model.dart';
 import '../../features/auth/view_models/auth_view_model.dart';
+import '../../../data/services/user_permission_service.dart';
 
 class AppBottomNavBar extends StatefulWidget {
   final int currentIndex;
@@ -280,6 +281,32 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
                 ),
               ),
               const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0, left: 2.0),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: const Text(
+                      'v1.0.7',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

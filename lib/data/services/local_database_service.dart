@@ -24,6 +24,7 @@ class LocalDatabaseService {
   static const String _requestBoxName = 'request_box';
   static const String _purchaseBoxName = 'purchase_box';
   static const String _purchaseItemsBoxName = 'purchase_items_box';
+  static const String _pendingSyncBoxName = 'pending_sync_queue';
 
   late Box _pricelistBox;
   late Box _settingsBox;
@@ -36,6 +37,7 @@ class LocalDatabaseService {
   late Box _requestBox;
   late Box _purchaseBox;
   late Box _purchaseItemsBox;
+  late Box _pendingSyncBox;
 
   Future<void> init() async {
     await Hive.initFlutter();
@@ -51,6 +53,7 @@ class LocalDatabaseService {
     _requestBox = await Hive.openBox(_requestBoxName);
     _purchaseBox = await Hive.openBox(_purchaseBoxName);
     _purchaseItemsBox = await Hive.openBox(_purchaseItemsBoxName);
+    _pendingSyncBox = await Hive.openBox(_pendingSyncBoxName);
 
     // Seed data is disabled since Supabase is now the source of truth
   }
@@ -253,9 +256,48 @@ class LocalDatabaseService {
   }
 
   Future<void> clearDatabase() async {
+    // Wipe ALL local Hive boxes so no stale data can be pushed back to cloud
+    await _inwardBox.clear();
+    await _inwardItemsBox.clear();
+    await _callsBox.clear();
+    await _salesBox.clear();
+    await _saleItemsBox.clear();
+    await _replacementBox.clear();
+    await _requestBox.clear();
+    await _purchaseBox.clear();
+    await _purchaseItemsBox.clear();
     await _pricelistBox.clear();
+    await _pendingSyncBox.clear();
     await _seedPricelist();
   }
+
+  // ─── Offline Pending Sync Queue ────────────────────────────────────────────
+  /// Adds a pending operation to the offline queue so it can be retried
+  /// when internet connectivity is restored.
+  Future<void> enqueuePendingSync(Map<String, dynamic> operation) async {
+    final key = '${DateTime.now().microsecondsSinceEpoch}';
+    await _pendingSyncBox.put(key, operation);
+  }
+
+  /// Returns all pending operations in the order they were enqueued.
+  List<Map<String, dynamic>> getPendingSyncQueue() {
+    return _pendingSyncBox.values
+        .map((v) => Map<String, dynamic>.from(v as Map))
+        .toList();
+  }
+
+  /// Removes all pending operations after they have been successfully flushed.
+  Future<void> clearPendingSyncQueue() async {
+    await _pendingSyncBox.clear();
+  }
+
+  /// Removes a single operation from the queue by its Hive key.
+  Future<void> removePendingSyncEntry(dynamic hiveKey) async {
+    await _pendingSyncBox.delete(hiveKey);
+  }
+
+  /// Returns all pending operation keys (for targeted removal after flush).
+  List<dynamic> getPendingSyncKeys() => _pendingSyncBox.keys.toList();
 
   // --- Settings Methods ---
 
@@ -612,10 +654,11 @@ class LocalDatabaseService {
 
   // --- Inward Repairs Methods ---
   int getNextInwardJobNo() {
-    if (_inwardBox.isEmpty) return 4111;
-    int maxJobNo = 4110;
-    for (var key in _inwardBox.keys) {
-      if (key is int && key > maxJobNo) maxJobNo = key;
+    final repairs = getInwardRepairs();
+    if (repairs.isEmpty) return 1;
+    int maxJobNo = 0;
+    for (final r in repairs) {
+      if (r.jobNo > maxJobNo) maxJobNo = r.jobNo;
     }
     return maxJobNo + 1;
   }

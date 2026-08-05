@@ -772,10 +772,13 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
 
     final estItems = viewModel.getEstimateItems(repair.jobNo);
     if (estItems.isNotEmpty) {
-      final double estTotal = estItems.fold(
+      final double estSubtotal = estItems.fold(
         0.0,
         (sum, item) => sum + item.totalAmount,
       );
+      final double netEstTotal = (estSubtotal - repair.discount) < 0
+          ? 0.0
+          : (estSubtotal - repair.discount);
       if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
       metadata.add(
         Row(
@@ -787,7 +790,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
             ),
             const SizedBox(width: 4),
             Text(
-              'Estimate: ${estItems.length} item(s) • ₹${estTotal.toStringAsFixed(0)}',
+              repair.discount > 0
+                  ? 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)} (Disc. ₹${repair.discount.toStringAsFixed(0)})'
+                  : 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)}',
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -992,7 +997,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                         ),
                       ),
                       Text(
-                        '${it.quantity} x ₹${it.unitPrice.toStringAsFixed(0)} = ₹${it.totalAmount.toStringAsFixed(2)}',
+                        '${it.quantity} x ₹${(it.lineType == 'Service' ? it.servicePrice : it.unitPrice).toStringAsFixed(0)} = ₹${it.totalAmount.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: AppTheme.primaryLight,
                           fontSize: 12 * scale,
@@ -1001,6 +1006,103 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     ],
                   ),
                 ),
+              ),
+              SizedBox(height: 6 * scale),
+              Builder(
+                builder: (context) {
+                  final double subtotal = items.fold(
+                    0.0,
+                    (s, i) => s + i.totalAmount,
+                  );
+                  final double discount = repair.discount;
+                  final double netTotal = (subtotal - discount) < 0
+                      ? 0.0
+                      : (subtotal - discount);
+                  return Container(
+                    padding: EdgeInsets.all(10 * scale),
+                    margin: EdgeInsets.only(top: 4 * scale),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.primaryLight.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Items Subtotal',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 11 * scale,
+                              ),
+                            ),
+                            Text(
+                              '₹${subtotal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 12 * scale,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (discount > 0) ...[
+                          SizedBox(height: 4 * scale),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Discount Applied',
+                                style: TextStyle(
+                                  color: AppTheme.warning,
+                                  fontSize: 11 * scale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                '- ₹${discount.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: AppTheme.warning,
+                                  fontSize: 12 * scale,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        Divider(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          height: 12 * scale,
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'NET ESTIMATE TOTAL',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 11 * scale,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '₹${netTotal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: AppTheme.primaryLight,
+                                fontSize: 14 * scale,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
             if (repair.photoList.isNotEmpty)
@@ -1356,6 +1458,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         'itemName': 'Inward repair job #${repair.jobNo} - ${repair.devices}',
         'estimateItems': itemsList,
         'totalAmount': estTotal,
+        'discount': repair.discount,
       },
     );
   }
@@ -1464,11 +1567,27 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   late final TextEditingController _queryController;
   late final TextEditingController _purchasedFromController;
   late final TextEditingController _notesController;
+  final TextEditingController _discountController = TextEditingController();
   late String _status;
   late DateTime? _completionDate;
   String? _photoUrl;
 
   List<InwardEstimateItem> _estimates = [];
+
+  double get _estimatesSubtotal {
+    return _estimates.fold(0.0, (sum, item) => sum + item.totalAmount);
+  }
+
+  double get _enteredDiscount {
+    return double.tryParse(_discountController.text.trim()) ?? 0.0;
+  }
+
+  double get _estimatesNetTotal {
+    final sub = _estimatesSubtotal;
+    final disc = _enteredDiscount;
+    final net = sub - disc;
+    return net < 0.0 ? 0.0 : net;
+  }
 
   // Controllers for adding estimate item
   final _estItemNameController = TextEditingController();
@@ -1500,6 +1619,11 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     _notesController = TextEditingController(
       text: r?.notes ?? widget.prefillNotes ?? '',
     );
+    if (r != null && r.discount > 0) {
+      _discountController.text = r.discount.toStringAsFixed(2);
+    } else {
+      _discountController.clear();
+    }
     _photoUrl = r?.photo;
     final inwardStatuses = StatusManagementService.getStatuses('inward');
     _status =
@@ -1531,6 +1655,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     _queryController.dispose();
     _purchasedFromController.dispose();
     _notesController.dispose();
+    _discountController.dispose();
     _estItemNameController.dispose();
     _estPriceController.dispose();
     _estQtyController.dispose();
@@ -1620,6 +1745,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
           ? (_completionDate ?? DateTime.now())
           : null,
       photo: _photoUrl,
+      discount: _enteredDiscount,
     );
 
     final List<InwardEstimateItem> finalEstimates = _estimates.map((item) {
@@ -2169,6 +2295,132 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                 },
               ),
             ),
+          // Estimate Items Summary & Discount Panel
+          if (_estimates.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppTheme.primaryLight.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Estimate Items Subtotal',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        '₹${_estimatesSubtotal.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.discount_rounded,
+                            size: 16,
+                            color: AppTheme.warning,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Estimate Discount',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(
+                        width: 130,
+                        child: TextFormField(
+                          controller: _discountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.warning,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: '0.0',
+                            prefixText: '₹ ',
+                            prefixStyle: const TextStyle(
+                              color: AppTheme.warning,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: AppTheme.warning.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(
+                                color: AppTheme.warning,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.white10, height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'NET ESTIMATE TOTAL',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        '₹${_estimatesNetTotal.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

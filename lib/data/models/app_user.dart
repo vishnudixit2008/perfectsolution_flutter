@@ -140,6 +140,7 @@ class AppUser {
       'canEdit': 'Can Edit Catalog Item',
       'canDelete': 'Can Delete Catalog Item',
       'canExport': 'Can Export Catalog to Excel',
+      'canDownloadStockPdf': 'Can Download Stock List PDF',
       'canViewHistory': 'Can View Product Sales & Purchase History',
     },
     'sales': {
