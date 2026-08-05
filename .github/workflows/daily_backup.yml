@@ -4,7 +4,12 @@ on:
   schedule:
     # 9:06 PM IST is 15:36 UTC
     - cron: '36 15 * * *'
+    # Additional backup slot at 9:15 PM IST (15:45 UTC) to ensure execution even if runner queue was full at :36
+    - cron: '45 15 * * *'
   workflow_dispatch: # Allows 1-click manual trigger from GitHub UI
+
+permissions:
+  contents: read
 
 jobs:
   backup:
