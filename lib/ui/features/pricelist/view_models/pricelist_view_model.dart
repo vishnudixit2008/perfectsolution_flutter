@@ -12,7 +12,7 @@ class PricelistViewModel extends ChangeNotifier {
   List<PricelistItem> _items = [];
   String _searchQuery = '';
   String? _selectedCategory;
-  String _sortColumn = 'itemName';
+  String _sortColumn = 'category';
   bool _sortAscending = true;
   bool _isLoading = false;
   int _currentPage = 1;
@@ -214,6 +214,9 @@ class PricelistViewModel extends ChangeNotifier {
       int comparison;
       if (valA is String && valB is String) {
         comparison = valA.compareTo(valB);
+        if (comparison == 0 && _sortColumn == 'category') {
+          comparison = a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
+        }
       } else {
         comparison = (valA as num).compareTo(valB as num);
       }
