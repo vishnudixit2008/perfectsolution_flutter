@@ -18,7 +18,7 @@ import '../features/replacements/view_models/replacements_view_model.dart';
 import '../features/requests/view_models/requests_view_model.dart';
 import '../features/purchases/view_models/purchases_view_model.dart';
 import '../features/dashboard/view_models/recent_sales_view_model.dart';
-import '../shared/components/app_bottom_nav_bar.dart';
+import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/update_dialog.dart';
 
 import '../../data/services/user_permission_service.dart';
@@ -386,6 +386,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   ),
                   child: InkWell(
                     onTap: () {
+                      if (navIndex == 3) {
+                        try {
+                          context.read<PricelistViewModel>().resetSortAndFilters();
+                        } catch (_) {}
+                      }
                       context.read<NavigationViewModel>().setIndex(navIndex);
                     },
                     borderRadius: BorderRadius.circular(8),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../navigation/navigation_view_model.dart';
-import '../../../../data/services/user_permission_service.dart';
+import '../../features/pricelist/view_models/pricelist_view_model.dart';
 import '../../features/auth/view_models/auth_view_model.dart';
 
 class AppBottomNavBar extends StatefulWidget {
@@ -149,8 +149,14 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
                           return SizedBox(
                             width: 76,
                             child: InkWell(
-                              onTap: () =>
-                                  context.read<NavigationViewModel>().setIndex(idx),
+                              onTap: () {
+                                if (idx == 3) {
+                                  try {
+                                    context.read<PricelistViewModel>().resetSortAndFilters();
+                                  } catch (_) {}
+                                }
+                                context.read<NavigationViewModel>().setIndex(idx);
+                              },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 150),
                                 child: Column(

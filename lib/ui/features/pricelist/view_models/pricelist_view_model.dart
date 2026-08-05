@@ -75,6 +75,16 @@ class PricelistViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Reset sorting and filters back to default view (Category ascending)
+  void resetSortAndFilters() {
+    _searchQuery = '';
+    _selectedCategory = null;
+    _sortColumn = 'category';
+    _sortAscending = true;
+    _currentPage = 1;
+    notifyListeners();
+  }
+
   // Pagination Actions
   void setPage(int page) {
     if (page >= 1 && page <= totalPages) {
