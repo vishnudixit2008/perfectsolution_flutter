@@ -12,6 +12,7 @@ import '../models/purchase_order_item.dart';
 import '../models/product_history_record.dart';
 import '../services/local_database_service.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/google_drive_upload_service.dart';
 
 class ShopRepository {
   final LocalDatabaseService _localDb;
@@ -165,6 +166,9 @@ class ShopRepository {
       'calls',
       call.toJson(),
     );
+    if (call.photo != null && call.photo!.contains('data:image/')) {
+      GoogleDriveUploadService.syncPendingLocalPhotos(this);
+    }
   }
 
   Future<void> deleteCall(int id) async {
@@ -190,6 +194,9 @@ class ShopRepository {
       repair.jobNo,
       items,
     );
+    if (repair.photo != null && repair.photo!.contains('data:image/')) {
+      GoogleDriveUploadService.syncPendingLocalPhotos(this);
+    }
   }
 
   Future<void> deleteInwardRepair(int jobNo) async {
@@ -211,6 +218,9 @@ class ShopRepository {
       'replacements',
       repl.toJson(),
     );
+    if (repl.photo != null && repl.photo!.contains('data:image/')) {
+      GoogleDriveUploadService.syncPendingLocalPhotos(this);
+    }
   }
 
   Future<void> deleteReplacement(String jobNo) async {
@@ -260,11 +270,14 @@ class ShopRepository {
       order.id,
       items,
     );
-    for (final prod in updatedProducts) {
+    for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
-        prod.toJson(),
+        p.toJson(),
       );
+    }
+    if (order.photo != null && order.photo!.contains('data:image/')) {
+      GoogleDriveUploadService.syncPendingLocalPhotos(this);
     }
   }
 
@@ -388,6 +401,44 @@ class ShopRepository {
 
     // 3. Sort chronologically descending (newest first)
     records.sort((a, b) => b.date.compareTo(a.date));
-    return records;
+
+    // 4. Compute closing stock for each historical record backward from current live stock
+    int runningStock = product.stockQty;
+    final List<ProductHistoryRecord> recordsWithClosingStock = [];
+
+    for (final r in records) {
+      final closingStock = runningStock;
+      final statusUpper = r.status.trim().toUpperCase();
+      final isPendingOrCancelled =
+          statusUpper == 'PENDING' || statusUpper == 'CANCELLED';
+
+      if (!isPendingOrCancelled) {
+        if (r.isSale) {
+          runningStock += r.quantity;
+        } else if (r.isPurchase) {
+          runningStock -= r.quantity;
+        }
+      }
+
+      recordsWithClosingStock.add(
+        ProductHistoryRecord(
+          type: r.type,
+          date: r.date,
+          referenceNo: r.referenceNo,
+          partyName: r.partyName,
+          quantity: r.quantity,
+          unitPrice: r.unitPrice,
+          totalAmount: r.totalAmount,
+          status: r.status,
+          sale: r.sale,
+          saleItems: r.saleItems,
+          purchase: r.purchase,
+          purchaseItems: r.purchaseItems,
+          closingStock: closingStock,
+        ),
+      );
+    }
+
+    return recordsWithClosingStock;
   }
 }

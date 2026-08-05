@@ -1310,13 +1310,16 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
       text: r?.item ?? widget.prefillItem ?? '',
     );
     _advanceController = TextEditingController(
-      text: r?.advance.toString() ?? '0.0',
+      text: (r != null && r.advance > 0)
+          ? r.advance.toStringAsFixed(0)
+          : '',
     );
     _totalAmountController = TextEditingController(
-      text:
-          r?.totalAmount.toString() ??
-          widget.prefillAmount?.toString() ??
-          '0.0',
+      text: (r != null && r.totalAmount > 0)
+          ? r.totalAmount.toStringAsFixed(0)
+          : ((widget.prefillAmount != null && widget.prefillAmount! > 0)
+              ? widget.prefillAmount!.toStringAsFixed(0)
+              : ''),
     );
     _dealerController = TextEditingController(
       text: r?.dealerName ?? widget.prefillDealer ?? '',
@@ -1359,8 +1362,8 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
           ? null
           : _mobileController.text.trim(),
       item: _itemController.text.trim(),
-      advance: double.tryParse(_advanceController.text) ?? 0.0,
-      totalAmount: double.tryParse(_totalAmountController.text) ?? 0.0,
+      advance: double.tryParse(_advanceController.text.trim()) ?? 0.0,
+      totalAmount: double.tryParse(_totalAmountController.text.trim()) ?? 0.0,
       dealerName: _dealerController.text.trim().isEmpty
           ? null
           : _dealerController.text.trim(),
@@ -1451,6 +1454,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
               controller: _itemController,
               readOnly: !isItemMod,
               enabled: isItemMod,
+              maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Requested Item *',
                 hintText: 'e.g. ASUS Zephyrus G14 Battery',

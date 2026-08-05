@@ -231,7 +231,7 @@ class SalesViewModel extends ChangeNotifier {
   }
 
   double get totalAmount {
-    final double net = subtotal - _discount;
+    final double net = subtotal - _discount - _advance;
     return net < 0.0 ? 0.0 : net;
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shop_management_flutter/data/services/google_drive_upload_service.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
 import 'package:shop_management_flutter/ui/features/settings/view_models/settings_view_model.dart';
 import 'package:shop_management_flutter/data/services/user_permission_service.dart';
@@ -19,20 +18,12 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _upiController = TextEditingController();
-  late final TextEditingController _scriptUrlController;
-  late final TextEditingController _folderIdController;
   final TextEditingController _marginTBController = TextEditingController();
   final TextEditingController _marginLRController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _scriptUrlController = TextEditingController(
-      text: GoogleDriveUploadService.appsScriptUrl ?? '',
-    );
-    _folderIdController = TextEditingController(
-      text: GoogleDriveUploadService.driveFolderId ?? '',
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vm = context.read<SettingsViewModel>();
       await vm.loadSettings();
@@ -46,8 +37,6 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void dispose() {
     _upiController.dispose();
-    _scriptUrlController.dispose();
-    _folderIdController.dispose();
     _marginTBController.dispose();
     _marginLRController.dispose();
     super.dispose();
@@ -626,6 +615,11 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Google Drive Photo Storage Card
+  // ─────────────────────────────────────────────────────────────────────────
+
 
   // ─────────────────────────────────────────────────────────────────────────
   // Layout & Printer Card (EXPANDED — now includes printer config + live layout

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -81,7 +82,7 @@ class PhotoAttachmentWidget extends StatefulWidget {
     return url;
   }
 
-  /// Renders both base64 Data URIs (data:image/...) and network HTTP URLs seamlessly
+  /// Renders local device files, base64 Data URIs (data:image/...), and network HTTP URLs seamlessly
   static Widget buildAppImage(
     String url, {
     double? width,
@@ -89,11 +90,14 @@ class PhotoAttachmentWidget extends StatefulWidget {
     BoxFit fit = BoxFit.cover,
     Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
   }) {
-    if (url.startsWith('data:image/')) {
+    final String cleanUrl = url.trim();
+
+    // 1. Base64 Data URI check
+    if (cleanUrl.startsWith('data:image/')) {
       try {
-        final commaIndex = url.indexOf(',');
+        final commaIndex = cleanUrl.indexOf(',');
         if (commaIndex != -1) {
-          final base64Str = url.substring(commaIndex + 1);
+          final base64Str = cleanUrl.substring(commaIndex + 1);
           final bytes = base64Decode(base64Str);
           return Image.memory(
             bytes,
@@ -118,7 +122,37 @@ class PhotoAttachmentWidget extends StatefulWidget {
       }
     }
 
-    final directUrl = getDirectImageUrl(url) ?? url;
+    // 2. Local Device File Path check (e.g. /Users/..., C:\..., file://...)
+    if (!kIsWeb &&
+        !cleanUrl.startsWith('http://') &&
+        !cleanUrl.startsWith('https://')) {
+      final path = cleanUrl.startsWith('file://')
+          ? cleanUrl.replaceFirst('file://', '')
+          : cleanUrl;
+      final file = File(path);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder:
+              errorBuilder ??
+              (context, error, stackTrace) => Container(
+                width: width,
+                height: height,
+                color: Colors.white10,
+                child: const Icon(
+                  Icons.photo_rounded,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+        );
+      }
+    }
+
+    // 3. Network URL
+    final directUrl = getDirectImageUrl(cleanUrl) ?? cleanUrl;
     return Image.network(
       directUrl,
       width: width,
@@ -203,59 +237,62 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
     if (selectedFiles.isEmpty) return;
 
     try {
-      setState(() {
-        _isUploading = true;
-        _uploadStatusText = 'Uploading ${selectedFiles.length} photo(s)...';
+      // 1. Fetch local device file paths for INSTANT zero-delay thumbnail rendering on screen!
+      final List<String> localPaths = selectedFiles
+          .map((f) => f.path)
+          .where((p) => p.trim().isNotEmpty)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _isUploading = true;
+          _uploadStatusText =
+              'Uploading ${selectedFiles.length} photo(s) in background...';
+          _photoUrls.addAll(localPaths);
+        });
+      }
+      _notifyParent();
+
+      // 2. Read bytes and upload ALL photos in background concurrently to Google Drive!
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final uploadFutures = selectedFiles.asMap().entries.map((entry) async {
+        final index = entry.key;
+        final file = entry.value;
+        final bytes = await file.readAsBytes();
+        final fileName = 'photo_${timestamp}_${index + 1}.jpg';
+        return GoogleDriveUploadService.uploadPhotoBytes(
+          bytes: bytes,
+          fileName: fileName,
+        );
       });
 
-      final totalCount = selectedFiles.length;
-      int successCount = 0;
-      for (int i = 0; i < totalCount; i++) {
-        final file = selectedFiles[i];
-        if (mounted) {
-          setState(
-            () => _uploadStatusText =
-                'Processing Photo ${i + 1} of $totalCount...',
-          );
-        }
-        final Uint8List bytes = await file.readAsBytes();
-        final String fileName =
-            'photo_${DateTime.now().millisecondsSinceEpoch}_${i + 1}.jpg';
-        final String? cloudUrl =
-            await GoogleDriveUploadService.uploadPhotoBytes(
-              bytes: bytes,
-              fileName: fileName,
-            );
+      final List<String?> cloudUrls = await Future.wait(uploadFutures);
+
+      // 3. Seamlessly replace local device paths with permanent Google Drive URLs for cross-user sync
+      for (int i = 0; i < localPaths.length; i++) {
+        final localPath = localPaths[i];
+        final cloudUrl = cloudUrls[i];
         if (cloudUrl != null && cloudUrl.isNotEmpty) {
-          _photoUrls.add(cloudUrl);
-          successCount++;
+          final idx = _photoUrls.indexOf(localPath);
+          if (idx != -1) {
+            _photoUrls[idx] = cloudUrl;
+          }
         }
       }
 
       if (mounted) {
-        setState(() => _isUploading = false);
-        if (successCount < totalCount) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$successCount of $totalCount photos uploaded to Google Drive. Check Drive script URL in settings.',
-              ),
-              backgroundColor: AppTheme.warning,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
+        setState(() {
+          _isUploading = false;
+          _uploadStatusText = '';
+        });
       }
       _notifyParent();
     } catch (e) {
       if (mounted) {
-        setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Upload Error: $e'),
-            backgroundColor: AppTheme.danger,
-          ),
-        );
+        setState(() {
+          _isUploading = false;
+          _uploadStatusText = '';
+        });
       }
     }
   }
@@ -658,10 +695,12 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
                         right: 4,
                         child: GestureDetector(
                           onTap: () {
+                            final removedUrl = _photoUrls[index];
                             setState(() {
                               _photoUrls.removeAt(index);
                             });
                             _notifyParent();
+                            GoogleDriveUploadService.deletePhoto(removedUrl);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),

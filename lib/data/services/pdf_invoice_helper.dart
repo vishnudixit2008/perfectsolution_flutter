@@ -61,7 +61,7 @@ Future<Uint8List> _buildPdf(
   final formattedDate = DateFormat('dd/MM/yy hh:mm a').format(sale.saleDate);
   final String upiVpa = activeUpiId ?? '9810207643@upi';
   final String upiUrl =
-      'upi://pay?pa=$upiVpa&am=${sale.totalAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20${sale.invoiceNo}';
+      'upi://pay?pa=$upiVpa&am=${sale.dueAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20${sale.invoiceNo}';
 
   final displayItems = items.isNotEmpty
       ? items
@@ -365,11 +365,10 @@ Future<Uint8List> _buildPdf(
                     if (sale.advance > 0) ...[
                       pw.SizedBox(height: 1),
                       pw.Text(
-                        'Advance Received: Rs. ${sale.advance.toStringAsFixed(2)}',
+                        'Advance Paid: Rs. ${sale.advance.toStringAsFixed(2)}',
                         style: pw.TextStyle(
-                          fontSize: 8,
+                          fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey700,
                         ),
                       ),
                     ],

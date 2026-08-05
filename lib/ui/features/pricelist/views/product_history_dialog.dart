@@ -512,6 +512,39 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                 ),
               ],
             ),
+            const SizedBox(width: 14),
+
+            // Closing Stock Column
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.primaryLight.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Closing Stock',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: AppTheme.textMuted,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    '${record.closingStock ?? 0} units',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(width: 10),
 
             // Chevron

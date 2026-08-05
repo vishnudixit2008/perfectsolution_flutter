@@ -29,6 +29,9 @@ class Sale {
 
   List<String> get photoList => PhotoAttachmentWidget.parsePhotoUrls(photo);
 
+  /// Remaining total amount after deducting advance & discount
+  double get dueAmount => totalAmount;
+
   Sale copyWith({
     int? invoiceNo,
     DateTime? saleDate,

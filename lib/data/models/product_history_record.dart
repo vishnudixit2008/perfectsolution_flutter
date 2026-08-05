@@ -18,6 +18,7 @@ class ProductHistoryRecord {
   final List<SaleItem>? saleItems;
   final PurchaseOrder? purchase;
   final List<PurchaseOrderItem>? purchaseItems;
+  final int? closingStock;
 
   ProductHistoryRecord({
     required this.type,
@@ -32,6 +33,7 @@ class ProductHistoryRecord {
     this.saleItems,
     this.purchase,
     this.purchaseItems,
+    this.closingStock,
   });
 
   bool get isSale => type == ProductHistoryType.sale;

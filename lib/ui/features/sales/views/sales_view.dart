@@ -1746,26 +1746,44 @@ class _SalesViewState extends State<SalesView> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Discount Applied',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              ),
-              Text(
-                '- ₹${cartVM.discount.toStringAsFixed(2)}',
-                style: const TextStyle(color: AppTheme.danger, fontSize: 14),
-              ),
-            ],
-          ),
+          if (cartVM.discount > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Discount Applied',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                ),
+                Text(
+                  '- ₹${cartVM.discount.toStringAsFixed(2)}',
+                  style: const TextStyle(color: AppTheme.danger, fontSize: 14),
+                ),
+              ],
+            ),
+          ],
+          if (cartVM.advance > 0) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Advance Paid',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                ),
+                Text(
+                  '- ₹${cartVM.advance.toStringAsFixed(2)}',
+                  style: const TextStyle(color: AppTheme.success, fontSize: 14),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Net Payable',
+                'GRAND TOTAL',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,

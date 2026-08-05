@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../../ui/shared/photo_attachment_widget.dart';
 
 
 class GoogleDriveUploadService {
@@ -11,7 +12,9 @@ class GoogleDriveUploadService {
   static const String _tokenKey = 'google_drive_service_token';
 
   static const String defaultAppsScriptUrl =
-      'https://script.google.com/macros/s/AKfycbwNvXGz7S9C0kpd87yKUrVZIuiNQ7r0t9RB0OZXYgwJynBzFVmIZfOuFXyACGr0azQl/exec';
+      'https://script.google.com/macros/s/AKfycbyW_1N5zOx-LtIhc72CGGV-9lYDg27i6uYeN1URgL0Rl5lIk_QDLA1FkfbwcODwJOw7/exec';
+  static const String defaultDriveFolderId =
+      '16Iff7huX3fwK-5Ua36ZfMjMNgK0cXCdR';
 
   static String? appsScriptUrl;
   static String? driveFolderId;
@@ -21,20 +24,15 @@ class GoogleDriveUploadService {
   static Future<void> init() async {
     try {
       final box = await Hive.openBox(_boxName);
-      appsScriptUrl = box.get(
-        _appsScriptKey,
-        defaultValue: defaultAppsScriptUrl,
-      );
-      driveFolderId = box.get(_folderIdKey);
+      await box.put(_appsScriptKey, defaultAppsScriptUrl);
+      await box.put(_folderIdKey, defaultDriveFolderId);
+      appsScriptUrl = defaultAppsScriptUrl;
+      driveFolderId = defaultDriveFolderId;
       serviceAccountToken = box.get(_tokenKey);
-
-      if (appsScriptUrl == null || appsScriptUrl!.trim().isEmpty) {
-        appsScriptUrl = defaultAppsScriptUrl;
-        await box.put(_appsScriptKey, defaultAppsScriptUrl);
-      }
     } catch (e) {
       if (kDebugMode) print('GoogleDriveUploadService init error: $e');
       appsScriptUrl = defaultAppsScriptUrl;
+      driveFolderId = defaultDriveFolderId;
     }
   }
 
@@ -49,8 +47,8 @@ class GoogleDriveUploadService {
     driveFolderId = folderId?.trim();
     serviceAccountToken = token?.trim();
 
-    await box.put(_appsScriptKey, appsScriptUrl ?? '');
-    await box.put(_folderIdKey, driveFolderId ?? '');
+    await box.put(_appsScriptKey, appsScriptUrl ?? defaultAppsScriptUrl);
+    await box.put(_folderIdKey, driveFolderId ?? defaultDriveFolderId);
     await box.put(_tokenKey, serviceAccountToken ?? '');
   }
 
@@ -62,19 +60,16 @@ class GoogleDriveUploadService {
   }) async {
     final base64String = base64Encode(bytes);
 
-    // 1. Primary Method: Google Apps Script Web App (Unlimited Free Google Drive Storage)
-    final targetScriptUrl =
-        (appsScriptUrl != null && appsScriptUrl!.trim().isNotEmpty)
-        ? appsScriptUrl!.trim()
-        : defaultAppsScriptUrl;
+    // Primary Method: Google Apps Script Web App
+    const targetScriptUrl = defaultAppsScriptUrl;
+    const targetFolderId = defaultDriveFolderId;
 
     try {
       final payload = jsonEncode({
         'filename': fileName,
         'mimeType': 'image/jpeg',
         'bytes': base64String,
-        if (driveFolderId != null && driveFolderId!.isNotEmpty)
-          'folderId': driveFolderId,
+        'folderId': targetFolderId,
       });
 
       final response = await http
@@ -110,6 +105,199 @@ class GoogleDriveUploadService {
 
     // 2. Fallback: Base64 Data URI if network fails (uses 0 cloud storage space)
     return 'data:image/jpeg;base64,$base64String';
+  }
+
+  /// Deletes a photo from Google Drive by its URL or file ID in the background
+  static Future<bool> deletePhoto(String photoUrl) async {
+    if (photoUrl.isEmpty || photoUrl.startsWith('data:image/')) return false;
+
+    // Extract Google Drive File ID
+    final driveMatch = RegExp(
+      r'(?:drive\.google\.com/file/d/|drive\.google\.com/thumbnail\?id=|drive\.google\.com/uc\?.*id=|lh3\.googleusercontent\.com/d/)([^/&?]+)',
+    ).firstMatch(photoUrl);
+
+    if (driveMatch == null) return false;
+    final fileId = driveMatch.group(1);
+    if (fileId == null || fileId.isEmpty) return false;
+
+    try {
+      final payload = jsonEncode({
+        'action': 'delete',
+        'fileId': fileId,
+      });
+
+      await http.post(
+        Uri.parse(defaultAppsScriptUrl),
+        headers: {'Content-Type': 'text/plain;charset=utf-8'},
+        body: payload,
+      );
+      return true;
+    } catch (e) {
+      if (kDebugMode) print('Apps Script delete error: $e');
+      return false;
+    }
+  }
+
+  /// Background Worker that finds any base64 data:image/ photos in saved records,
+  /// uploads them to Google Drive in background, and updates records in local DB & cloud.
+  static Future<void> syncPendingLocalPhotos(dynamic repo) async {
+    try {
+      // 1. Check Inward Repairs
+      final repairs = repo.getInwardRepairs();
+      for (final r in repairs) {
+        if (r.photo != null && r.photo!.contains('data:image/')) {
+          final photoUrls = PhotoAttachmentWidget.parsePhotoUrls(r.photo);
+          final updatedUrls = <String>[];
+          bool changed = false;
+
+          for (int i = 0; i < photoUrls.length; i++) {
+            final url = photoUrls[i];
+            if (url.startsWith('data:image/')) {
+              final commaIndex = url.indexOf(',');
+              if (commaIndex != -1) {
+                final base64Str = url.substring(commaIndex + 1);
+                final bytes = base64Decode(base64Str);
+                final fileName =
+                    'inward_${r.jobNo}_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                final cloudUrl =
+                    await uploadPhotoBytes(bytes: bytes, fileName: fileName);
+                if (cloudUrl != null && !cloudUrl.startsWith('data:image/')) {
+                  updatedUrls.add(cloudUrl);
+                  changed = true;
+                  continue;
+                }
+              }
+            }
+            updatedUrls.add(url);
+          }
+
+          if (changed) {
+            final updatedRepair = r.copyWith(
+              photo: PhotoAttachmentWidget.joinPhotoUrls(updatedUrls),
+            );
+            final estimateItems = repo.getInwardEstimateItems(r.jobNo);
+            await repo.saveInwardRepair(updatedRepair, estimateItems);
+          }
+        }
+      }
+
+      // 2. Check Calls
+      final calls = repo.getCalls();
+      for (final c in calls) {
+        if (c.photo != null && c.photo!.contains('data:image/')) {
+          final photoUrls = PhotoAttachmentWidget.parsePhotoUrls(c.photo);
+          final updatedUrls = <String>[];
+          bool changed = false;
+
+          for (int i = 0; i < photoUrls.length; i++) {
+            final url = photoUrls[i];
+            if (url.startsWith('data:image/')) {
+              final commaIndex = url.indexOf(',');
+              if (commaIndex != -1) {
+                final base64Str = url.substring(commaIndex + 1);
+                final bytes = base64Decode(base64Str);
+                final fileName =
+                    'call_${c.id}_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                final cloudUrl =
+                    await uploadPhotoBytes(bytes: bytes, fileName: fileName);
+                if (cloudUrl != null && !cloudUrl.startsWith('data:image/')) {
+                  updatedUrls.add(cloudUrl);
+                  changed = true;
+                  continue;
+                }
+              }
+            }
+            updatedUrls.add(url);
+          }
+
+          if (changed) {
+            final updatedCall = c.copyWith(
+              photo: PhotoAttachmentWidget.joinPhotoUrls(updatedUrls),
+            );
+            await repo.saveCall(updatedCall);
+          }
+        }
+      }
+
+      // 3. Check Replacements
+      final replacements = repo.getReplacements();
+      for (final rep in replacements) {
+        if (rep.photo != null && rep.photo!.contains('data:image/')) {
+          final photoUrls = PhotoAttachmentWidget.parsePhotoUrls(rep.photo);
+          final updatedUrls = <String>[];
+          bool changed = false;
+
+          for (int i = 0; i < photoUrls.length; i++) {
+            final url = photoUrls[i];
+            if (url.startsWith('data:image/')) {
+              final commaIndex = url.indexOf(',');
+              if (commaIndex != -1) {
+                final base64Str = url.substring(commaIndex + 1);
+                final bytes = base64Decode(base64Str);
+                final fileName =
+                    'replacement_${rep.id}_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                final cloudUrl =
+                    await uploadPhotoBytes(bytes: bytes, fileName: fileName);
+                if (cloudUrl != null && !cloudUrl.startsWith('data:image/')) {
+                  updatedUrls.add(cloudUrl);
+                  changed = true;
+                  continue;
+                }
+              }
+            }
+            updatedUrls.add(url);
+          }
+
+          if (changed) {
+            final updatedRep = rep.copyWith(
+              photo: PhotoAttachmentWidget.joinPhotoUrls(updatedUrls),
+            );
+            await repo.saveReplacement(updatedRep);
+          }
+        }
+      }
+
+      // 4. Check Purchases
+      final purchases = repo.getPurchaseOrders();
+      for (final po in purchases) {
+        if (po.photo != null && po.photo!.contains('data:image/')) {
+          final photoUrls = PhotoAttachmentWidget.parsePhotoUrls(po.photo);
+          final updatedUrls = <String>[];
+          bool changed = false;
+
+          for (int i = 0; i < photoUrls.length; i++) {
+            final url = photoUrls[i];
+            if (url.startsWith('data:image/')) {
+              final commaIndex = url.indexOf(',');
+              if (commaIndex != -1) {
+                final base64Str = url.substring(commaIndex + 1);
+                final bytes = base64Decode(base64Str);
+                final fileName =
+                    'purchase_${po.id}_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                final cloudUrl =
+                    await uploadPhotoBytes(bytes: bytes, fileName: fileName);
+                if (cloudUrl != null && !cloudUrl.startsWith('data:image/')) {
+                  updatedUrls.add(cloudUrl);
+                  changed = true;
+                  continue;
+                }
+              }
+            }
+            updatedUrls.add(url);
+          }
+
+          if (changed) {
+            final updatedPo = po.copyWith(
+              photo: PhotoAttachmentWidget.joinPhotoUrls(updatedUrls),
+            );
+            final poItems = repo.getPurchaseOrderItems(po.id);
+            await repo.savePurchaseOrder(updatedPo, poItems);
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Background photo sync error: $e');
+    }
   }
 
   /// Converts a Google Drive sharing URL to a thumbnail URL that works cross-device.
