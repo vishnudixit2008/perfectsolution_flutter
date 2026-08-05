@@ -829,6 +829,15 @@ class _RequestsViewState extends State<RequestsView> {
     String id,
     RequestsViewModel viewModel,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('requests', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Customer Requests.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -986,43 +995,49 @@ class _RequestsViewState extends State<RequestsView> {
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canEdit = UserPermissionService.canPerformModuleAction('requests', 'canEdit');
+        final canDelete = UserPermissionService.canPerformModuleAction('requests', 'canDelete');
+        if (!canEdit && !canDelete) return const SizedBox.shrink();
+
         return Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showAddEditDialog(context, existingRequest: req);
-                },
-                icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryLight,
-                  side: BorderSide(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.3),
+            if (canEdit)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showAddEditDialog(context, existingRequest: req);
+                  },
+                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryLight,
+                    side: BorderSide(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
-            SizedBox(width: 12 * scale),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(context, req.id, viewModel);
-                },
-                icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.danger,
-                  side: BorderSide(
-                    color: AppTheme.danger.withValues(alpha: 0.3),
+            if (canEdit && canDelete) SizedBox(width: 12 * scale),
+            if (canDelete)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDelete(context, req.id, viewModel);
+                  },
+                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.danger,
+                    side: BorderSide(
+                      color: AppTheme.danger.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
           ],
         );
       },
@@ -1037,6 +1052,22 @@ class _RequestsViewState extends State<RequestsView> {
     String? prefillItem,
     double? prefillAmount,
   }) {
+    final isEdit = existingRequest != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('requests', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Customer Requests.'
+                : 'Access Denied: You do not have permission to create new Customer Requests.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1362,105 +1393,150 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     final bool isEdit = widget.existingRequest != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
 
+    final bool isNameVis = UserPermissionService.isFieldVisible('requests', 'customerName');
+    final bool isNameMod = UserPermissionService.canModifyField('requests', 'customerName', isEdit: isEdit);
+
+    final bool isMobileVis = UserPermissionService.isFieldVisible('requests', 'mobileNo');
+    final bool isMobileMod = UserPermissionService.canModifyField('requests', 'mobileNo', isEdit: isEdit);
+
+    final bool isItemVis = UserPermissionService.isFieldVisible('requests', 'item');
+    final bool isItemMod = UserPermissionService.canModifyField('requests', 'item', isEdit: isEdit);
+
+    final bool isAdvanceVis = UserPermissionService.isFieldVisible('requests', 'advance');
+    final bool isAdvanceMod = UserPermissionService.canModifyField('requests', 'advance', isEdit: isEdit);
+
+    final bool isTotalVis = UserPermissionService.isFieldVisible('requests', 'totalAmount');
+    final bool isTotalMod = UserPermissionService.canModifyField('requests', 'totalAmount', isEdit: isEdit);
+
+    final bool isDealerVis = UserPermissionService.isFieldVisible('requests', 'dealerName');
+    final bool isDealerMod = UserPermissionService.canModifyField('requests', 'dealerName', isEdit: isEdit);
+
+    final bool isStatusVis = UserPermissionService.isFieldVisible('requests', 'status');
+    final bool isStatusMod = UserPermissionService.canModifyField('requests', 'status', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Customer Name *'),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter customer name'
-                : null,
-          ),
-          const SizedBox(height: 12),
-
-          TextFormField(
-            controller: _mobileController,
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              hintText: '10 digits',
+          if (isNameVis) ...[
+            TextFormField(
+              controller: _nameController,
+              readOnly: !isNameMod,
+              enabled: isNameMod,
+              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter customer name'
+                  : null,
             ),
-            keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          TextFormField(
-            controller: _itemController,
-            decoration: const InputDecoration(
-              labelText: 'Requested Item *',
-              hintText: 'e.g. ASUS Zephyrus G14 Battery',
+          if (isMobileVis) ...[
+            TextFormField(
+              controller: _mobileController,
+              readOnly: !isMobileMod,
+              enabled: isMobileMod,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Number',
+                hintText: '10 digits',
+              ),
+              keyboardType: TextInputType.phone,
             ),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter item name'
-                : null,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
+
+          if (isItemVis) ...[
+            TextFormField(
+              controller: _itemController,
+              readOnly: !isItemMod,
+              enabled: isItemMod,
+              decoration: const InputDecoration(
+                labelText: 'Requested Item *',
+                hintText: 'e.g. ASUS Zephyrus G14 Battery',
+              ),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter item name'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
 
           Row(
             children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _advanceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Advance Paid (₹)',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _totalAmountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Total Estimate Price (₹)',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+              if (isAdvanceVis)
+                Expanded(
+                  child: TextFormField(
+                    controller: _advanceController,
+                    readOnly: !isAdvanceMod,
+                    enabled: isAdvanceMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Advance Paid (₹)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
-              ),
+              if (isAdvanceVis && isTotalVis) const SizedBox(width: 12),
+              if (isTotalVis)
+                Expanded(
+                  child: TextFormField(
+                    controller: _totalAmountController,
+                    readOnly: !isTotalMod,
+                    enabled: isTotalMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Total Estimate Price (₹)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
 
           Row(
             children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _dealerController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dealer Name / Source Vendor',
+              if (isDealerVis)
+                Expanded(
+                  child: TextFormField(
+                    controller: _dealerController,
+                    readOnly: !isDealerMod,
+                    enabled: isDealerMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Dealer Name / Source Vendor',
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  dropdownColor: const Color(0xFF131A2E),
-                  items:
-                      (() {
-                        final list =
-                            UserPermissionService.getAllowedSelectableStatuses(
-                          'requests',
-                        );
-                        if (!list.contains(_status)) {
-                          list.add(_status);
-                        }
-                        return list;
-                      })().map((st) {
-                        return DropdownMenuItem(value: st, child: Text(st));
-                      }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _status = val);
-                  },
+              if (isDealerVis && isStatusVis) const SizedBox(width: 12),
+              if (isStatusVis)
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    dropdownColor: const Color(0xFF131A2E),
+                    onChanged: isStatusMod
+                        ? (val) {
+                            if (val != null) setState(() => _status = val);
+                          }
+                        : null,
+                    items:
+                        (() {
+                          final list =
+                              UserPermissionService.getAllowedSelectableStatuses(
+                            'requests',
+                          );
+                          if (!list.contains(_status)) {
+                            list.add(_status);
+                          }
+                          return list;
+                        })().map((st) {
+                          return DropdownMenuItem(value: st, child: Text(st));
+                        }).toList(),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),

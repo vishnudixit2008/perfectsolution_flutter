@@ -1489,6 +1489,22 @@ class _CallsViewState extends State<CallsView> {
   }
 
   void _showAddEditDialog(BuildContext context, {CallModel? existingCall}) {
+    final isEdit = existingCall != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('calls', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Calls.'
+                : 'Access Denied: You do not have permission to log new Calls.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1501,6 +1517,16 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     int id,
   ) async {
+    if (!UserPermissionService.canPerformModuleAction('calls', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Calls.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1727,107 +1753,133 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     final bool isEdit = widget.existingCall != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
 
+    final bool isNameVis = UserPermissionService.isFieldVisible('calls', 'name');
+    final bool isNameMod = UserPermissionService.canModifyField('calls', 'name', isEdit: isEdit);
+
+    final bool isMobileVis = UserPermissionService.isFieldVisible('calls', 'mobileNo');
+    final bool isMobileMod = UserPermissionService.canModifyField('calls', 'mobileNo', isEdit: isEdit);
+
+    final bool isAddressVis = UserPermissionService.isFieldVisible('calls', 'address');
+    final bool isAddressMod = UserPermissionService.canModifyField('calls', 'address', isEdit: isEdit);
+
+    final bool isQueryVis = UserPermissionService.isFieldVisible('calls', 'query');
+    final bool isQueryMod = UserPermissionService.canModifyField('calls', 'query', isEdit: isEdit);
+
+    final bool isAssignedVis = UserPermissionService.isFieldVisible('calls', 'assignedTo');
+    final bool isAssignedMod = UserPermissionService.canModifyField('calls', 'assignedTo', isEdit: isEdit);
+
+    final bool isEstimateVis = UserPermissionService.isFieldVisible('calls', 'estimate');
+    final bool isEstimateMod = UserPermissionService.canModifyField('calls', 'estimate', isEdit: isEdit);
+
+    final bool isStatusVis = UserPermissionService.isFieldVisible('calls', 'status');
+    final bool isStatusMod = UserPermissionService.canModifyField('calls', 'status', isEdit: isEdit);
+
+    final bool isNotesVis = UserPermissionService.isFieldVisible('calls', 'notes');
+    final bool isNotesMod = UserPermissionService.canModifyField('calls', 'notes', isEdit: isEdit);
+
     final formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextFormField(
-            controller: _nameController,
-            style: const TextStyle(color: AppTheme.textPrimary),
-            decoration: _buildInputDecoration('Customer Name *'),
-            validator: (val) => (val == null || val.trim().isEmpty)
-                ? 'Please enter customer name'
-                : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _mobileController,
-            style: const TextStyle(color: AppTheme.textPrimary),
-            keyboardType: TextInputType.phone,
-            decoration: _buildInputDecoration('Mobile Number'),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _addressController,
-            style: const TextStyle(color: AppTheme.textPrimary),
-            decoration: _buildInputDecoration('Address'),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _queryController,
-            style: const TextStyle(color: AppTheme.textPrimary),
-            decoration: _buildInputDecoration('Query / Problem Details'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _staffOptions.contains(_assignedController.text)
-                ? _assignedController.text
-                : _staffOptions.first,
-            dropdownColor: const Color(0xFF131A2E),
-            style: const TextStyle(color: AppTheme.textPrimary),
-            decoration: _buildInputDecoration('Assigned To'),
-            items: _staffOptions.map((staff) {
-              return DropdownMenuItem<String>(value: staff, child: Text(staff));
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _assignedController.text = val;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          if (isMobile) ...[
+          if (isNameVis) ...[
             TextFormField(
-              controller: _estimateController,
+              controller: _nameController,
+              readOnly: !isNameMod,
+              enabled: isNameMod,
               style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: _buildInputDecoration('Estimate Amount'),
+              decoration: _buildInputDecoration('Customer Name *'),
+              validator: (val) => (val == null || val.trim().isEmpty)
+                  ? 'Please enter customer name'
+                  : null,
             ),
             const SizedBox(height: 16),
+          ],
+          if (isMobileVis) ...[
+            TextFormField(
+              controller: _mobileController,
+              readOnly: !isMobileMod,
+              enabled: isMobileMod,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              keyboardType: TextInputType.phone,
+              decoration: _buildInputDecoration('Mobile Number'),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (isAddressVis) ...[
+            TextFormField(
+              controller: _addressController,
+              readOnly: !isAddressMod,
+              enabled: isAddressMod,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: _buildInputDecoration('Address'),
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (isQueryVis) ...[
+            TextFormField(
+              controller: _queryController,
+              readOnly: !isQueryMod,
+              enabled: isQueryMod,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: _buildInputDecoration('Query / Problem Details'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (isAssignedVis) ...[
             DropdownButtonFormField<String>(
-              initialValue: _status,
+              initialValue: _staffOptions.contains(_assignedController.text)
+                  ? _assignedController.text
+                  : _staffOptions.first,
               dropdownColor: const Color(0xFF131A2E),
               style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: _buildInputDecoration('Status'),
-              items:
-                  (() {
-                    final list = StatusManagementService.getStatuses('calls');
-                    if (!list.contains(_status)) {
-                      list.add(_status);
+              decoration: _buildInputDecoration('Assigned To'),
+              onChanged: isAssignedMod
+                  ? (val) {
+                      if (val != null) {
+                        setState(() {
+                          _assignedController.text = val;
+                        });
+                      }
                     }
-                    return list;
-                  })().map((st) {
-                    return DropdownMenuItem<String>(value: st, child: Text(st));
-                  }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _status = val;
-                  });
-                }
-              },
+                  : null,
+              items: _staffOptions.map((staff) {
+                return DropdownMenuItem<String>(value: staff, child: Text(staff));
+              }).toList(),
             ),
-          ] else ...[
-            Row(
-              children: [
+            const SizedBox(height: 16),
+          ],
+          Row(
+            children: [
+              if (isEstimateVis)
                 Expanded(
                   child: TextFormField(
                     controller: _estimateController,
+                    readOnly: !isEstimateMod,
+                    enabled: isEstimateMod,
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: _buildInputDecoration('Estimate Amount'),
                   ),
                 ),
-                const SizedBox(width: 16),
+              if (isEstimateVis && isStatusVis) const SizedBox(width: 16),
+              if (isStatusVis)
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
                     dropdownColor: const Color(0xFF131A2E),
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: _buildInputDecoration('Status'),
+                    onChanged: isStatusMod
+                        ? (val) {
+                            if (val != null) {
+                              setState(() {
+                                _status = val;
+                              });
+                            }
+                          }
+                        : null,
                     items:
                         (() {
                           final list =
@@ -1844,26 +1896,22 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                             child: Text(st),
                           );
                         }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _status = val;
-                        });
-                      }
-                    },
                   ),
                 ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _notesController,
-            style: const TextStyle(color: AppTheme.textPrimary),
-            decoration: _buildInputDecoration('Notes'),
-            maxLines: 2,
+            ],
           ),
           const SizedBox(height: 16),
+          if (isNotesVis) ...[
+            TextFormField(
+              controller: _notesController,
+              readOnly: !isNotesMod,
+              enabled: isNotesMod,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: _buildInputDecoration('Notes'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+          ],
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Enquiry / Product Screenshot or Photo(s)',

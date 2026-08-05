@@ -347,11 +347,18 @@ class _DashboardViewState extends State<DashboardView> {
                             color: AppTheme.textSecondary,
                             size: 18,
                           ),
-                          onPressed: () {
+                          onPressed: () async {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Opening invoice in PDF viewer...'),
+                                backgroundColor: AppTheme.success,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
                             final items = viewModel.getSaleItems(
                               sale.invoiceNo,
                             );
-                            PdfInvoiceHelper.printInvoice(
+                            await PdfInvoiceHelper.printInvoice(
                               sale: sale,
                               items: items,
                               activeUpiId: viewModel.activeUpiId,
@@ -450,9 +457,16 @@ class _DashboardViewState extends State<DashboardView> {
                     ),
                     const SizedBox(width: 12),
                     TextButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Opening invoice in PDF viewer...'),
+                            backgroundColor: AppTheme.success,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
                         final items = viewModel.getSaleItems(sale.invoiceNo);
-                        PdfInvoiceHelper.printInvoice(
+                        await PdfInvoiceHelper.printInvoice(
                           sale: sale,
                           items: items,
                           activeUpiId: viewModel.activeUpiId,
@@ -742,6 +756,13 @@ class _DashboardViewState extends State<DashboardView> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () async {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Opening invoice in PDF viewer...'),
+                            backgroundColor: AppTheme.success,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
                         await PdfInvoiceHelper.printInvoice(
                           sale: sale,
                           items: items,

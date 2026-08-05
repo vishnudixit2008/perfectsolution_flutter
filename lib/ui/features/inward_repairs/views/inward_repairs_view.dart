@@ -857,6 +857,15 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     int jobNo,
     InwardRepairsViewModel viewModel,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('inward', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Inward Jobs.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -1050,43 +1059,49 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canEdit = UserPermissionService.canPerformModuleAction('inward', 'canEdit');
+        final canDelete = UserPermissionService.canPerformModuleAction('inward', 'canDelete');
+        if (!canEdit && !canDelete) return const SizedBox.shrink();
+
         return Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showAddEditDialog(context, existingRepair: repair);
-                },
-                icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryLight,
-                  side: BorderSide(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.3),
+            if (canEdit)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showAddEditDialog(context, existingRepair: repair);
+                  },
+                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryLight,
+                    side: BorderSide(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
-            SizedBox(width: 12 * scale),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(context, repair.jobNo, viewModel);
-                },
-                icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.danger,
-                  side: BorderSide(
-                    color: AppTheme.danger.withValues(alpha: 0.3),
+            if (canEdit && canDelete) SizedBox(width: 12 * scale),
+            if (canDelete)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDelete(context, repair.jobNo, viewModel);
+                  },
+                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.danger,
+                    side: BorderSide(
+                      color: AppTheme.danger.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
           ],
         );
       },
@@ -1099,6 +1114,22 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     String? prefillName,
     String? prefillMobile,
   }) {
+    final isEdit = existingRepair != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('inward', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Inward Repair Jobs.'
+                : 'Access Denied: You do not have permission to create new Inward Repair Jobs.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1639,6 +1670,28 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     final bool isEdit = widget.existingRepair != null;
     final viewModel = context.watch<InwardRepairsViewModel>();
 
+    // Field Access & Editability Checks
+    final bool isNameVis = UserPermissionService.isFieldVisible('inward', 'name');
+    final bool isNameMod = UserPermissionService.canModifyField('inward', 'name', isEdit: isEdit);
+
+    final bool isMobileVis = UserPermissionService.isFieldVisible('inward', 'mobileNo');
+    final bool isMobileMod = UserPermissionService.canModifyField('inward', 'mobileNo', isEdit: isEdit);
+
+    final bool isDevicesVis = UserPermissionService.isFieldVisible('inward', 'devices');
+    final bool isDevicesMod = UserPermissionService.canModifyField('inward', 'devices', isEdit: isEdit);
+
+    final bool isQueryVis = UserPermissionService.isFieldVisible('inward', 'query');
+    final bool isQueryMod = UserPermissionService.canModifyField('inward', 'query', isEdit: isEdit);
+
+    final bool isPurchasedFromVis = UserPermissionService.isFieldVisible('inward', 'purchasedFrom');
+    final bool isPurchasedFromMod = UserPermissionService.canModifyField('inward', 'purchasedFrom', isEdit: isEdit);
+
+    final bool isStatusVis = UserPermissionService.isFieldVisible('inward', 'status');
+    final bool isStatusMod = UserPermissionService.canModifyField('inward', 'status', isEdit: isEdit);
+
+    final bool isNotesVis = UserPermissionService.isFieldVisible('inward', 'notes');
+    final bool isNotesMod = UserPermissionService.canModifyField('inward', 'notes', isEdit: isEdit);
+
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final formContent = Form(
       key: _formKey,
@@ -1664,97 +1717,123 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
           ),
           const SizedBox(height: 16),
 
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Customer Name *'),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter customer name'
-                : null,
-          ),
-          const SizedBox(height: 12),
-
-          TextFormField(
-            controller: _mobileController,
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              hintText: '10 digits',
+          if (isNameVis) ...[
+            TextFormField(
+              controller: _nameController,
+              readOnly: !isNameMod,
+              enabled: isNameMod,
+              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter customer name'
+                  : null,
             ),
-            keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          TextFormField(
-            controller: _devicesController,
-            decoration: const InputDecoration(
-              labelText: 'Devices / Model / Serial *',
-              hintText: 'e.g. DELL Inspiron 15, HP G5',
+          if (isMobileVis) ...[
+            TextFormField(
+              controller: _mobileController,
+              readOnly: !isMobileMod,
+              enabled: isMobileMod,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Number',
+                hintText: '10 digits',
+              ),
+              keyboardType: TextInputType.phone,
             ),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter device details'
-                : null,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          TextFormField(
-            controller: _queryController,
-            decoration: const InputDecoration(
-              labelText: 'Fault / Issue Reported',
+          if (isDevicesVis) ...[
+            TextFormField(
+              controller: _devicesController,
+              readOnly: !isDevicesMod,
+              enabled: isDevicesMod,
+              decoration: const InputDecoration(
+                labelText: 'Devices / Model / Serial *',
+                hintText: 'e.g. DELL Inspiron 15, HP G5',
+              ),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter device details'
+                  : null,
             ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
+
+          if (isQueryVis) ...[
+            TextFormField(
+              controller: _queryController,
+              readOnly: !isQueryMod,
+              enabled: isQueryMod,
+              decoration: const InputDecoration(
+                labelText: 'Fault / Issue Reported',
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+          ],
 
           Row(
             children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _purchasedFromController,
-                  decoration: const InputDecoration(
-                    labelText: 'Purchased From',
-                    hintText: 'Store / Vendor',
+              if (isPurchasedFromVis)
+                Expanded(
+                  child: TextFormField(
+                    controller: _purchasedFromController,
+                    readOnly: !isPurchasedFromMod,
+                    enabled: isPurchasedFromMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Purchased From',
+                      hintText: 'Store / Vendor',
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(labelText: 'Repair Status'),
-                  dropdownColor: const Color(0xFF131A2E),
-                  items:
-                      (() {
-                        final list =
-                            UserPermissionService.getAllowedSelectableStatuses(
-                          'inward',
-                        );
-                        if (!list.contains(_status)) {
-                          list.add(_status);
-                        }
-                        return list;
-                      })().map((st) {
-                        return DropdownMenuItem(value: st, child: Text(st));
-                      }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _status = val;
-                      });
-                    }
-                  },
+              if (isPurchasedFromVis && isStatusVis) const SizedBox(width: 12),
+              if (isStatusVis)
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(labelText: 'Repair Status'),
+                    dropdownColor: const Color(0xFF131A2E),
+                    onChanged: isStatusMod
+                        ? (val) {
+                            if (val != null) {
+                              setState(() {
+                                _status = val;
+                              });
+                            }
+                          }
+                        : null,
+                    items:
+                        (() {
+                          final list =
+                              UserPermissionService.getAllowedSelectableStatuses(
+                            'inward',
+                          );
+                          if (!list.contains(_status)) {
+                            list.add(_status);
+                          }
+                          return list;
+                        })().map((st) {
+                          return DropdownMenuItem(value: st, child: Text(st));
+                        }).toList(),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
 
-          TextFormField(
-            controller: _notesController,
-            decoration: const InputDecoration(
-              labelText: 'Internal Diagnostic Notes',
+          if (isNotesVis) ...[
+            TextFormField(
+              controller: _notesController,
+              readOnly: !isNotesMod,
+              enabled: isNotesMod,
+              decoration: const InputDecoration(
+                labelText: 'Internal Diagnostic Notes',
+              ),
+              maxLines: 2,
             ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,

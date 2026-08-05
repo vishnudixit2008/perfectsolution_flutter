@@ -780,6 +780,15 @@ class _PurchasesViewState extends State<PurchasesView> {
     String id,
     PurchasesViewModel viewModel,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('purchases', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Purchase Orders.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -922,9 +931,12 @@ class _PurchasesViewState extends State<PurchasesView> {
                     icon: Icons.check_circle,
                     label: 'Confirm Stock In',
                     scaleFactor: scale,
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(ctx);
-                      viewModel.confirmPurchase(pur.id);
+                      await viewModel.confirmPurchase(pur.id);
+                      if (context.mounted) {
+                        context.read<PricelistViewModel>().loadItems();
+                      }
                     },
                   ),
                 ] else ...[
@@ -932,9 +944,12 @@ class _PurchasesViewState extends State<PurchasesView> {
                     icon: Icons.undo,
                     label: 'Revert to Pending',
                     scaleFactor: scale,
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(ctx);
-                      viewModel.revertPurchaseToPending(pur.id);
+                      await viewModel.revertPurchaseToPending(pur.id);
+                      if (context.mounted) {
+                        context.read<PricelistViewModel>().loadItems();
+                      }
                     },
                   ),
                 ],
@@ -959,43 +974,49 @@ class _PurchasesViewState extends State<PurchasesView> {
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
+        final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
+        if (!canEdit && !canDelete) return const SizedBox.shrink();
+
         return Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showAddEditDialog(context, existingPurchase: pur);
-                },
-                icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryLight,
-                  side: BorderSide(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.3),
+            if (canEdit)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showAddEditDialog(context, existingPurchase: pur);
+                  },
+                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryLight,
+                    side: BorderSide(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
-            SizedBox(width: 12 * scale),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(context, pur.id, viewModel);
-                },
-                icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.danger,
-                  side: BorderSide(
-                    color: AppTheme.danger.withValues(alpha: 0.3),
+            if (canEdit && canDelete) SizedBox(width: 12 * scale),
+            if (canDelete)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDelete(context, pur.id, viewModel);
+                  },
+                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.danger,
+                    side: BorderSide(
+                      color: AppTheme.danger.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
           ],
         );
       },
@@ -1009,6 +1030,22 @@ class _PurchasesViewState extends State<PurchasesView> {
     String? prefillItem,
     double? prefillAmount,
   }) {
+    final isEdit = existingPurchase != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('purchases', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Purchase Orders.'
+                : 'Access Denied: You do not have permission to record new Purchases.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1341,6 +1378,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
     await viewModel.savePurchase(order, finalItems);
 
     if (mounted) {
+      context.read<PricelistViewModel>().loadItems();
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1361,48 +1399,62 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final catalogItems = context.watch<PricelistViewModel>().items;
 
+    final bool isPurchasedFromVis = UserPermissionService.isFieldVisible('purchases', 'purchasedFrom');
+    final bool isPurchasedFromMod = UserPermissionService.canModifyField('purchases', 'purchasedFrom', isEdit: isEdit);
+
+    final bool isStatusVis = UserPermissionService.isFieldVisible('purchases', 'status');
+    final bool isStatusMod = UserPermissionService.canModifyField('purchases', 'status', isEdit: isEdit);
+
+    final bool isNotesVis = UserPermissionService.isFieldVisible('purchases', 'notes');
+    final bool isNotesMod = UserPermissionService.canModifyField('purchases', 'notes', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextFormField(
-            controller: _vendorController,
-            decoration: const InputDecoration(
-              labelText: 'Purchased From (Vendor / Dealer Name) *',
+          if (isPurchasedFromVis) ...[
+            TextFormField(
+              controller: _vendorController,
+              readOnly: !isPurchasedFromMod,
+              enabled: isPurchasedFromMod,
+              decoration: const InputDecoration(
+                labelText: 'Purchased From (Vendor / Dealer Name) *',
+              ),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter vendor name'
+                  : null,
             ),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter vendor name'
-                : null,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
           Row(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(labelText: 'Order Status'),
-                  dropdownColor: const Color(0xFF131A2E),
-                  items:
-                      (() {
-                        final list =
-                            UserPermissionService.getAllowedSelectableStatuses(
-                          'purchases',
-                        );
-                        if (!list.contains(_status)) {
-                          list.add(_status);
-                        }
-                        return list;
-                      })().map((st) {
-                        return DropdownMenuItem(value: st, child: Text(st));
-                      }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _status = val);
-                  },
+              if (isStatusVis)
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(labelText: 'Order Status'),
+                    dropdownColor: const Color(0xFF131A2E),
+                    onChanged: isStatusMod ? (val) {
+                      if (val != null) setState(() => _status = val);
+                    } : null,
+                    items:
+                        (() {
+                          final list =
+                              UserPermissionService.getAllowedSelectableStatuses(
+                            'purchases',
+                          );
+                          if (!list.contains(_status)) {
+                            list.add(_status);
+                          }
+                          return list;
+                        })().map((st) {
+                          return DropdownMenuItem(value: st, child: Text(st));
+                        }).toList(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
+              if (isStatusVis) const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Total: ₹${_calculatedTotal.toStringAsFixed(2)}',
@@ -1417,12 +1469,16 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
           ),
           const SizedBox(height: 12),
 
-          TextFormField(
-            controller: _notesController,
-            decoration: const InputDecoration(labelText: 'Private Notes'),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
+          if (isNotesVis) ...[
+            TextFormField(
+              controller: _notesController,
+              readOnly: !isNotesMod,
+              enabled: isNotesMod,
+              decoration: const InputDecoration(labelText: 'Private Notes'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+          ],
 
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,

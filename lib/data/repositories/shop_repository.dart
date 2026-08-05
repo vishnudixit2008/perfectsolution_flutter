@@ -9,6 +9,7 @@ import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
+import '../models/product_history_record.dart';
 import '../services/local_database_service.dart';
 import '../services/supabase_sync_service.dart';
 
@@ -55,6 +56,26 @@ class ShopRepository {
   double? getDetailPopupHeight() => _localDb.getDetailPopupHeight();
   Future<void> saveDetailPopupSize(double width, double height) async =>
       await _localDb.saveDetailPopupSize(width, height);
+
+  // Printer configuration
+  String? getSelectedPrinterName() => _localDb.getSelectedPrinterName();
+  Future<void> saveSelectedPrinterName(String name) async =>
+      await _localDb.saveSelectedPrinterName(name);
+
+  // Invoice print settings
+  String getInvoicePageSize() => _localDb.getInvoicePageSize();
+  Future<void> saveInvoicePageSize(String size) async =>
+      await _localDb.saveInvoicePageSize(size);
+  double getInvoiceMarginTB() => _localDb.getInvoiceMarginTB();
+  double getInvoiceMarginLR() => _localDb.getInvoiceMarginLR();
+  Future<void> saveInvoiceMargins(double topBottom, double leftRight) async =>
+      await _localDb.saveInvoiceMargins(topBottom, leftRight);
+  bool getInvoiceShowHeader() => _localDb.getInvoiceShowHeader();
+  Future<void> saveInvoiceShowHeader(bool value) async =>
+      await _localDb.saveInvoiceShowHeader(value);
+  bool getInvoiceShowQr() => _localDb.getInvoiceShowQr();
+  Future<void> saveInvoiceShowQr(bool value) async =>
+      await _localDb.saveInvoiceShowQr(value);
 
   // Sales
   int getNextInvoiceNo() => _localDb.getNextInvoiceNo();
@@ -230,7 +251,7 @@ class ShopRepository {
     PurchaseOrder order,
     List<PurchaseOrderItem> items,
   ) async {
-    await _localDb.savePurchaseOrder(order, items);
+    final updatedProducts = await _localDb.savePurchaseOrder(order, items);
     await SupabaseSyncService.instance.pushRecordToCloud(
       'purchases',
       order.toJson(),
@@ -239,19 +260,31 @@ class ShopRepository {
       order.id,
       items,
     );
+    for (final prod in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        prod.toJson(),
+      );
+    }
   }
 
   Future<void> deletePurchaseOrder(String purchaseId) async {
-    await _localDb.deletePurchaseOrder(purchaseId);
+    final updatedProducts = await _localDb.deletePurchaseOrder(purchaseId);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'purchases',
       'id',
       purchaseId,
     );
+    for (final prod in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        prod.toJson(),
+      );
+    }
   }
 
   Future<bool> confirmPurchase(String purchaseId) async {
-    final res = await _localDb.confirmPurchase(purchaseId);
+    final updatedProducts = await _localDb.confirmPurchase(purchaseId);
     final purchases = _localDb.getPurchaseOrders();
     final order = purchases.firstWhere(
       (p) => p.id == purchaseId,
@@ -261,11 +294,17 @@ class ShopRepository {
       'purchases',
       order.toJson(),
     );
-    return res;
+    for (final prod in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        prod.toJson(),
+      );
+    }
+    return updatedProducts.isNotEmpty || order.status == 'CONFIRMED';
   }
 
   Future<bool> setPurchaseStatusPending(String purchaseId) async {
-    final res = await _localDb.setPurchaseStatusPending(purchaseId);
+    final updatedProducts = await _localDb.setPurchaseStatusPending(purchaseId);
     final purchases = _localDb.getPurchaseOrders();
     final order = purchases.firstWhere(
       (p) => p.id == purchaseId,
@@ -275,6 +314,80 @@ class ShopRepository {
       'purchases',
       order.toJson(),
     );
-    return res;
+    for (final prod in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        prod.toJson(),
+      );
+    }
+    return true;
+  }
+
+  // Product History (Sales & Purchases)
+  List<ProductHistoryRecord> getProductHistory(PricelistItem product) {
+    final List<ProductHistoryRecord> records = [];
+    final pNameLower = product.itemName.trim().toLowerCase();
+
+    // 1. Process Sales
+    final sales = getSales();
+    for (final sale in sales) {
+      final items = getSaleItems(sale.invoiceNo);
+      for (final item in items) {
+        final matchesId = item.itemId != null && item.itemId == product.id;
+        final matchesName = item.itemDescription != null &&
+            item.itemDescription!.trim().toLowerCase() == pNameLower;
+        if (matchesId || matchesName) {
+          records.add(
+            ProductHistoryRecord(
+              type: ProductHistoryType.sale,
+              date: sale.saleDate,
+              referenceNo: 'Invoice #${sale.invoiceNo}',
+              partyName: sale.customerName != null && sale.customerName!.trim().isNotEmpty
+                  ? sale.customerName!.trim()
+                  : 'Cash / Walk-in',
+              quantity: item.quantity,
+              unitPrice: item.activePrice,
+              totalAmount: item.totalAmount,
+              status: sale.orderStatus,
+              sale: sale,
+              saleItems: items,
+            ),
+          );
+        }
+      }
+    }
+
+    // 2. Process Purchases
+    final purchases = getPurchaseOrders();
+    for (final purchase in purchases) {
+      final items = getPurchaseOrderItems(purchase.id);
+      for (final item in items) {
+        final matchesId = item.itemId != null && item.itemId == product.id;
+        final matchesName = (item.itemName != null && item.itemName!.trim().toLowerCase() == pNameLower) ||
+            (item.customItemName != null && item.customItemName!.trim().toLowerCase() == pNameLower);
+        if (matchesId || matchesName) {
+          records.add(
+            ProductHistoryRecord(
+              type: ProductHistoryType.purchase,
+              date: purchase.date,
+              referenceNo: purchase.id,
+              partyName: purchase.purchasedFrom.trim().isNotEmpty
+                  ? purchase.purchasedFrom.trim()
+                  : 'Supplier / Vendor',
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalAmount: item.amount,
+              status: purchase.status,
+              purchase: purchase,
+              purchaseItems: items,
+            ),
+          );
+        }
+      }
+    }
+
+    // 3. Sort chronologically descending (newest first)
+    records.sort((a, b) => b.date.compareTo(a.date));
+    return records;
   }
 }

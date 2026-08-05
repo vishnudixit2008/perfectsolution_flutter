@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/pricelist_item.dart';
+import '../../../../data/models/product_history_record.dart';
 import '../../../../data/repositories/shop_repository.dart';
 
 class PricelistViewModel extends ChangeNotifier {
@@ -241,5 +242,10 @@ class PricelistViewModel extends ChangeNotifier {
       map.putIfAbsent(cat, () => []).add(item);
     }
     return map;
+  }
+
+  // Product History Methods
+  List<ProductHistoryRecord> getProductHistory(PricelistItem product) {
+    return _repository.getProductHistory(product);
   }
 }

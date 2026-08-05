@@ -6,7 +6,7 @@ import 'package:shop_management_flutter/ui/core/app_theme.dart';
 import 'package:shop_management_flutter/data/models/pricelist_item.dart';
 import 'package:shop_management_flutter/data/models/sale.dart';
 import 'package:shop_management_flutter/data/models/sale_item.dart';
-import 'package:shop_management_flutter/data/services/pdf_invoice_helper.dart';
+import '../../../../data/services/pdf_invoice_helper.dart';
 import '../view_models/sales_view_model.dart';
 import '../../dashboard/view_models/recent_sales_view_model.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
@@ -945,6 +945,15 @@ class _SalesViewState extends State<SalesView> {
     RecentSalesViewModel viewModel,
     int invoiceNo,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('sales', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete/void Sales Invoices.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2203,11 +2212,26 @@ class _SalesViewState extends State<SalesView> {
 
                         final printBtn = ElevatedButton.icon(
                           onPressed: () async {
-                            await PdfInvoiceHelper.printInvoice(
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Opening invoice in PDF viewer...'),
+                                backgroundColor: AppTheme.success,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            final success = await PdfInvoiceHelper.printInvoice(
                               sale: sale,
                               items: items,
                               activeUpiId: viewModel.getActiveUpiId(),
                             );
+                            if (!success && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Could not open PDF viewer.'),
+                                  backgroundColor: AppTheme.danger,
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(Icons.print_rounded, size: 18),
                           label: const Text('Print Receipt'),

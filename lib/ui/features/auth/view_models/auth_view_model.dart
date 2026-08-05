@@ -34,6 +34,10 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void notifyPermissionChanged() {
+    notifyListeners();
+  }
+
   /// Listen for Supabase OAuth Callback events (Handles deep links automatically)
   void _listenToSupabaseAuth() {
     try {

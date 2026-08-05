@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../ui/core/app_theme.dart';
 import '../../../shared/status_management_dialog.dart';
+import '../../auth/view_models/auth_view_model.dart';
 
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key});
@@ -217,6 +219,11 @@ class _UserManagementViewState extends State<UserManagementView> {
                         onSelected: (val) async {
                           await UserPermissionService.setCurrentUser(val);
                           _loadUsers();
+                          if (context.mounted) {
+                            try {
+                              context.read<AuthViewModel>().notifyPermissionChanged();
+                            } catch (_) {}
+                          }
                         },
                       ),
                     ],

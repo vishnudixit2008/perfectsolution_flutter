@@ -799,6 +799,15 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     String jobNo,
     ReplacementsViewModel viewModel,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('replacements', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Replacement records.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -952,43 +961,49 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canEdit = UserPermissionService.canPerformModuleAction('replacements', 'canEdit');
+        final canDelete = UserPermissionService.canPerformModuleAction('replacements', 'canDelete');
+        if (!canEdit && !canDelete) return const SizedBox.shrink();
+
         return Row(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _showAddEditDialog(context, existingReplacement: repl);
-                },
-                icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryLight,
-                  side: BorderSide(
-                    color: AppTheme.primaryLight.withValues(alpha: 0.3),
+            if (canEdit)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showAddEditDialog(context, existingReplacement: repl);
+                  },
+                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryLight,
+                    side: BorderSide(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
-            SizedBox(width: 12 * scale),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _confirmDelete(context, repl.jobNo, viewModel);
-                },
-                icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.danger,
-                  side: BorderSide(
-                    color: AppTheme.danger.withValues(alpha: 0.3),
+            if (canEdit && canDelete) SizedBox(width: 12 * scale),
+            if (canDelete)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDelete(context, repl.jobNo, viewModel);
+                  },
+                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.danger,
+                    side: BorderSide(
+                      color: AppTheme.danger.withValues(alpha: 0.3),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 10 * scale),
                 ),
               ),
-            ),
           ],
         );
       },
@@ -1001,6 +1016,22 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     String? prefillName,
     String? prefillMobile,
   }) {
+    final isEdit = existingReplacement != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('replacements', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Replacement records.'
+                : 'Access Denied: You do not have permission to create new Replacement records.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1383,6 +1414,21 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final viewModel = context.watch<ReplacementsViewModel>();
 
+    final bool isNameVis = UserPermissionService.isFieldVisible('replacements', 'name');
+    final bool isNameMod = UserPermissionService.canModifyField('replacements', 'name', isEdit: isEdit);
+
+    final bool isMobileVis = UserPermissionService.isFieldVisible('replacements', 'mobileNo');
+    final bool isMobileMod = UserPermissionService.canModifyField('replacements', 'mobileNo', isEdit: isEdit);
+
+    final bool isItemVis = UserPermissionService.isFieldVisible('replacements', 'item');
+    final bool isItemMod = UserPermissionService.canModifyField('replacements', 'item', isEdit: isEdit);
+
+    final bool isAssignedVis = UserPermissionService.isFieldVisible('replacements', 'assignedTo');
+    final bool isAssignedMod = UserPermissionService.canModifyField('replacements', 'assignedTo', isEdit: isEdit);
+
+    final bool isStatusVis = UserPermissionService.isFieldVisible('replacements', 'status');
+    final bool isStatusMod = UserPermissionService.canModifyField('replacements', 'status', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
@@ -1407,44 +1453,60 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
           ),
           const SizedBox(height: 16),
 
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Customer Name *'),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter customer name'
-                : null,
-          ),
-          const SizedBox(height: 12),
-
-          TextFormField(
-            controller: _mobileController,
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              hintText: '10 digits',
+          if (isNameVis) ...[
+            TextFormField(
+              controller: _nameController,
+              readOnly: !isNameMod,
+              enabled: isNameMod,
+              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter customer name'
+                  : null,
             ),
-            keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          TextFormField(
-            controller: _itemController,
-            decoration: const InputDecoration(
-              labelText: 'Replacement Item *',
-              hintText: 'e.g. Logitech G102, Crucial 8GB DDR4 RAM',
+          if (isMobileVis) ...[
+            TextFormField(
+              controller: _mobileController,
+              readOnly: !isMobileMod,
+              enabled: isMobileMod,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Number',
+                hintText: '10 digits',
+              ),
+              keyboardType: TextInputType.phone,
             ),
-            validator: (val) => val == null || val.trim().isEmpty
-                ? 'Please enter replacement item name'
-                : null,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          TextFormField(
-            controller: _assignedToController,
-            decoration: const InputDecoration(
-              labelText: 'Assigned To / Technician',
+          if (isItemVis) ...[
+            TextFormField(
+              controller: _itemController,
+              readOnly: !isItemMod,
+              enabled: isItemMod,
+              decoration: const InputDecoration(
+                labelText: 'Replacement Item *',
+                hintText: 'e.g. Logitech G102, Crucial 8GB DDR4 RAM',
+              ),
+              validator: (val) => val == null || val.trim().isEmpty
+                  ? 'Please enter replacement item name'
+                  : null,
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
+
+          if (isAssignedVis) ...[
+            TextFormField(
+              controller: _assignedToController,
+              readOnly: !isAssignedMod,
+              enabled: isAssignedMod,
+              decoration: const InputDecoration(
+                labelText: 'Assigned To / Technician',
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
@@ -1455,32 +1517,36 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
           ),
           const SizedBox(height: 12),
 
-          DropdownButtonFormField<String>(
-            initialValue: _status,
-            decoration: const InputDecoration(labelText: 'Replacement Status'),
-            dropdownColor: const Color(0xFF131A2E),
-            items:
-                (() {
-                  final list =
-                      UserPermissionService.getAllowedSelectableStatuses(
-                    'replacements',
-                  );
-                  if (!list.contains(_status)) {
-                    list.add(_status);
-                  }
-                  return list;
-                })().map((st) {
-                  return DropdownMenuItem(value: st, child: Text(st));
-                }).toList(),
-            onChanged: (val) {
-              if (val != null) {
-                setState(() {
-                  _status = val;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 16),
+          if (isStatusVis) ...[
+            DropdownButtonFormField<String>(
+              initialValue: _status,
+              decoration: const InputDecoration(labelText: 'Replacement Status'),
+              dropdownColor: const Color(0xFF131A2E),
+              onChanged: isStatusMod
+                  ? (val) {
+                      if (val != null) {
+                        setState(() {
+                          _status = val;
+                        });
+                      }
+                    }
+                  : null,
+              items:
+                  (() {
+                    final list =
+                        UserPermissionService.getAllowedSelectableStatuses(
+                      'replacements',
+                    );
+                    if (!list.contains(_status)) {
+                      list.add(_status);
+                    }
+                    return list;
+                  })().map((st) {
+                    return DropdownMenuItem(value: st, child: Text(st));
+                  }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Deposit Date Picker
           Row(

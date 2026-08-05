@@ -126,7 +126,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 12.0,
                   isDesktop ? 16.0 : 0.0,
                 ),
-                child: _views[currentIndex],
+                child: _buildActiveView(currentIndex),
               ),
             ),
           ),
@@ -135,6 +135,68 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       bottomNavigationBar: !isDesktop
           ? AppBottomNavBar(currentIndex: currentIndex)
           : null,
+    );
+  }
+
+  Widget _buildActiveView(int currentIndex) {
+    if (currentIndex < 0 || currentIndex >= _navItems.length) {
+      return _buildAccessDeniedWidget('Module');
+    }
+    final item = _navItems[currentIndex];
+    final moduleKey = item['module'] as String;
+    if (!UserPermissionService.canAccessPage(moduleKey)) {
+      return _buildAccessDeniedWidget(item['title'] as String);
+    }
+    return _views[currentIndex];
+  }
+
+  Widget _buildAccessDeniedWidget(String moduleTitle) {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 480),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131A2E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_person_rounded,
+                size: 48,
+                color: AppTheme.danger,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Access Restricted',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'You do not have permission to access "$moduleTitle". Access to this module page is disabled for your account by the Administrator.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

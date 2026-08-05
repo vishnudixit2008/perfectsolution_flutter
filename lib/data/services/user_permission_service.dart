@@ -74,10 +74,34 @@ class UserPermissionService {
   }
 
   static Future<void> setCurrentUser(String email) async {
+    final cleanEmail = email.toLowerCase().trim();
     final box = _getBox();
     if (box != null) {
-      await box.put(_currentEmailKey, email.toLowerCase().trim());
+      await box.put(_currentEmailKey, cleanEmail);
     }
+    await syncSingleUserFromCloud(cleanEmail);
+  }
+
+  static Future<void> syncSingleUserFromCloud(String email) async {
+    final cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail.isEmpty) return;
+    if (AppUser.isPermanentAdmin(cleanEmail)) return;
+
+    try {
+      final res = await Supabase.instance.client
+          .from('app_users')
+          .select()
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+      if (res != null) {
+        final cloudUser = AppUser.fromJson(Map<String, dynamic>.from(res));
+        final box = _getBox();
+        if (box != null) {
+          await box.put(cleanEmail, cloudUser.toJson());
+        }
+      }
+    } catch (_) {}
   }
 
   static AppUser getCurrentUser() {
@@ -98,10 +122,10 @@ class UserPermissionService {
         }
       }
     } catch (_) {}
-    return AppUser.defaultAdmin(
-      email: 'perfectsolutionnoida@gmail.com',
-      name: 'Perfect Solution Admin',
-    );
+
+    // Fallback for non-permanent admins: default employee role (restricted), NEVER default admin!
+    final currentEmail = getCurrentUserEmail();
+    return AppUser.defaultEmployee(currentEmail, 'User');
   }
 
   static List<AppUser> getAllUsers() {
@@ -315,12 +339,12 @@ class UserPermissionService {
   }
 
   static bool isAdmin() {
-    return getCurrentUser().isAdmin;
+    return AppUser.isPermanentAdmin(getCurrentUser().email);
   }
 
   static bool canAccessPage(String moduleKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     return user.pageAccess[moduleKey] ?? false;
   }
@@ -329,7 +353,7 @@ class UserPermissionService {
   /// Example: [canPerformModuleAction]('inward', 'canDelete') or fallback to global [canPerform].
   static bool canPerformModuleAction(String moduleKey, String actionKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     if (!canAccessPage(moduleKey)) return false;
 
@@ -345,7 +369,7 @@ class UserPermissionService {
   /// Legacy single-parameter action check helper for global operations
   static bool canPerform(String actionKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     return user.actionAccess[actionKey] ?? false;
   }
@@ -353,7 +377,7 @@ class UserPermissionService {
   /// Column / Field Visibility check
   static bool isFieldVisible(String moduleKey, String fieldKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     if (!canAccessPage(moduleKey)) return false;
 
@@ -364,7 +388,7 @@ class UserPermissionService {
   /// Column / Field Entry Creation check (when creating new records)
   static bool isFieldCreatable(String moduleKey, String fieldKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     if (!canAccessPage(moduleKey)) return false;
 
@@ -375,7 +399,7 @@ class UserPermissionService {
   /// Column / Field Editability check (when editing existing records)
   static bool isFieldEditable(String moduleKey, String fieldKey) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     if (!canAccessPage(moduleKey)) return false;
 
@@ -383,10 +407,15 @@ class UserPermissionService {
     return fieldPerm?.editable ?? true;
   }
 
+  /// Helper to check if a field can be modified depending on edit mode (isEdit: true -> editable, false -> creatable)
+  static bool canModifyField(String moduleKey, String fieldKey, {required bool isEdit}) {
+    return isEdit ? isFieldEditable(moduleKey, fieldKey) : isFieldCreatable(moduleKey, fieldKey);
+  }
+
   /// Checks if the current user is permitted to see an entry with the specified status in [moduleKey]
   static bool isStatusVisible(String moduleKey, String status) {
     final user = getCurrentUser();
-    if (user.isAdmin) return true;
+    if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
 
     final allowed = user.statusVisibilityAccess[moduleKey];
@@ -405,7 +434,7 @@ class UserPermissionService {
     final configured = allAvailableStatuses ??
         StatusManagementService.getStatuses(moduleKey);
     final user = getCurrentUser();
-    if (user.isAdmin) return configured;
+    if (AppUser.isPermanentAdmin(user.email)) return configured;
 
     final allowed = user.statusSelectableAccess[moduleKey];
     if (allowed == null || allowed.isEmpty || allowed.contains('*')) {

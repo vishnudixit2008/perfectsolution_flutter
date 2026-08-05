@@ -140,6 +140,7 @@ class AppUser {
       'canEdit': 'Can Edit Catalog Item',
       'canDelete': 'Can Delete Catalog Item',
       'canExport': 'Can Export Catalog to Excel',
+      'canViewHistory': 'Can View Product Sales & Purchase History',
     },
     'sales': {
       'canAdd': 'Can Perform POS Checkout',
@@ -339,17 +340,53 @@ class AppUser {
   }
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
+    final String email = (json['email'] ?? '').toString().toLowerCase().trim();
+    final bool isUserAdmin = isPermanentAdmin(email);
+
+    // 1. Page Access
+    final rawPageAccess = json['pageAccess'] ?? json['page_access'];
+    Map<String, bool> parsedPageAccess = {};
+    if (rawPageAccess is Map) {
+      rawPageAccess.forEach((k, v) {
+        if (v is bool) parsedPageAccess[k.toString()] = v;
+      });
+    }
+    // Fill missing module keys safely
+    for (var m in modules) {
+      parsedPageAccess.putIfAbsent(m, () => isUserAdmin ? true : (m != 'settings'));
+    }
+
+    // 2. Page Action Access
     final rawPageActions = json['pageActionAccess'] ?? json['page_action_access'];
     Map<String, Map<String, bool>> parsedPageActions = {};
     if (rawPageActions is Map) {
       rawPageActions.forEach((modKey, actMap) {
         if (actMap is Map) {
-          parsedPageActions[modKey.toString()] =
-              Map<String, bool>.from(actMap);
+          final Map<String, bool> aMap = {};
+          actMap.forEach((k, v) {
+            if (v is bool) aMap[k.toString()] = v;
+          });
+          parsedPageActions[modKey.toString()] = aMap;
         }
       });
     }
 
+    Map<String, Map<String, bool>> finalPageActions = {};
+    for (var m in modules) {
+      final defaultActions = moduleActions[m] ?? {};
+      final userActions = parsedPageActions[m] ?? {};
+      final Map<String, bool> aMap = {};
+      for (var actKey in defaultActions.keys) {
+        if (userActions.containsKey(actKey)) {
+          aMap[actKey] = userActions[actKey]!;
+        } else {
+          aMap[actKey] = isUserAdmin || (actKey != 'canDelete' && actKey != 'canManageUsers');
+        }
+      }
+      finalPageActions[m] = aMap;
+    }
+
+    // 3. Field Access
     final rawFieldAccess = json['fieldAccess'] ?? json['field_access'];
     Map<String, Map<String, FieldPermission>> parsedFields = {};
     if (rawFieldAccess is Map) {
@@ -367,6 +404,7 @@ class AppUser {
       });
     }
 
+    // 4. Status Visibility Access
     final rawStatusVis = json['statusVisibilityAccess'] ?? json['status_visibility_access'];
     Map<String, List<String>> parsedStatusVis = {};
     if (rawStatusVis is Map) {
@@ -378,6 +416,7 @@ class AppUser {
       });
     }
 
+    // 5. Status Selectable Access
     final rawStatusSel = json['statusSelectableAccess'] ?? json['status_selectable_access'];
     Map<String, List<String>> parsedStatusSel = {};
     if (rawStatusSel is Map) {
@@ -390,15 +429,14 @@ class AppUser {
     }
 
     return AppUser(
-      email: json['email'] ?? '',
+      email: email,
       name: json['name'] ?? '',
       role: json['role'] ?? 'employee',
       isActive: json['isActive'] ?? json['is_active'] ?? true,
       password: json['password'] ?? json['user_password'],
-      pageAccess: Map<String, bool>.from(json['pageAccess'] ?? json['page_access'] ?? {}),
+      pageAccess: parsedPageAccess,
       actionAccess: Map<String, bool>.from(json['actionAccess'] ?? json['action_access'] ?? {}),
-      pageActionAccess:
-          parsedPageActions.isEmpty ? _defaultPageActionAccess() : parsedPageActions,
+      pageActionAccess: finalPageActions,
       fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
       statusVisibilityAccess:
           parsedStatusVis.isEmpty ? _defaultStatusAccess() : parsedStatusVis,

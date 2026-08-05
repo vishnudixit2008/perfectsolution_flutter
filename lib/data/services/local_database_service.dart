@@ -338,6 +338,62 @@ class LocalDatabaseService {
     await _settingsBox.put('detail_popup_height', height);
   }
 
+  // --- Printer Configuration ---
+
+  /// Returns the saved printer name (exact system name), or null if not configured.
+  String? getSelectedPrinterName() {
+    return _settingsBox.get('selected_printer_name') as String?;
+  }
+
+  /// Persists the chosen printer name so it survives restarts.
+  Future<void> saveSelectedPrinterName(String name) async {
+    await _settingsBox.put('selected_printer_name', name);
+  }
+
+  // --- Invoice Print Settings ---
+
+  /// Page size: 'A5' | 'A4' | 'Thermal80' (80mm thermal roll)
+  String getInvoicePageSize() {
+    return (_settingsBox.get('invoice_page_size') as String?) ?? 'A5';
+  }
+
+  Future<void> saveInvoicePageSize(String size) async {
+    await _settingsBox.put('invoice_page_size', size);
+  }
+
+  /// Top/bottom margin in mm.
+  double getInvoiceMarginTB() {
+    return (_settingsBox.get('invoice_margin_tb') as double?) ?? 10.0;
+  }
+
+  /// Left/right margin in mm.
+  double getInvoiceMarginLR() {
+    return (_settingsBox.get('invoice_margin_lr') as double?) ?? 10.0;
+  }
+
+  Future<void> saveInvoiceMargins(double topBottom, double leftRight) async {
+    await _settingsBox.put('invoice_margin_tb', topBottom);
+    await _settingsBox.put('invoice_margin_lr', leftRight);
+  }
+
+  /// Whether to include the shop header branding block.
+  bool getInvoiceShowHeader() {
+    return (_settingsBox.get('invoice_show_header') as bool?) ?? true;
+  }
+
+  Future<void> saveInvoiceShowHeader(bool value) async {
+    await _settingsBox.put('invoice_show_header', value);
+  }
+
+  /// Whether to include the UPI QR code on the invoice.
+  bool getInvoiceShowQr() {
+    return (_settingsBox.get('invoice_show_qr') as bool?) ?? true;
+  }
+
+  Future<void> saveInvoiceShowQr(bool value) async {
+    await _settingsBox.put('invoice_show_qr', value);
+  }
+
   // --- Sales Methods ---
 
   int getNextInvoiceNo() {
@@ -799,9 +855,16 @@ class LocalDatabaseService {
 
   /// Returns true if the given purchase status represents a 'stock-added' state.
   /// Treats 'CONFIRMED', 'confirmed', 'Complete', 'complete', 'COMPLETE' as equivalent.
+  /// Returns true if the given purchase status represents a 'stock-added' state.
+  /// Treats 'CONFIRMED', 'confirmed', 'Complete', 'complete', 'COMPLETE', 'Received', 'Inwarded', 'Stocked' as equivalent.
   bool _isPurchaseConfirmedStatus(String status) {
     final s = status.trim().toLowerCase();
-    return s == 'confirmed' || s == 'complete';
+    return s == 'confirmed' ||
+        s == 'complete' ||
+        s == 'completed' ||
+        s == 'received' ||
+        s == 'inwarded' ||
+        s == 'stocked';
   }
 
   /// Returns true if the given purchase status represents a 'pending / not yet stocked' state.
@@ -810,11 +873,13 @@ class LocalDatabaseService {
     return s == 'pending';
   }
 
-  Future<void> savePurchaseOrder(
+  Future<List<PricelistItem>> savePurchaseOrder(
     PurchaseOrder order,
     List<PurchaseOrderItem> items,
   ) async {
+    final List<PricelistItem> updatedProducts = [];
     final rawExisting = _purchaseBox.get(order.id);
+
     if (rawExisting != null) {
       final existing = PurchaseOrder.fromJson(
         Map<String, dynamic>.from(rawExisting),
@@ -824,88 +889,125 @@ class LocalDatabaseService {
 
       if (!wasConfirmed && nowConfirmed) {
         // Transitioned to complete/confirmed — add stock
-        await _adjustStockForPurchase(items, isAdding: true);
+        final res = await _adjustStockForPurchase(items, isAdding: true);
+        updatedProducts.addAll(res);
       } else if (wasConfirmed && !nowConfirmed) {
         // Reverted from complete/confirmed — remove stock
-        await _adjustStockForPurchase(items, isAdding: false);
+        final res = await _adjustStockForPurchase(items, isAdding: false);
+        updatedProducts.addAll(res);
       } else if (wasConfirmed && nowConfirmed) {
         // Was confirmed, still confirmed but items may have changed — re-adjust
         final oldItems = getPurchaseOrderItems(order.id);
-        await _adjustStockForPurchase(oldItems, isAdding: false);
-        await _adjustStockForPurchase(items, isAdding: true);
+        final res1 = await _adjustStockForPurchase(oldItems, isAdding: false);
+        final res2 = await _adjustStockForPurchase(items, isAdding: true);
+        updatedProducts.addAll(res1);
+        updatedProducts.addAll(res2);
       }
     } else {
       // New purchase order
       if (_isPurchaseConfirmedStatus(order.status)) {
-        await _adjustStockForPurchase(items, isAdding: true);
+        final res = await _adjustStockForPurchase(items, isAdding: true);
+        updatedProducts.addAll(res);
       }
     }
 
     await _purchaseBox.put(order.id, order.toJson());
     final itemsJson = items.map((item) => item.toJson()).toList();
     await _purchaseItemsBox.put(order.id, itemsJson);
+
+    return updatedProducts;
   }
 
-  Future<void> deletePurchaseOrder(String purchaseId) async {
+  Future<List<PricelistItem>> deletePurchaseOrder(String purchaseId) async {
+    final List<PricelistItem> updatedProducts = [];
     final raw = _purchaseBox.get(purchaseId);
     if (raw != null) {
       final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
       if (_isPurchaseConfirmedStatus(order.status)) {
         final items = getPurchaseOrderItems(purchaseId);
-        await _adjustStockForPurchase(items, isAdding: false);
+        final res = await _adjustStockForPurchase(items, isAdding: false);
+        updatedProducts.addAll(res);
       }
     }
     await _purchaseBox.delete(purchaseId);
     await _purchaseItemsBox.delete(purchaseId);
+    return updatedProducts;
   }
 
-  Future<bool> confirmPurchase(String purchaseId) async {
+  Future<List<PricelistItem>> confirmPurchase(String purchaseId) async {
     final raw = _purchaseBox.get(purchaseId);
-    if (raw == null) return false;
+    if (raw == null) return [];
     final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
-    if (_isPurchaseConfirmedStatus(order.status)) return false;
+    if (_isPurchaseConfirmedStatus(order.status)) return [];
 
     final updated = order.copyWith(status: 'CONFIRMED');
     await _purchaseBox.put(purchaseId, updated.toJson());
 
     final items = getPurchaseOrderItems(purchaseId);
-    await _adjustStockForPurchase(items, isAdding: true);
-    return true;
+    return await _adjustStockForPurchase(items, isAdding: true);
   }
 
-  Future<bool> setPurchaseStatusPending(String purchaseId) async {
+  Future<List<PricelistItem>> setPurchaseStatusPending(String purchaseId) async {
     final raw = _purchaseBox.get(purchaseId);
-    if (raw == null) return false;
+    if (raw == null) return [];
     final order = PurchaseOrder.fromJson(Map<String, dynamic>.from(raw));
-    if (_isPurchasePendingStatus(order.status)) return false;
+    if (_isPurchasePendingStatus(order.status)) return [];
 
     final updated = order.copyWith(status: 'PENDING');
     await _purchaseBox.put(purchaseId, updated.toJson());
 
     final items = getPurchaseOrderItems(purchaseId);
-    await _adjustStockForPurchase(items, isAdding: false);
-    return true;
+    return await _adjustStockForPurchase(items, isAdding: false);
   }
 
-  Future<void> _adjustStockForPurchase(
+  Future<List<PricelistItem>> _adjustStockForPurchase(
     List<PurchaseOrderItem> items, {
     required bool isAdding,
   }) async {
+    final List<PricelistItem> updatedProducts = [];
+
     for (var item in items) {
+      dynamic rawProd;
+
+      // 1. Direct lookup by itemId (check int, string, and parsed int representation)
       if (item.itemId != null) {
-        final rawProd = _pricelistBox.get(item.itemId);
-        if (rawProd != null) {
-          final prod = PricelistItem.fromJson(
-            Map<String, dynamic>.from(rawProd),
-          );
-          final updated = prod.copyWith(
-            stockQty: isAdding
-                ? (prod.stockQty + item.quantity)
-                : (prod.stockQty - item.quantity),
-          );
-          await _pricelistBox.put(prod.id, updated.toJson());
+        rawProd = _pricelistBox.get(item.itemId) ??
+            _pricelistBox.get(item.itemId.toString()) ??
+            _pricelistBox.get(int.tryParse(item.itemId.toString()));
+      }
+
+      // 2. Fallback: Lookup by item name (itemName or customItemName) case-insensitively
+      if (rawProd == null) {
+        final targetName = (item.itemName ?? item.customItemName ?? '').trim().toLowerCase();
+        if (targetName.isNotEmpty) {
+          for (var key in _pricelistBox.keys) {
+            final raw = _pricelistBox.get(key);
+            if (raw != null) {
+              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
+              if (p.itemName.trim().toLowerCase() == targetName) {
+                rawProd = raw;
+                break;
+              }
+            }
+          }
         }
       }
+
+      // 3. If product is found, adjust stock quantity!
+      if (rawProd != null) {
+        final prod = PricelistItem.fromJson(
+          Map<String, dynamic>.from(rawProd),
+        );
+        final updated = prod.copyWith(
+          stockQty: isAdding
+              ? (prod.stockQty + item.quantity)
+              : (prod.stockQty - item.quantity),
+        );
+        await _pricelistBox.put(prod.id, updated.toJson());
+        updatedProducts.add(updated);
+      }
     }
+
+    return updatedProducts;
   }
 }

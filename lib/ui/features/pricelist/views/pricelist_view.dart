@@ -13,6 +13,7 @@ import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../../data/services/user_permission_service.dart';
+import 'product_history_dialog.dart';
 
 class PricelistView extends StatefulWidget {
   const PricelistView({super.key});
@@ -412,7 +413,7 @@ class _PricelistViewState extends State<PricelistView> {
             }
           });
         } else {
-          _showAddEditItemDialog(context, viewModel, existingItem: item);
+          _showDetailPopup(context, item, viewModel);
         }
       },
       child: Container(
@@ -505,15 +506,6 @@ class _PricelistViewState extends State<PricelistView> {
                 ),
               ),
             ),
-            if (!_isSelectionMode)
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline_rounded,
-                  color: AppTheme.danger,
-                  size: 20,
-                ),
-                onPressed: () => _confirmDeleteItem(context, viewModel, item),
-              ),
             const SizedBox(width: 8),
           ],
         ),
@@ -895,153 +887,323 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistItem item,
     PricelistViewModel viewModel,
   ) {
-    final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+    final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF131A2E),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border(top: BorderSide(color: Colors.white12)),
+        return Dialog(
+          backgroundColor: const Color(0xFF0F1524),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withOpacity(0.08)),
           ),
-          padding: EdgeInsets.only(
-            top: 20,
-            left: 20,
-            right: 20,
-            bottom: MediaQuery.of(context).padding.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.8,
+            height: MediaQuery.of(context).size.height * 0.75,
+            constraints: const BoxConstraints(maxWidth: 680, maxHeight: 580),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          item.itemName,
-                          style: const TextStyle(
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.inventory_2_rounded,
+                            color: AppTheme.primaryLight,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Product Details',
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
                         ),
-                        if (item.category != null &&
-                            item.category!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: AppTheme.textSecondary,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white10, height: 1),
+                const SizedBox(height: 16),
+
+                // Main Info Body
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title & Category
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.itemName,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  if (item.category != null &&
+                                      item.category!.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primary.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        item.category!,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.primaryLight,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
+                            AppStockBadge(stockQty: item.stockQty),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Price & Stock Row
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.03),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'SELLING PRICE',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textMuted,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    currencyFormat.format(item.price),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.success,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    'AVAILABLE STOCK',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textMuted,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${item.stockQty} units',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (item.itemDescription != null &&
+                            item.itemDescription!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'DESCRIPTION / SPECIFICATIONS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textMuted,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: AppTheme.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
+                              color: Colors.white.withOpacity(0.02),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white.withOpacity(0.04)),
                             ),
                             child: Text(
-                              item.category!,
+                              item.itemDescription!,
                               style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryLight,
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                                height: 1.4,
                               ),
                             ),
                           ),
                         ],
+
+                        if (item.photoList.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          const Text(
+                            'ATTACHED PHOTOS',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textMuted,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          PhotoGallerySection(photoUrls: item.photoList),
+                        ],
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close_rounded,
-                      color: AppTheme.textMuted,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const Divider(color: Colors.white10, height: 24),
-              Row(
-                children: [
-                  Text(
-                    currencyFormat.format(item.price),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.success,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  AppStockBadge(stockQty: item.stockQty),
-                ],
-              ),
-              if (item.itemDescription != null &&
-                  item.itemDescription!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'Description / Specifications',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textMuted,
-                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.itemDescription!,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textPrimary,
-                  ),
+
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white10, height: 1),
+                const SizedBox(height: 16),
+
+                // Action Buttons Footer
+                Builder(
+                  builder: (context) {
+                    final canViewHistory = UserPermissionService.canPerformModuleAction('pricelist', 'canViewHistory');
+                    final canEdit = UserPermissionService.canPerformModuleAction('pricelist', 'canEdit');
+                    final canDelete = UserPermissionService.canPerformModuleAction('pricelist', 'canDelete');
+
+                    return Column(
+                      children: [
+                        if (canViewHistory) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                ProductHistoryDialog.show(context, item);
+                              },
+                              icon: const Icon(Icons.history_edu_rounded, size: 18),
+                              label: const Text('View Sales & Purchase History'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        if (canEdit || canDelete)
+                          Row(
+                            children: [
+                              if (canEdit)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _showAddEditItemDialog(
+                                        context,
+                                        viewModel,
+                                        existingItem: item,
+                                      );
+                                    },
+                                    icon: const Icon(Icons.edit_rounded, size: 18),
+                                    label: const Text('Edit Product'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: const BorderSide(color: AppTheme.primaryLight),
+                                      foregroundColor: AppTheme.primaryLight,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (canEdit && canDelete) const SizedBox(width: 12),
+                              if (canDelete)
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _confirmDeleteItem(context, viewModel, item);
+                                    },
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                    label: const Text('Delete Product'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: const BorderSide(color: AppTheme.danger),
+                                      foregroundColor: AppTheme.danger,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ],
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showAddEditItemDialog(
-                          context,
-                          viewModel,
-                          existingItem: item,
-                        );
-                      },
-                      icon: const Icon(Icons.edit_rounded, size: 18),
-                      label: const Text('Edit Product'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: const BorderSide(color: AppTheme.primaryLight),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _confirmDeleteItem(context, viewModel, item);
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                      label: const Text('Delete'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        side: const BorderSide(color: AppTheme.danger),
-                        foregroundColor: AppTheme.danger,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -1186,58 +1348,81 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             }
           }
 
+          final bool isItemVis = UserPermissionService.isFieldVisible('pricelist', 'item');
+          final bool isItemMod = UserPermissionService.canModifyField('pricelist', 'item', isEdit: isEdit);
+
+          final bool isCatVis = UserPermissionService.isFieldVisible('pricelist', 'category');
+          final bool isCatMod = UserPermissionService.canModifyField('pricelist', 'category', isEdit: isEdit);
+
+          final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'cashPrice');
+          final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'cashPrice', isEdit: isEdit);
+
+          final bool isDescVis = UserPermissionService.isFieldVisible('pricelist', 'itemDescription');
+          final bool isDescMod = UserPermissionService.canModifyField('pricelist', 'itemDescription', isEdit: isEdit);
+
           final Widget formContent = Form(
             key: formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Product Name *',
-                    hintText: 'e.g. MOUSE WIRELESS IVOOMI',
+                if (isItemVis) ...[
+                  TextFormField(
+                    controller: nameController,
+                    readOnly: !isItemMod,
+                    enabled: isItemMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Product Name *',
+                      hintText: 'e.g. MOUSE WIRELESS IVOOMI',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Please enter product name';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (val) {
-                    if (val == null || val.trim().isEmpty) {
-                      return 'Please enter product name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
 
-                // ── Searchable Category Dropdown ─────────────────────────────────
-                _CategoryDropdown(
-                  categories: viewModel.categories,
-                  selectedCategory: selectedCategory,
-                  onChanged: (val) => setDialogState(() => selectedCategory = val),
-                ),
-                const SizedBox(height: 12),
+                if (isCatVis) ...[
+                  AbsorbPointer(
+                    absorbing: !isCatMod,
+                    child: _CategoryDropdown(
+                      categories: viewModel.categories,
+                      selectedCategory: selectedCategory,
+                      onChanged: (val) => setDialogState(() => selectedCategory = val),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 Row(
                   children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: priceController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                    if (isPriceVis)
+                      Expanded(
+                        child: TextFormField(
+                          controller: priceController,
+                          readOnly: !isPriceMod,
+                          enabled: isPriceMod,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Base Price (₹) *',
+                            hintText: 'e.g. 350',
+                          ),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Enter price';
+                            }
+                            if (double.tryParse(val.trim()) == null) {
+                              return 'Invalid price';
+                            }
+                            return null;
+                          },
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'Base Price (₹) *',
-                          hintText: 'e.g. 350',
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Enter price';
-                          }
-                          if (double.tryParse(val.trim()) == null) {
-                            return 'Invalid price';
-                          }
-                          return null;
-                        },
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                    if (isPriceVis) const SizedBox(width: 12),
                     Expanded(
                       child: TextFormField(
                         controller: stockController,
@@ -1268,15 +1453,19 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 ),
                 const SizedBox(height: 12),
 
-                TextFormField(
-                  controller: descController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Specifications / Details',
-                    hintText: 'Optional item specifications...',
+                if (isDescVis) ...[
+                  TextFormField(
+                    controller: descController,
+                    readOnly: !isDescMod,
+                    enabled: isDescMod,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Specifications / Details',
+                      hintText: 'Optional item specifications...',
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // Photo attachment widget
                 PhotoAttachmentWidget(
