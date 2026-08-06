@@ -2,10 +2,8 @@ name: Daily Supabase Excel Backup
 
 on:
   schedule:
-    # 12:30 AM IST = 19:00 UTC (test window - enough time for GitHub to register schedule)
-    - cron: '0 19 * * *'
-    # Failsafe slot 5 mins later
-    - cron: '5 19 * * *'
+    # 9:06 PM IST = 15:36 UTC (Odd-minute offset avoids GitHub Actions queue delay)
+    - cron: '36 15 * * *'
   workflow_dispatch: # Allows 1-click manual trigger from GitHub UI
 
 permissions:
