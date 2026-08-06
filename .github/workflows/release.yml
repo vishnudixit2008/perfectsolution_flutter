@@ -118,35 +118,33 @@ jobs:
         shell: powershell
         run: |
           choco install innosetup --yes --no-progress
-          $issContent = @"
-[Setup]
-AppName=Perfect Solution
-AppVersion=1.0.7
-AppPublisher=Perfect Solution
-DefaultDirName={autopf}\Perfect Solution
-DefaultGroupName=Perfect Solution
-UninstallDisplayIcon={app}\shop_management_flutter.exe
-Compression=lzma2
-SolidCompression=yes
-OutputDir=.
-OutputBaseFilename=PerfectSolution-Setup
-ArchitecturesInstallIn64BitMode=x64
-MinVersion=10.0
-
-[Files]
-Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-[Icons]
-Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
-Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon
-
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-
-[Run]
-Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
-"@
-          Set-Content -Path installer.iss -Value $issContent -Encoding UTF8
+          $iss = "installer.iss"
+          Set-Content -Path $iss -Value "[Setup]" -Encoding UTF8
+          Add-Content -Path $iss -Value "AppName=Perfect Solution"
+          Add-Content -Path $iss -Value "AppVersion=1.0.7"
+          Add-Content -Path $iss -Value "AppPublisher=Perfect Solution"
+          Add-Content -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
+          Add-Content -Path $iss -Value "DefaultGroupName=Perfect Solution"
+          Add-Content -Path $iss -Value 'UninstallDisplayIcon={app}\shop_management_flutter.exe'
+          Add-Content -Path $iss -Value "Compression=lzma2"
+          Add-Content -Path $iss -Value "SolidCompression=yes"
+          Add-Content -Path $iss -Value "OutputDir=."
+          Add-Content -Path $iss -Value "OutputBaseFilename=PerfectSolution-Setup"
+          Add-Content -Path $iss -Value "ArchitecturesInstallIn64BitMode=x64"
+          Add-Content -Path $iss -Value "MinVersion=10.0"
+          Add-Content -Path $iss -Value ""
+          Add-Content -Path $iss -Value "[Files]"
+          Add-Content -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
+          Add-Content -Path $iss -Value ""
+          Add-Content -Path $iss -Value "[Icons]"
+          Add-Content -Path $iss -Value 'Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"'
+          Add-Content -Path $iss -Value 'Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon'
+          Add-Content -Path $iss -Value ""
+          Add-Content -Path $iss -Value "[Tasks]"
+          Add-Content -Path $iss -Value 'Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"'
+          Add-Content -Path $iss -Value ""
+          Add-Content -Path $iss -Value "[Run]"
+          Add-Content -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Package macOS DMG
