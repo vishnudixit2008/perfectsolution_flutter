@@ -96,6 +96,9 @@ class AppTheme {
         error: danger,
       ),
 
+      // Fonts
+      fontFamily: 'Inter',
+
       // Explicit Icon Themes for Windows & cross-platform consistency
       iconTheme: const IconThemeData(
         color: textPrimary,
@@ -104,8 +107,9 @@ class AppTheme {
         color: textPrimary,
       ),
 
-      // Text styling with Inter font applied to text elements only
+      // Text styling
       textTheme: const TextTheme(
+
         headlineLarge: TextStyle(
           fontFamily: 'Inter',
           fontSize: 28,
