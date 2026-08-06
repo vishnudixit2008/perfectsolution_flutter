@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../shared/date_time_picker_field.dart';
+import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1723,7 +1723,6 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
     final viewModel = context.read<InwardRepairsViewModel>();
     final int jobNo = widget.existingRepair?.jobNo ?? viewModel.getNextJobNo();
-    final DateTime date = widget.existingRepair?.date ?? DateTime.now();
 
     final repair = InwardRepair(
       jobNo: jobNo,
