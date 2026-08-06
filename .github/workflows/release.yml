@@ -216,7 +216,7 @@ jobs:
 
           # [Run] - Install VC++ Redistributable after extraction to {tmp}, then launch app
           Add-Content  -Path $iss -Value "[Run]"
-          Add-Content  -Path $iss -Value 'Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Installing Visual C++ Redistributable Prerequisites..."; Flags: waituntilterminated runhidden check: NeedsVCRedist'
+          Add-Content  -Path $iss -Value 'Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Installing Visual C++ Redistributable Prerequisites..."; Flags: waituntilterminated; Check: NeedsVCRedist'
           Add-Content  -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
           Add-Content  -Path $iss -Value ""
 
