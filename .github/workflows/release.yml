@@ -81,31 +81,49 @@ jobs:
         run: |
           $releaseDir = 'build\windows\x64\runner\Release'
           $dataDir = "$releaseDir\data"
-
-          Write-Host "=== Release folder contents ==="
-          if (Test-Path $releaseDir) {
-            Get-ChildItem -Recurse $releaseDir | Select-Object -ExpandProperty FullName
-          }
-
-          # flutter_assets must be inside data\ for the app to find icons/logos/fonts
-          $flutterAssetsSrc = 'build\windows\x64\flutter_assets'
           $flutterAssetsDst = "$dataDir\flutter_assets"
 
-          if ((Test-Path $flutterAssetsSrc) -and (-not (Test-Path $flutterAssetsDst))) {
-            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-            Copy-Item -Recurse -Force $flutterAssetsSrc $flutterAssetsDst
-            Write-Host "Copied flutter_assets to data folder"
-          } elseif (Test-Path $flutterAssetsDst) {
-            Write-Host "OK: flutter_assets already present"
+          Write-Host "=== Verifying Release Folder ==="
+          New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+
+          # Search for flutter_assets across possible build directories
+          $possibleSources = @(
+            'build\windows\runner\Release\data\flutter_assets',
+            'build\windows\x64\runner\Release\data\flutter_assets',
+            'build\windows\x64\flutter_assets',
+            'build\windows\flutter_assets'
+          )
+
+          $foundSource = $null
+          foreach ($src in $possibleSources) {
+            if ((Test-Path $src) -and (Get-ChildItem $src).Count -gt 0) {
+              $foundSource = $src
+              break
+            }
+          }
+
+          if ($foundSource) {
+            Write-Host "Found valid flutter_assets at: $foundSource"
+            if ($foundSource -ne $flutterAssetsDst) {
+              Copy-Item -Recurse -Force "$foundSource\*" $flutterAssetsDst
+              Write-Host "Copied all assets and fonts to $flutterAssetsDst"
+            }
           } else {
-            Write-Host "WARNING: flutter_assets not found - icons and logos may be missing"
+            Write-Host "WARNING: Could not find flutter_assets source directory"
+          }
+
+          # Verify Material Icons font exists (critical for icons on Windows 10)
+          $fontFile = Get-ChildItem -Path $flutterAssetsDst -Recurse -Filter "*MaterialIcons*" -ErrorAction SilentlyContinue
+          if ($fontFile) {
+            Write-Host "OK: MaterialIcons font found: $($fontFile.FullName)"
+          } else {
+            Write-Host "WARNING: MaterialIcons font missing in $flutterAssetsDst!"
           }
 
           # Ensure app.so (AOT library) is in data\
           $aotDst = "$dataDir\app.so"
           $aotAlt = 'build\windows\x64\app.so'
           if ((-not (Test-Path $aotDst)) -and (Test-Path $aotAlt)) {
-            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
             Copy-Item $aotAlt $aotDst -Force
             Write-Host "Copied app.so to data folder"
           }
