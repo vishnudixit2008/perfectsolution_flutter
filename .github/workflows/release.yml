@@ -86,7 +86,7 @@ jobs:
           Write-Host "=== Verifying Release Folder ==="
           New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 
-          # Search for flutter_assets across possible build directories
+          # 1. Search & Bundle flutter_assets (fonts, icons, logos, AssetManifest)
           $possibleSources = @(
             'build\windows\runner\Release\data\flutter_assets',
             'build\windows\x64\runner\Release\data\flutter_assets',
@@ -112,7 +112,7 @@ jobs:
             Write-Host "WARNING: Could not find flutter_assets source directory"
           }
 
-          # Verify Material Icons font exists (critical for icons on Windows 10)
+          # 2. Ensure Material Icons font exists
           $fontFile = Get-ChildItem -Path $flutterAssetsDst -Recurse -Filter "*MaterialIcons*" -ErrorAction SilentlyContinue
           if ($fontFile) {
             Write-Host "OK: MaterialIcons font found: $($fontFile.FullName)"
@@ -120,13 +120,38 @@ jobs:
             Write-Host "WARNING: MaterialIcons font missing in $flutterAssetsDst!"
           }
 
-          # Ensure app.so (AOT library) is in data\
+          # 3. Ensure app.so (AOT library) is in data\
           $aotDst = "$dataDir\app.so"
           $aotAlt = 'build\windows\x64\app.so'
           if ((-not (Test-Path $aotDst)) -and (Test-Path $aotAlt)) {
             Copy-Item $aotAlt $aotDst -Force
             Write-Host "Copied app.so to data folder"
           }
+
+          # 4. CRITICAL FIX FOR BAD IMAGE / MISSING CRT DLLs:
+          # Copy MSVC C++ Runtime DLLs (vcruntime140.dll, vcruntime140_1.dll, msvcp140.dll, etc.)
+          # directly into the release root folder so app_links_plugin.dll and executable
+          # find them locally on any Windows version without relying on system installs.
+          Write-Host "=== Bundling MSVC C++ Runtime DLLs directly into Release folder ==="
+          $vsRedistDir = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio\2022" -Recurse -Filter "Microsoft.VC*.CRT" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
+          if ($vsRedistDir) {
+            Write-Host "Found MSVC CRT directory at: $($vsRedistDir.FullName)"
+            Copy-Item -Force "$($vsRedistDir.FullName)\*.dll" $releaseDir
+            Write-Host "Successfully copied Visual Studio CRT DLLs to $releaseDir"
+          } else {
+            Write-Host "Fallback: Copying CRT DLLs from System32..."
+            $crtDlls = @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "concrt140.dll")
+            foreach ($dll in $crtDlls) {
+              $sysDll = "C:\Windows\System32\$dll"
+              if (Test-Path $sysDll) {
+                Copy-Item $sysDll "$releaseDir\$dll" -Force
+                Write-Host "Copied $dll from System32"
+              }
+            }
+          }
+
+          Write-Host "=== Final Release Directory Contents ==="
+          Get-ChildItem $releaseDir | Select-Object Name
 
       - name: Download VC++ Redistributable Installer
         if: matrix.target == 'windows'
@@ -149,7 +174,6 @@ jobs:
         run: |
           choco install innosetup --yes --no-progress
 
-          # Write installer.iss line by line (heredoc breaks YAML indentation rules)
           $iss = "installer.iss"
 
           # [Setup]
@@ -161,16 +185,19 @@ jobs:
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
           Add-Content  -Path $iss -Value "DefaultGroupName=Perfect Solution"
           Add-Content  -Path $iss -Value 'UninstallDisplayIcon={app}\shop_management_flutter.exe'
-          Add-Content  -Path $iss -Value "Compression=lzma2"
+          Add-Content  -Path $iss -Value "Compression=lzma2/ultra64"
           Add-Content  -Path $iss -Value "SolidCompression=yes"
           Add-Content  -Path $iss -Value "OutputDir=."
           Add-Content  -Path $iss -Value "OutputBaseFilename=PerfectSolution-Setup"
           Add-Content  -Path $iss -Value "ArchitecturesInstallIn64BitMode=x64"
+          Add-Content  -Path $iss -Value "ArchitecturesAllowed=x64"
           Add-Content  -Path $iss -Value "MinVersion=10.0"
           Add-Content  -Path $iss -Value "PrivilegesRequired=admin"
+          Add-Content  -Path $iss -Value "CloseApplications=yes"
+          Add-Content  -Path $iss -Value "RestartApplications=no"
           Add-Content  -Path $iss -Value ""
 
-          # [Files] - app files + VC++ Redist bundled inside installer
+          # [Files] - app files + bundled CRT DLLs + VC++ Redist installer
           Add-Content  -Path $iss -Value "[Files]"
           Add-Content  -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
           Add-Content  -Path $iss -Value 'Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall'
@@ -187,36 +214,19 @@ jobs:
           Add-Content  -Path $iss -Value 'Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"'
           Add-Content  -Path $iss -Value ""
 
-          # [Run] - launch app after install
+          # [Run] - Install VC++ Redistributable after extraction to {tmp}, then launch app
           Add-Content  -Path $iss -Value "[Run]"
+          Add-Content  -Path $iss -Value 'Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Installing Visual C++ Redistributable Prerequisites..."; Flags: waituntilterminated runhidden check: NeedsVCRedist'
           Add-Content  -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
           Add-Content  -Path $iss -Value ""
 
-          # [Code] - check prerequisites (VC++ Runtime) before installing app
+          # [Code] - Check if VC++ Redistributable is installed on system
           Add-Content  -Path $iss -Value "[Code]"
-          Add-Content  -Path $iss -Value "function VCRedistX64Installed: Boolean;"
+          Add-Content  -Path $iss -Value "function NeedsVCRedist: Boolean;"
           Add-Content  -Path $iss -Value "var"
           Add-Content  -Path $iss -Value "  Installed: Cardinal;"
           Add-Content  -Path $iss -Value "begin"
-          Add-Content  -Path $iss -Value "  // Check HKLM for VC++ 2015-2022 x64 runtime installed flag"
-          Add-Content  -Path $iss -Value "  Result := RegQueryDWordValue(HKLM,"
-          Add-Content  -Path $iss -Value "    'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',"
-          Add-Content  -Path $iss -Value "    'Installed', Installed) and (Installed = 1);"
-          Add-Content  -Path $iss -Value "end;"
-          Add-Content  -Path $iss -Value ""
-          Add-Content  -Path $iss -Value "function PrepareToInstall(var NeedsRestart: Boolean): String;"
-          Add-Content  -Path $iss -Value "var"
-          Add-Content  -Path $iss -Value "  ResultCode: Integer;"
-          Add-Content  -Path $iss -Value "begin"
-          Add-Content  -Path $iss -Value "  Result := '';"
-          Add-Content  -Path $iss -Value "  if not VCRedistX64Installed then begin"
-          Add-Content  -Path $iss -Value "    WizardForm.StatusLabel.Caption := 'Installing Microsoft Visual C++ Runtime...';"
-          Add-Content  -Path $iss -Value "    if not Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'),"
-          Add-Content  -Path $iss -Value "      '/install /quiet /norestart', '',"
-          Add-Content  -Path $iss -Value "      SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin"
-          Add-Content  -Path $iss -Value "      Result := 'Failed to install Microsoft Visual C++ Runtime (code: ' + IntToStr(ResultCode) + '). Please install VC++ Redistributable 2015-2022 x64 manually, then retry.';"
-          Add-Content  -Path $iss -Value "    end;"
-          Add-Content  -Path $iss -Value "  end;"
+          Add-Content  -Path $iss -Value "  Result := not (RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) and (Installed = 1));"
           Add-Content  -Path $iss -Value "end;"
 
           Write-Host "=== Generated installer.iss ==="
