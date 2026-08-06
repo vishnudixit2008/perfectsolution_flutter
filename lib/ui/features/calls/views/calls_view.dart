@@ -1730,10 +1730,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
       text: call?.notes ?? widget.prefillNotes ?? '',
     );
     _photoUrl = call?.photo;
-    final callsStatuses = StatusManagementService.getStatuses('calls');
     _status =
         call?.status ??
-        (callsStatuses.isNotEmpty ? callsStatuses.first : 'Pending');
+        StatusManagementService.getDefaultStatus('calls');
   }
 
   @override

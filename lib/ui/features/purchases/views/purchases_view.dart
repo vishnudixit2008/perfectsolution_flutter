@@ -1251,10 +1251,9 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       text: p?.notes ?? widget.prefillNotes ?? '',
     );
     _photoUrl = p?.photo;
-    final purchasesStatuses = StatusManagementService.getStatuses('purchases');
     _status =
         p?.status ??
-        (purchasesStatuses.isNotEmpty ? purchasesStatuses.first : 'Pending');
+        StatusManagementService.getDefaultStatus('purchases');
 
     if (p != null) {
       _items = context.read<PurchasesViewModel>().getPurchaseItems(p.id);

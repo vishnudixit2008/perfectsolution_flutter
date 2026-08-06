@@ -1226,8 +1226,7 @@ class _RequestsViewState extends State<RequestsView> {
         'target': 'sales',
         'customerName': r.customerName,
         'customerNumber': r.mobileNo,
-        'itemName': 'Special Request: ${r.item}',
-        'amount': r.totalAmount,
+        'advance': r.advance,
       },
     );
   }
@@ -1328,11 +1327,10 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
       text: r?.estimate ?? widget.prefillEstimate ?? '',
     );
     _photoUrl = r?.photo;
-    final requestsStatuses = StatusManagementService.getStatuses('requests');
     _status =
         r?.status ??
         widget.prefillStatus ??
-        (requestsStatuses.isNotEmpty ? requestsStatuses.first : 'Pending');
+        StatusManagementService.getDefaultStatus('requests');
   }
 
   @override

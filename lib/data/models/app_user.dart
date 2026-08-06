@@ -149,6 +149,7 @@ class AppUser {
       'canDelete': 'Can Void / Delete Invoice',
       'canPrint': 'Can Print A5 PDF Invoice',
       'canApplyDiscount': 'Can Apply Checkout Discount',
+      'canVerifyStock': 'Can Verify & Deduct Stock',
     },
     'requests': {
       'canAdd': 'Can Add Customer Request',

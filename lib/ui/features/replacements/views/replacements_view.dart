@@ -1308,15 +1308,10 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     _assignedToController = TextEditingController(
       text: r?.assignedTo ?? widget.prefillAssignedTo ?? '',
     );
-    final replacementsStatuses = StatusManagementService.getStatuses(
-      'replacements',
-    );
     _status =
         r?.status ??
         widget.prefillStatus ??
-        (replacementsStatuses.isNotEmpty
-            ? replacementsStatuses.first
-            : 'Pending');
+        StatusManagementService.getDefaultStatus('replacements');
     _depositDate = r?.depositDate;
     _receiveDate = r?.receiveDate;
     _photoUrl = r?.photo;

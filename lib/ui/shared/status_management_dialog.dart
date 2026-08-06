@@ -24,10 +24,12 @@ class StatusManagementService {
     ],
     'calls': ['Pending', 'Pending payment', 'Pre-complete', 'Complete'],
     'replacements': ['Pre-Complete', 'Pending', 'Recieved', 'Complete'],
-    'requests': ['Pending', 'Office', 'Received', 'Complete'],
+    'requests': ['Pending', 'Received', 'Complete'],
     'purchases': ['PENDING', 'Confirmed'],
     'sales': ['Pending', 'Complete'],
   };
+
+  static const String _defaultStatusPrefix = 'default_form_status_';
 
   static Future<void> init() async {
     if (!Hive.isBoxOpen(_boxName)) {
@@ -37,6 +39,24 @@ class StatusManagementService {
 
   static Box _getBox() {
     return Hive.box(_boxName);
+  }
+
+  /// Get default status for new forms in a module.
+  static String getDefaultStatus(String moduleKey) {
+    final box = _getBox();
+    final String? stored = box.get('$_defaultStatusPrefix$moduleKey') as String?;
+    final available = getStatuses(moduleKey);
+    if (stored != null &&
+        available.any((s) => s.toLowerCase() == stored.toLowerCase())) {
+      return stored;
+    }
+    return available.isNotEmpty ? available.first : 'Pending';
+  }
+
+  /// Set default status for new forms in a module.
+  static Future<void> setDefaultStatus(String moduleKey, String status) async {
+    final box = _getBox();
+    await box.put('$_defaultStatusPrefix$moduleKey', status);
   }
 
   /// Scan the database once and return unique statuses found in it.
@@ -105,6 +125,14 @@ class StatusManagementService {
       list = List<String>.from(
         _defaultStatuses[moduleKey] ?? ['Pending', 'Complete'],
       );
+    }
+
+    if (moduleKey == 'requests') {
+      final int initialLen = list.length;
+      list.removeWhere((s) => s.trim().toLowerCase() == 'office');
+      if (list.length != initialLen) {
+        box.put('$_statusListKeyPrefix$moduleKey', list);
+      }
     }
 
     _cache[moduleKey] = list;
@@ -523,18 +551,25 @@ class _StatusManagementDialogState extends State<StatusManagementDialog> {
                           },
                           itemBuilder: (context, index) {
                             final status = _statuses[index];
+                            final defaultStatus = StatusManagementService.getDefaultStatus(widget.moduleKey);
+                            final isDefault = defaultStatus.toLowerCase() == status.toLowerCase();
+
                             return Container(
                               key: ValueKey(status),
                               margin: const EdgeInsets.symmetric(vertical: 4),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                                horizontal: 10,
+                                vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.04),
+                                color: isDefault
+                                    ? AppTheme.primary.withOpacity(0.12)
+                                    : Colors.white.withOpacity(0.04),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.06),
+                                  color: isDefault
+                                      ? AppTheme.primaryLight.withOpacity(0.3)
+                                      : Colors.white.withOpacity(0.06),
                                 ),
                               ),
                               child: Row(
@@ -547,16 +582,66 @@ class _StatusManagementDialogState extends State<StatusManagementDialog> {
                                       size: 20,
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: Text(
-                                      status,
-                                      style: const TextStyle(
-                                        color: AppTheme.textPrimary,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              color: isDefault
+                                                  ? AppTheme.primaryLight
+                                                  : AppTheme.textPrimary,
+                                              fontSize: 13,
+                                              fontWeight: isDefault
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (isDefault) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primary.withOpacity(0.3),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              'DEFAULT',
+                                              style: TextStyle(
+                                                color: AppTheme.primaryLight,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      isDefault ? Icons.star_rounded : Icons.star_outline_rounded,
+                                      color: isDefault ? Colors.amber : AppTheme.textMuted,
+                                      size: 20,
+                                    ),
+                                    tooltip: isDefault
+                                        ? 'Default Form Status'
+                                        : 'Set as Default Form Status',
+                                    onPressed: () async {
+                                      await StatusManagementService.setDefaultStatus(
+                                        widget.moduleKey,
+                                        status,
+                                      );
+                                      setState(() {});
+                                      widget.onStatusesUpdated();
+                                    },
                                   ),
                                 ],
                               ),

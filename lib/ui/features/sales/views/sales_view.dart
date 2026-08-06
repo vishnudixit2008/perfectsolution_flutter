@@ -1555,153 +1555,114 @@ class _SalesViewState extends State<SalesView> {
         color: Colors.white.withOpacity(0.02),
         borderRadius: 12,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.assignment_turned_in_rounded,
-                color: AppTheme.primaryLight,
-                size: 20,
-              ),
-              SizedBox(width: 12),
-              Text(
-                'Checkout Summary',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.assignment_turned_in_rounded,
+                  color: AppTheme.primaryLight,
+                  size: 20,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          const Text(
-            'Customer Information',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _customerNameController,
-            decoration: const InputDecoration(
-              labelText: 'Customer Name',
-              prefixIcon: Icon(Icons.person_outline, size: 18),
-            ),
-            onChanged: (val) => cartVM.setCustomerName(val),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: _customerPhoneController,
-            decoration: const InputDecoration(
-              labelText: 'Mobile Number',
-              prefixIcon: Icon(Icons.phone_iphone_rounded, size: 18),
-            ),
-            keyboardType: TextInputType.phone,
-            onChanged: (val) => cartVM.setCustomerNumber(val),
-          ),
-          const SizedBox(height: 20),
-
-          const Text(
-            'Calculations & Adjustments',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _discountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Discount (₹)',
-                    prefixIcon: Icon(Icons.local_offer_outlined, size: 18),
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  onChanged: (val) {
-                    final discount = double.tryParse(val) ?? 0.0;
-                    cartVM.setDiscount(discount);
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _advanceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Advance Paid (₹)',
-                    prefixIcon: Icon(Icons.payments_outlined, size: 18),
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  onChanged: (val) {
-                    final advance = double.tryParse(val) ?? 0.0;
-                    cartVM.setAdvance(advance);
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Payment Mode:',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.04),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
-                ),
-                child: DropdownButton<String>(
-                  value: cartVM.paymentMode,
-                  underline: const SizedBox(),
-                  dropdownColor: const Color(0xFF131A2E),
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
+                SizedBox(width: 12),
+                Text(
+                  'Checkout Summary',
+                  style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    color: AppTheme.textPrimary,
                   ),
-                  items: ['UPI', 'Cash', 'Card'].map((mode) {
-                    return DropdownMenuItem<String>(
-                      value: mode,
-                      child: Text(mode),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      cartVM.setPaymentMode(val);
-                    }
-                  },
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            const Text(
+              'Customer Information',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppTheme.textPrimary,
               ),
-            ],
-          ),
-          if (cartVM.isEditing) ...[
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _customerNameController,
+              decoration: const InputDecoration(
+                labelText: 'Customer Name',
+                prefixIcon: Icon(Icons.person_outline, size: 18),
+              ),
+              onChanged: (val) => cartVM.setCustomerName(val),
+            ),
             const SizedBox(height: 12),
+            TextFormField(
+              controller: _customerPhoneController,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Number',
+                prefixIcon: Icon(Icons.phone_iphone_rounded, size: 18),
+              ),
+              keyboardType: TextInputType.phone,
+              onChanged: (val) => cartVM.setCustomerNumber(val),
+            ),
+            const SizedBox(height: 20),
+
+            const Text(
+              'Calculations & Adjustments',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _discountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Discount (₹)',
+                      prefixIcon: Icon(Icons.local_offer_outlined, size: 18),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    onChanged: (val) {
+                      final discount = double.tryParse(val) ?? 0.0;
+                      cartVM.setDiscount(discount);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _advanceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Advance Paid (₹)',
+                      prefixIcon: Icon(Icons.payments_outlined, size: 18),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    onChanged: (val) {
+                      final advance = double.tryParse(val) ?? 0.0;
+                      cartVM.setAdvance(advance);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Order Status:',
+                  'Payment Mode:',
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
                 ),
                 Container(
@@ -1712,9 +1673,7 @@ class _SalesViewState extends State<SalesView> {
                     border: Border.all(color: Colors.white.withOpacity(0.08)),
                   ),
                   child: DropdownButton<String>(
-                    value: ['Confirmed', 'PENDING'].contains(cartVM.editingOrderStatus)
-                        ? cartVM.editingOrderStatus
-                        : 'Confirmed',
+                    value: cartVM.paymentMode,
                     underline: const SizedBox(),
                     dropdownColor: const Color(0xFF131A2E),
                     style: const TextStyle(
@@ -1722,161 +1681,204 @@ class _SalesViewState extends State<SalesView> {
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
-                      DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
-                    ],
+                    items: ['UPI', 'Cash', 'Card'].map((mode) {
+                      return DropdownMenuItem<String>(
+                        value: mode,
+                        child: Text(mode),
+                      );
+                    }).toList(),
                     onChanged: (val) {
                       if (val != null) {
-                        cartVM.setEditingOrderStatus(val);
+                        cartVM.setPaymentMode(val);
                       }
                     },
                   ),
                 ),
               ],
             ),
-          ],
-
-          const Divider(color: Colors.white10, height: 32),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Subtotal',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              ),
-              Text(
-                '₹${cartVM.subtotal.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          if (cartVM.discount > 0) ...[
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Discount Applied',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-                ),
-                Text(
-                  '- ₹${cartVM.discount.toStringAsFixed(2)}',
-                  style: const TextStyle(color: AppTheme.danger, fontSize: 14),
-                ),
-              ],
-            ),
-          ],
-          if (cartVM.advance > 0) ...[
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Advance Paid',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-                ),
-                Text(
-                  '- ₹${cartVM.advance.toStringAsFixed(2)}',
-                  style: const TextStyle(color: AppTheme.success, fontSize: 14),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'GRAND TOTAL',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              Text(
-                '₹${cartVM.totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Confirm Checkout / Update Invoice
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: cartVM.cartItems.isEmpty
-                  ? null
-                  : () async {
-                      final isEditing = cartVM.isEditing;
-                      final invoiceNo = await cartVM.checkout();
-                      if (!context.mounted) return;
-                      if (invoiceNo != null) {
-                        _clearLocalForm();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              isEditing
-                                  ? 'Invoice #$invoiceNo updated successfully.'
-                                  : 'Order #$invoiceNo created in PENDING verification.',
-                            ),
-                            backgroundColor: AppTheme.success,
-                          ),
-                        );
-
-                        // Reload ledger and return
-                        await recentVM.loadSales();
-                        if (!context.mounted) return;
-                        setState(() {
-                          _showBillingDesk = false;
-                        });
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Checkout failed.'),
-                            backgroundColor: AppTheme.danger,
-                          ),
-                        );
-                      }
-                    },
-              icon: cartVM.isSaving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Icon(
-                      cartVM.isEditing
-                          ? Icons.save_rounded
-                          : Icons.check_circle_rounded,
+            if (cartVM.isEditing) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Order Status:',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
                     ),
-              label: Text(
-                cartVM.isSaving
-                    ? 'Processing...'
-                    : (cartVM.isEditing
-                        ? 'Update Invoice #${cartVM.editingInvoiceNo}'
-                        : 'Confirm Sale (Pending)'),
+                    child: DropdownButton<String>(
+                      value: ['Confirmed', 'PENDING'].contains(cartVM.editingOrderStatus)
+                          ? cartVM.editingOrderStatus
+                          : 'Confirmed',
+                      underline: const SizedBox(),
+                      dropdownColor: const Color(0xFF131A2E),
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
+                        DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          cartVM.setEditingOrderStatus(val);
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            ],
+
+            const Divider(color: Colors.white10, height: 32),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Subtotal',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                ),
+                Text(
+                  '₹${cartVM.subtotal.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            if (cartVM.discount > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Discount Applied',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  ),
+                  Text(
+                    '- ₹${cartVM.discount.toStringAsFixed(2)}',
+                    style: const TextStyle(color: AppTheme.danger, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+            if (cartVM.advance > 0) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Advance Paid',
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                  ),
+                  Text(
+                    '- ₹${cartVM.advance.toStringAsFixed(2)}',
+                    style: const TextStyle(color: AppTheme.success, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'GRAND TOTAL',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                Text(
+                  '₹${cartVM.totalAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Confirm Checkout / Update Invoice
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: cartVM.cartItems.isEmpty
+                    ? null
+                    : () async {
+                        final isEditing = cartVM.isEditing;
+                        final invoiceNo = await cartVM.checkout();
+                        if (!context.mounted) return;
+                        if (invoiceNo != null) {
+                          _clearLocalForm();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isEditing
+                                    ? 'Invoice #$invoiceNo updated successfully.'
+                                    : 'Order #$invoiceNo created in PENDING verification.',
+                              ),
+                              backgroundColor: AppTheme.success,
+                            ),
+                          );
+
+                          // Reload ledger and return
+                          await recentVM.loadSales();
+                          if (!context.mounted) return;
+                          setState(() {
+                            _showBillingDesk = false;
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checkout failed.'),
+                              backgroundColor: AppTheme.danger,
+                            ),
+                          );
+                        }
+                      },
+                icon: cartVM.isSaving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(
+                        cartVM.isEditing
+                            ? Icons.save_rounded
+                            : Icons.check_circle_rounded,
+                      ),
+                label: Text(
+                  cartVM.isSaving
+                      ? 'Processing...'
+                      : (cartVM.isEditing
+                          ? 'Update Invoice #${cartVM.editingInvoiceNo}'
+                          : 'Confirm Sale (Pending)'),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2152,10 +2154,10 @@ class _SalesViewState extends State<SalesView> {
                 ),
                 const SizedBox(height: 24),
 
-                Column(
+                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (isPending)
+                    if (isPending && UserPermissionService.canPerformModuleAction('sales', 'canVerifyStock'))
                       ElevatedButton.icon(
                         onPressed: () async {
                           final success = await viewModel.confirmOrder(
@@ -2183,7 +2185,7 @@ class _SalesViewState extends State<SalesView> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       )
-                    else
+                    else if (!isPending)
                       ElevatedButton.icon(
                         onPressed: () async {
                           final success = await viewModel.setSaleStatusPending(
@@ -2218,6 +2220,7 @@ class _SalesViewState extends State<SalesView> {
                     LayoutBuilder(
                       builder: (context, constraints) {
                         final canEdit = UserPermissionService.canPerformModuleAction('sales', 'canEdit');
+                        final canDelete = UserPermissionService.canPerformModuleAction('sales', 'canDelete');
                         final isCompact = constraints.maxWidth < 460;
 
                         final editBtn = ElevatedButton.icon(
@@ -2309,8 +2312,10 @@ class _SalesViewState extends State<SalesView> {
                                   Expanded(child: printBtn),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              SizedBox(width: double.infinity, child: deleteBtn),
+                              if (canDelete) ...[
+                                const SizedBox(height: 8),
+                                SizedBox(width: double.infinity, child: deleteBtn),
+                              ],
                             ],
                           );
                         }
@@ -2322,8 +2327,10 @@ class _SalesViewState extends State<SalesView> {
                               const SizedBox(width: 10),
                             ],
                             Expanded(child: printBtn),
-                            const SizedBox(width: 10),
-                            deleteBtn,
+                            if (canDelete) ...[
+                              const SizedBox(width: 10),
+                              deleteBtn,
+                            ],
                           ],
                         );
                       },

@@ -1625,11 +1625,10 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
       _discountController.clear();
     }
     _photoUrl = r?.photo;
-    final inwardStatuses = StatusManagementService.getStatuses('inward');
     _status =
         r?.status ??
         widget.prefillStatus ??
-        (inwardStatuses.isNotEmpty ? inwardStatuses.first : 'Pending');
+        StatusManagementService.getDefaultStatus('inward');
     _completionDate = r?.completionDate;
 
     if (r != null) {
