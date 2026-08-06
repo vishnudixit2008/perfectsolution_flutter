@@ -75,33 +75,78 @@ jobs:
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
 
+      - name: Copy VCRUNTIME DLLs into Release folder
+        if: matrix.target == 'windows'
+        shell: powershell
+        run: |
+          # Find VC++ runtime DLLs from Visual Studio installation and copy them
+          # alongside the app so they are bundled in the installer
+          $releaseDir = "build\windows\x64\runner\Release"
+          $vsDirs = @(
+            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC",
+            "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC",
+            "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC"
+          )
+          $dlls = @("vcruntime140.dll","vcruntime140_1.dll","msvcp140.dll","msvcp140_1.dll","msvcp140_2.dll")
+          foreach ($vsDir in $vsDirs) {
+            if (Test-Path $vsDir) {
+              $x64Dirs = Get-ChildItem -Path $vsDir -Recurse -Filter "x64" -Directory | Where-Object { $_.FullName -like "*CRT*" }
+              foreach ($dir in $x64Dirs) {
+                foreach ($dll in $dlls) {
+                  $src = Join-Path $dir.FullName $dll
+                  $dst = Join-Path $releaseDir $dll
+                  if ((Test-Path $src) -and -not (Test-Path $dst)) {
+                    Copy-Item $src $dst -Force
+                    Write-Host "Copied $dll from $($dir.FullName)"
+                  }
+                }
+              }
+              break
+            }
+          }
+          # Verify critical DLLs exist
+          foreach ($dll in @("vcruntime140.dll","vcruntime140_1.dll","msvcp140.dll")) {
+            if (Test-Path (Join-Path $releaseDir $dll)) {
+              Write-Host "OK: $dll present in release folder"
+            } else {
+              Write-Warning "MISSING: $dll not found - app may fail on machines without VC++ runtime"
+            }
+          }
+
       - name: Package Windows Installer
         if: matrix.target == 'windows'
+        shell: powershell
         run: |
-          choco install innosetup --yes
+          choco install innosetup --yes --no-progress
           $issContent = @"
-          [Setup]
-          AppName=Perfect Solution
-          AppVersion=1.0.0-beta
-          DefaultDirName={autopf}\Perfect Solution
-          DefaultGroupName=Perfect Solution
-          UninstallDisplayIcon={app}\shop_management_flutter.exe
-          Compression=lzma2
-          SolidCompression=yes
-          OutputDir=.
-          OutputBaseFilename=PerfectSolution-Setup
-          
-          [Files]
-          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-          
-          [Icons]
-          Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
-          Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
+[Setup]
+AppName=Perfect Solution
+AppVersion=1.0.7
+AppPublisher=Perfect Solution
+DefaultDirName={autopf}\Perfect Solution
+DefaultGroupName=Perfect Solution
+UninstallDisplayIcon={app}\shop_management_flutter.exe
+Compression=lzma2
+SolidCompression=yes
+OutputDir=.
+OutputBaseFilename=PerfectSolution-Setup
+ArchitecturesInstallIn64BitMode=x64
+MinVersion=10.0
 
-          [Run]
-          Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
-          "@
-          Set-Content -Path installer.iss -Value $issContent
+[Files]
+Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"
+Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+
+[Run]
+Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent
+"@
+          Set-Content -Path installer.iss -Value $issContent -Encoding UTF8
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Package macOS DMG

@@ -87,14 +87,6 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
-# Bundle MSVC C++ Runtime DLLs (vcruntime140.dll, vcruntime140_1.dll, msvcp140.dll)
-include(InstallRequiredSystemLibraries)
-if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
-  install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
-    DESTINATION "${CMAKE_INSTALL_PREFIX}"
-    COMPONENT Runtime)
-endif()
-
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}/native_assets/windows/")
 if(EXISTS "${NATIVE_ASSETS_DIR}")
