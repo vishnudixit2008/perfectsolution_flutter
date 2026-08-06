@@ -1223,8 +1223,12 @@ class _PurchaseFormDialog extends StatefulWidget {
   State<_PurchaseFormDialog> createState() => _PurchaseFormDialogState();
 }
 
+import '../../shared/date_time_picker_field.dart';
+
 class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
   final _formKey = GlobalKey<FormState>();
+
+  late DateTime _purchaseDate;
 
   late final TextEditingController _vendorController;
   late final TextEditingController _notesController;
@@ -1243,6 +1247,8 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
   void initState() {
     super.initState();
     final p = widget.existingPurchase;
+
+    _purchaseDate = p?.date ?? DateTime.now();
 
     _vendorController = TextEditingController(
       text: p?.purchasedFrom ?? widget.prefillVendor ?? '',
@@ -1356,11 +1362,10 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
 
     final viewModel = context.read<PurchasesViewModel>();
     final String id = widget.existingPurchase?.id ?? viewModel.getNextId();
-    final DateTime date = widget.existingPurchase?.date ?? DateTime.now();
 
     final order = PurchaseOrder(
       id: id,
-      date: date,
+      date: _purchaseDate,
       purchasedFrom: _vendorController.text.trim(),
       totalAmount: _calculatedTotal,
       status: _status,
@@ -1398,6 +1403,9 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final catalogItems = context.watch<PricelistViewModel>().items;
 
+    final bool isDateVis = UserPermissionService.isFieldVisible('purchases', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('purchases', 'date', isEdit: isEdit);
+
     final bool isPurchasedFromVis = UserPermissionService.isFieldVisible('purchases', 'purchasedFrom');
     final bool isPurchasedFromMod = UserPermissionService.canModifyField('purchases', 'purchasedFrom', isEdit: isEdit);
 
@@ -1412,6 +1420,16 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isDateVis) ...[
+            DateTimePickerField(
+              label: 'Purchase Date & Time',
+              selectedDateTime: _purchaseDate,
+              onDateTimeChanged: (dt) => setState(() => _purchaseDate = dt),
+              isVisible: isDateVis,
+              canEdit: isDateMod,
+            ),
+            const SizedBox(height: 12),
+          ],
           if (isPurchasedFromVis) ...[
             TextFormField(
               controller: _vendorController,

@@ -1281,9 +1281,12 @@ class _RequestFormDialog extends StatefulWidget {
   State<_RequestFormDialog> createState() => _RequestFormDialogState();
 }
 
+import '../../shared/date_time_picker_field.dart';
+
 class _RequestFormDialogState extends State<_RequestFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
+  late DateTime _requestDate;
   late final TextEditingController _nameController;
   late final TextEditingController _mobileController;
   late final TextEditingController _itemController;
@@ -1298,6 +1301,8 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
   void initState() {
     super.initState();
     final r = widget.existingRequest;
+
+    _requestDate = r?.date ?? DateTime.now();
 
     _nameController = TextEditingController(
       text: r?.customerName ?? widget.prefillName ?? '',
@@ -1350,11 +1355,10 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
 
     final viewModel = context.read<RequestsViewModel>();
     final String id = widget.existingRequest?.id ?? viewModel.getNextId();
-    final DateTime date = widget.existingRequest?.date ?? DateTime.now();
 
     final r = RequestOrder(
       id: id,
-      date: date,
+      date: _requestDate,
       customerName: _nameController.text.trim(),
       mobileNo: _mobileController.text.trim().isEmpty
           ? null
@@ -1394,6 +1398,9 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     final bool isEdit = widget.existingRequest != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
 
+    final bool isDateVis = UserPermissionService.isFieldVisible('requests', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('requests', 'date', isEdit: isEdit);
+
     final bool isNameVis = UserPermissionService.isFieldVisible('requests', 'customerName');
     final bool isNameMod = UserPermissionService.canModifyField('requests', 'customerName', isEdit: isEdit);
 
@@ -1420,6 +1427,16 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isDateVis) ...[
+            DateTimePickerField(
+              label: 'Pre-Order Date & Time',
+              selectedDateTime: _requestDate,
+              onDateTimeChanged: (dt) => setState(() => _requestDate = dt),
+              isVisible: isDateVis,
+              canEdit: isDateMod,
+            ),
+            const SizedBox(height: 12),
+          ],
           if (isNameVis) ...[
             TextFormField(
               controller: _nameController,

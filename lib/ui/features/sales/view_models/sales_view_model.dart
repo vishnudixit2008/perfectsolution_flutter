@@ -256,6 +256,13 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  DateTime get selectedSaleDate => _editingSaleDate ?? DateTime.now();
+
+  void setSelectedSaleDate(DateTime dt) {
+    _editingSaleDate = dt;
+    notifyListeners();
+  }
+
   void setEditingOrderStatus(String status) {
     _editingOrderStatus = status;
     notifyListeners();

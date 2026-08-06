@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/date_time_picker_field.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -1549,6 +1550,10 @@ class _SalesViewState extends State<SalesView> {
     SalesViewModel cartVM,
     RecentSalesViewModel recentVM,
   ) {
+    final bool isEdit = cartVM.isEditing;
+    final bool isDateVis = UserPermissionService.isFieldVisible('sales', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('sales', 'date', isEdit: isEdit);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AppTheme.glassCardDecoration(
@@ -1578,6 +1583,17 @@ class _SalesViewState extends State<SalesView> {
               ],
             ),
             const SizedBox(height: 20),
+
+            if (isDateVis) ...[
+              DateTimePickerField(
+                label: 'Invoice Date & Time',
+                selectedDateTime: cartVM.selectedSaleDate,
+                onDateTimeChanged: (dt) => cartVM.setSelectedSaleDate(dt),
+                isVisible: isDateVis,
+                canEdit: isDateMod,
+              ),
+              const SizedBox(height: 16),
+            ],
 
             const Text(
               'Customer Information',

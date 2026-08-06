@@ -1257,6 +1257,8 @@ class _ActionButton extends StatelessWidget {
 // ==========================================================
 // ADD/EDIT FORM DIALOG IMPLEMENTATION
 // ==========================================================
+import '../../shared/date_time_picker_field.dart';
+
 class _ReplacementFormDialog extends StatefulWidget {
   final Replacement? existingReplacement;
   final String? prefillName;
@@ -1281,7 +1283,8 @@ class _ReplacementFormDialog extends StatefulWidget {
 class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _nameController;
+  late DateTime _recordDate;
+  late TextEditingController _nameController;
   late final TextEditingController _mobileController;
   late final TextEditingController _itemController;
   late final TextEditingController _assignedToController;
@@ -1296,6 +1299,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     super.initState();
     final r = widget.existingReplacement;
 
+    _recordDate = r?.date ?? DateTime.now();
     _nameController = TextEditingController(
       text: r?.name ?? widget.prefillName ?? '',
     );
@@ -1332,11 +1336,10 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     final viewModel = context.read<ReplacementsViewModel>();
     final String jobNo =
         widget.existingReplacement?.jobNo ?? viewModel.getNextJobNo();
-    final DateTime date = widget.existingReplacement?.date ?? DateTime.now();
 
     final r = Replacement(
       jobNo: jobNo,
-      date: date,
+      date: _recordDate,
       name: _nameController.text.trim(),
       mobileNo: _mobileController.text.trim().isEmpty
           ? null
@@ -1409,6 +1412,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final viewModel = context.watch<ReplacementsViewModel>();
 
+    final bool isDateVis = UserPermissionService.isFieldVisible('replacements', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('replacements', 'date', isEdit: isEdit);
+
     final bool isNameVis = UserPermissionService.isFieldVisible('replacements', 'name');
     final bool isNameMod = UserPermissionService.canModifyField('replacements', 'name', isEdit: isEdit);
 
@@ -1446,6 +1452,16 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               ),
             ],
           ),
+          if (isDateVis) ...[
+            const SizedBox(height: 12),
+            DateTimePickerField(
+              label: 'Record Date & Time',
+              selectedDateTime: _recordDate,
+              onDateTimeChanged: (dt) => setState(() => _recordDate = dt),
+              isVisible: isDateVis,
+              canEdit: isDateMod,
+            ),
+          ],
           const SizedBox(height: 16),
 
           if (isNameVis) ...[

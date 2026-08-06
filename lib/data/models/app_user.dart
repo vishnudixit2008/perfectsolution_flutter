@@ -218,6 +218,7 @@ class AppUser {
       'itemDescription': 'Item Specifications',
     },
     'sales': {
+      'date': 'Invoice Date & Time',
       'customerName': 'Customer Name',
       'customerNumber': 'Mobile Number',
       'paymentMode': 'Payment Mode (Cash/UPI/Card)',

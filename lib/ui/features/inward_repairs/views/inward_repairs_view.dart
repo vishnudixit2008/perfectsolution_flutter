@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -1561,7 +1562,8 @@ class _InwardRepairFormDialog extends StatefulWidget {
 class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _nameController;
+  late DateTime _entryDate;
+  late TextEditingController _nameController;
   late final TextEditingController _mobileController;
   late final TextEditingController _devicesController;
   late final TextEditingController _queryController;
@@ -1601,6 +1603,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     super.initState();
     final r = widget.existingRepair;
 
+    _entryDate = r?.date ?? DateTime.now();
     _nameController = TextEditingController(
       text: r?.name ?? widget.prefillName ?? '',
     );
@@ -1724,7 +1727,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
     final repair = InwardRepair(
       jobNo: jobNo,
-      date: date,
+      date: _entryDate,
       name: _nameController.text.trim(),
       mobileNo: _mobileController.text.trim().isEmpty
           ? null
@@ -1796,6 +1799,9 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     final viewModel = context.watch<InwardRepairsViewModel>();
 
     // Field Access & Editability Checks
+    final bool isDateVis = UserPermissionService.isFieldVisible('inward', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('inward', 'date', isEdit: isEdit);
+
     final bool isNameVis = UserPermissionService.isFieldVisible('inward', 'name');
     final bool isNameMod = UserPermissionService.canModifyField('inward', 'name', isEdit: isEdit);
 
@@ -1840,6 +1846,16 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
               ),
             ],
           ),
+          if (isDateVis) ...[
+            const SizedBox(height: 12),
+            DateTimePickerField(
+              label: 'Job Date & Time',
+              selectedDateTime: _entryDate,
+              onDateTimeChanged: (dt) => setState(() => _entryDate = dt),
+              isVisible: isDateVis,
+              canEdit: isDateMod,
+            ),
+          ],
           const SizedBox(height: 16),
 
           if (isNameVis) ...[

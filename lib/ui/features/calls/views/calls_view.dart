@@ -1650,6 +1650,8 @@ class _CallsViewState extends State<CallsView> {
 // ==========================================================
 // FORM DIALOG IMPLEMENTATION
 // ==========================================================
+import '../../shared/date_time_picker_field.dart';
+
 class _CallFormDialog extends StatefulWidget {
   final CallModel? existingCall;
   final String? prefillName;
@@ -1677,7 +1679,8 @@ class _CallFormDialog extends StatefulWidget {
 
 class _CallFormDialogState extends State<_CallFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
+  late DateTime _callDate;
+  late final TextEditingController _nameController;
   late TextEditingController _mobileController;
   late TextEditingController _addressController;
   late TextEditingController _queryController;
@@ -1706,6 +1709,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
   void initState() {
     super.initState();
     final call = widget.existingCall;
+    _callDate = call?.date ?? DateTime.now();
     _nameController = TextEditingController(
       text: call?.name ?? widget.prefillName ?? '',
     );
@@ -1752,6 +1756,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     final bool isEdit = widget.existingCall != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
 
+    final bool isDateVis = UserPermissionService.isFieldVisible('calls', 'date');
+    final bool isDateMod = UserPermissionService.canModifyField('calls', 'date', isEdit: isEdit);
+
     final bool isNameVis = UserPermissionService.isFieldVisible('calls', 'name');
     final bool isNameMod = UserPermissionService.canModifyField('calls', 'name', isEdit: isEdit);
 
@@ -1782,6 +1789,16 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (isDateVis) ...[
+            DateTimePickerField(
+              label: 'Call Date & Time',
+              selectedDateTime: _callDate,
+              onDateTimeChanged: (dt) => setState(() => _callDate = dt),
+              isVisible: isDateVis,
+              canEdit: isDateMod,
+            ),
+            const SizedBox(height: 12),
+          ],
           if (isNameVis) ...[
             TextFormField(
               controller: _nameController,
@@ -2031,11 +2048,10 @@ class _CallFormDialogState extends State<_CallFormDialog> {
       final viewModel = context.read<CallsViewModel>();
 
       final int callId = widget.existingCall?.id ?? viewModel.getNextCallId();
-      final DateTime callDate = widget.existingCall?.date ?? DateTime.now();
 
       final newCall = CallModel(
         id: callId,
-        date: callDate,
+        date: _callDate,
         name: _nameController.text.trim(),
         mobileNo: _mobileController.text.trim().isNotEmpty
             ? _mobileController.text.trim()
