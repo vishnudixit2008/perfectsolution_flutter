@@ -875,28 +875,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
     super.dispose();
   }
 
-  Widget _buildSizePresetButton(String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.primaryLight,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -984,43 +963,10 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                               ),
                             ],
                           ),
-                          Row(
-                            children: [
-                              const Text(
-                                'Size:',
-                                style: TextStyle(
-                                  color: AppTheme.textMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              _buildSizePresetButton('Compact', () {
-                                setState(() {
-                                  _customWidth = 760;
-                                  _customHeight = 600;
-                                });
-                              }),
-                              const SizedBox(width: 4),
-                              _buildSizePresetButton('Default', () {
-                                setState(() {
-                                  _customWidth = 960;
-                                  _customHeight = 780;
-                                });
-                              }),
-                              const SizedBox(width: 4),
-                              _buildSizePresetButton('Wide', () {
-                                setState(() {
-                                  _customWidth = screenSize.width * 0.94;
-                                  _customHeight = screenSize.height * 0.90;
-                                });
-                              }),
-                              const SizedBox(width: 12),
-                              IconButton(
-                                icon: const Icon(Icons.close_rounded,
-                                    color: AppTheme.textMuted),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                color: AppTheme.textMuted),
+                            onPressed: () => Navigator.pop(context),
                           ),
                         ],
                       ),
