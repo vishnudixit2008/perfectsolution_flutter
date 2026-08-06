@@ -527,9 +527,25 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
                   // Password field
                   TextFormField(
                     controller: passwordController,
-                    obscureText: true,
+                    obscureText: obscurePassword,
                     style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: _inputDec('Password *'),
+                    decoration: _inputDec(
+                      'Password *',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_off_rounded
+                              : Icons.visibility_rounded,
+                          color: AppTheme.primaryLight,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => obscurePassword = !obscurePassword),
+                        tooltip: obscurePassword
+                            ? 'Show Password'
+                            : 'Hide Password',
+                      ),
+                    ),
                     validator: (val) {
                       if (widget.existingUser == null &&
                           (val == null || val.trim().isEmpty)) {
@@ -844,6 +860,9 @@ class _UserPermissionsDialog extends StatefulWidget {
 
 class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
     with _UserPermissionsLogic<_UserPermissionsDialog> {
+  double? _customWidth;
+  double? _customHeight;
+
   @override
   void initState() {
     super.initState();
@@ -856,74 +875,156 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
     super.dispose();
   }
 
+  Widget _buildSizePresetButton(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.primaryLight,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenSize = MediaQuery.of(context).size;
+    final defaultWidth = (screenSize.width * 0.90).clamp(800.0, 1400.0);
+    final defaultHeight = (screenSize.height * 0.86).clamp(550.0, 950.0);
+
+    final double width =
+        (_customWidth ?? defaultWidth).clamp(650.0, screenSize.width * 0.98);
+    final double height =
+        (_customHeight ?? defaultHeight).clamp(450.0, screenSize.height * 0.98);
 
     return Dialog(
-      backgroundColor: const Color(0xFF131A2E),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: screenWidth * 0.92,
-        constraints: const BoxConstraints(maxWidth: 850, maxHeight: 800),
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(12),
+      child: Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Title & Close Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+              Container(
+                width: width,
+                height: height,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131A2E),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.admin_panel_settings_rounded,
-                          color: AppTheme.primaryLight,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Title & Action Controls
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            widget.existingUser != null
-                                ? 'Configure User Permissions & Column Access'
-                                : 'Add New Employee User',
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primary.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.admin_panel_settings_rounded,
+                                  color: AppTheme.primaryLight,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.existingUser != null
+                                        ? 'Configure User Permissions & Column Access'
+                                        : 'Add New Employee User',
+                                    style: const TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Control page actions & column visibility/editability per user',
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const Text(
-                            'Control page actions & column visibility/editability per user',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 12,
-                            ),
+                          Row(
+                            children: [
+                              const Text(
+                                'Size:',
+                                style: TextStyle(
+                                  color: AppTheme.textMuted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildSizePresetButton('Compact', () {
+                                setState(() {
+                                  _customWidth = 760;
+                                  _customHeight = 600;
+                                });
+                              }),
+                              const SizedBox(width: 4),
+                              _buildSizePresetButton('Default', () {
+                                setState(() {
+                                  _customWidth = 960;
+                                  _customHeight = 780;
+                                });
+                              }),
+                              const SizedBox(width: 4),
+                              _buildSizePresetButton('Wide', () {
+                                setState(() {
+                                  _customWidth = screenSize.width * 0.94;
+                                  _customHeight = screenSize.height * 0.90;
+                                });
+                              }),
+                              const SizedBox(width: 12),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded,
+                                    color: AppTheme.textMuted),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: AppTheme.textMuted),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
               // Basic Info Fields (Name, Email, Role) — 4-col row for desktop
               Row(
@@ -963,12 +1064,26 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                   Expanded(
                     child: TextFormField(
                       controller: passwordController,
-                      obscureText: true,
+                      obscureText: obscurePassword,
                       style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'User Password (Secret Key) *',
                         hintText: 'Enter login password',
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: AppTheme.primaryLight,
+                            size: 18,
+                          ),
+                          onPressed: () =>
+                              setState(() => obscurePassword = !obscurePassword),
+                          tooltip: obscurePassword
+                              ? 'Show Password'
+                              : 'Hide Password',
+                        ),
                       ),
                       validator: (val) {
                         if (widget.existingUser == null &&
@@ -1260,7 +1375,85 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
           ),
         ),
       ),
-    );
+
+      // Bottom-right corner drag handle
+      Positioned(
+        right: 0,
+        bottom: 0,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.resizeDownRight,
+          child: GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                _customWidth = (width + details.delta.dx)
+                    .clamp(650.0, screenSize.width * 0.98);
+                _customHeight = (height + details.delta.dy)
+                    .clamp(450.0, screenSize.height * 0.98);
+              });
+            },
+            child: Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.25),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: const Icon(
+                Icons.drag_handle_rounded,
+                size: 14,
+                color: AppTheme.primaryLight,
+              ),
+            ),
+          ),
+        ),
+      ),
+
+      // Right edge resize handle
+      Positioned(
+        right: 0,
+        top: 50,
+        bottom: 24,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.resizeRight,
+          child: GestureDetector(
+            onHorizontalDragUpdate: (details) {
+              setState(() {
+                _customWidth = (width + details.delta.dx)
+                    .clamp(650.0, screenSize.width * 0.98);
+              });
+            },
+            child: Container(width: 6, color: Colors.transparent),
+          ),
+        ),
+      ),
+
+      // Bottom edge resize handle
+      Positioned(
+        bottom: 0,
+        left: 50,
+        right: 24,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.resizeDown,
+          child: GestureDetector(
+            onVerticalDragUpdate: (details) {
+              setState(() {
+                _customHeight = (height + details.delta.dy)
+                    .clamp(450.0, screenSize.height * 0.98);
+              });
+            },
+            child: Container(height: 6, color: Colors.transparent),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+),
+);
   }
 }
 
@@ -1273,6 +1466,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
   late TextEditingController nameController;
   late TextEditingController emailController;
   late TextEditingController passwordController;
+  bool obscurePassword = true;
   late String role;
   late bool isActive;
   late Map<String, bool> pageAccess;
@@ -2031,10 +2225,11 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-InputDecoration _inputDec(String label) {
+InputDecoration _inputDec(String label, {Widget? suffixIcon}) {
   return InputDecoration(
     labelText: label,
     labelStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+    suffixIcon: suffixIcon,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
       borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
