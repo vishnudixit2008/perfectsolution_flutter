@@ -63,8 +63,11 @@ class _SettingsViewState extends State<SettingsView> {
               const AppPageHeader(
                 title: 'Settings',
                 subtitle:
-                    'Invoice layout, margins, UPI payments & app preferences',
+                    'User preferences, look & feel, invoice layout & app details',
               ),
+
+              _buildUserProfileAndLogoutCard(context),
+              const SizedBox(height: 20),
 
               // Responsive Cards Layout
               isDesktop
@@ -84,8 +87,6 @@ class _SettingsViewState extends State<SettingsView> {
                     )
                   : Column(
                       children: [
-                        _buildMobileUserLogoutCard(context),
-                        const SizedBox(height: 20),
                         _buildUpiCard(context, viewModel),
                         const SizedBox(height: 20),
                         _buildLayoutAndPrinterCard(context, viewModel),
@@ -122,154 +123,260 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Mobile User / Logout Card (unchanged)
+  // My Account, Logout & Device Preferences Card
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _buildMobileUserLogoutCard(BuildContext context) {
+  Widget _buildUserProfileAndLogoutCard(BuildContext context) {
     return Consumer<AuthViewModel>(
       builder: (context, authViewModel, _) {
         final user = UserPermissionService.getCurrentUser();
         final isPureAdmin = AppUser.isPermanentAdmin(user.email);
 
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: AppTheme.glassCardDecoration(
             color: Colors.white.withValues(alpha: 0.03),
-            borderRadius: 12,
+            borderRadius: 14,
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: user.isAdmin
-                    ? AppTheme.primary.withValues(alpha: 0.2)
-                    : Colors.white10,
-                child: Icon(
-                  user.isAdmin
-                      ? Icons.admin_panel_settings_rounded
-                      : Icons.person_rounded,
-                  color: user.isAdmin ? AppTheme.primaryLight : AppTheme.textMuted,
-                  size: 20,
-                ),
+              const Row(
+                children: [
+                  Icon(
+                    Icons.tune_rounded,
+                    color: AppTheme.primaryLight,
+                    size: 22,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'My Account & Device Settings',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      user.name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: user.isAdmin
+                        ? AppTheme.primary.withValues(alpha: 0.2)
+                        : Colors.white10,
+                    child: Icon(
+                      user.isAdmin
+                          ? Icons.admin_panel_settings_rounded
+                          : Icons.person_rounded,
+                      color: user.isAdmin ? AppTheme.primaryLight : AppTheme.textMuted,
+                      size: 22,
                     ),
-                    Text(
-                      user.email,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textMuted,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (isPureAdmin
-                                ? AppTheme.primaryLight
-                                : (user.isAdmin ? AppTheme.success : AppTheme.warning))
-                            .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isPureAdmin ? 'Permanent Admin' : user.role.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: isPureAdmin
-                              ? AppTheme.primaryLight
-                              : (user.isAdmin ? AppTheme.success : AppTheme.warning),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: const Color(0xFF161A26),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      title: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.danger.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.logout_rounded,
-                                color: AppTheme.danger, size: 20),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.name,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
                           ),
-                          const SizedBox(width: 12),
-                          const Text('Logout Confirmation',
-                              style: TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      content: const Text(
-                        'Are you sure you want to log out of your session?',
-                        style: TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 13),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: const Text('Cancel',
-                              style: TextStyle(color: AppTheme.textMuted)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(ctx).pop();
-                            authViewModel.logout();
-                          },
-                          icon: const Icon(Icons.logout_rounded, size: 16),
-                          label: const Text('Logout'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.danger,
-                            foregroundColor: Colors.white,
+                        Text(
+                          user.email,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textMuted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (isPureAdmin
+                                    ? AppTheme.primaryLight
+                                    : (user.isAdmin ? AppTheme.success : AppTheme.warning))
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isPureAdmin ? 'Permanent Admin' : user.role.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: isPureAdmin
+                                  ? AppTheme.primaryLight
+                                  : (user.isAdmin ? AppTheme.success : AppTheme.warning),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  );
-                },
-                icon: const Icon(Icons.logout_rounded, size: 16),
-                label: const Text('Logout'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.danger.withValues(alpha: 0.2),
-                  foregroundColor: AppTheme.danger,
-                  elevation: 0,
-                  side: const BorderSide(color: AppTheme.danger, width: 1),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _showLogoutConfirmationDialog(context),
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.danger,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: Colors.white10),
+              const SizedBox(height: 12),
+              
+              // Device Look & Feel Controls
+              const Text(
+                'Look & Feel / Device Preferences',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131826),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.palette_outlined,
+                      color: AppTheme.primaryLight,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'App Theme',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Dark Glassmorphic Theme Active',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.dark_mode_rounded, size: 14, color: AppTheme.primaryLight),
+                          SizedBox(width: 6),
+                          Text(
+                            'Dark Mode',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161A26),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.danger.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: AppTheme.danger,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Logout Confirmation',
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to log out of your session?',
+          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.read<AuthViewModel>().logout();
+            },
+            icon: const Icon(Icons.logout_rounded, size: 16),
+            label: const Text('Logout'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.danger,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

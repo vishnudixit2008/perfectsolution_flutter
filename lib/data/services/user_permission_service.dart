@@ -346,6 +346,7 @@ class UserPermissionService {
     final user = getCurrentUser();
     if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
+    if (moduleKey == 'settings') return true;
     return user.pageAccess[moduleKey] ?? false;
   }
 
