@@ -105,7 +105,7 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Version 1.0.8 (Build 20)',
+                      'Version 1.0.8 (Build 21)',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.textMuted,

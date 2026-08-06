@@ -72,9 +72,14 @@ class UpdateCheckService {
         final releaseNotes = (res['release_notes'] ?? '').toString();
         final isMandatoryDb = res['is_mandatory'] == true;
 
-        final bool hasNewerVersion = _compareVersions(currentVer, latestVer) < 0;
+        final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
+        final latestBuild = int.tryParse(res['latest_build_number']?.toString() ?? '') ?? 0;
+
+        final bool versionIsOlder = _compareVersions(currentVer, latestVer) < 0;
+        final bool buildIsOlder = _compareVersions(currentVer, latestVer) == 0 && currentBuild < latestBuild;
+        final bool hasNewerVersion = versionIsOlder || buildIsOlder;
         final bool isBelowMinVersion = _compareVersions(currentVer, minVer) < 0;
-        final bool isMandatory = isMandatoryDb || isBelowMinVersion;
+        final bool isMandatory = isMandatoryDb || isBelowMinVersion || buildIsOlder;
 
         return AppVersionStatus(
           currentVersion: currentVer,
