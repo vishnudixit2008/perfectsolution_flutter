@@ -96,10 +96,6 @@ class AppTheme {
         error: danger,
       ),
 
-      // Fonts & Fallbacks
-      fontFamily: 'Inter',
-      fontFamilyFallback: const ['Segoe UI', 'Roboto', 'Arial', 'MaterialIcons'],
-
       // Explicit Icon Themes for Windows & cross-platform consistency
       iconTheme: const IconThemeData(
         color: textPrimary,
@@ -108,38 +104,42 @@ class AppTheme {
         color: textPrimary,
       ),
 
-
-
-      // Text styling
+      // Text styling with Inter font applied to text elements only
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: textPrimary,
         ),
         headlineMedium: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 22,
           fontWeight: FontWeight.bold,
           color: textPrimary,
         ),
         titleLarge: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
         titleMedium: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-        bodyLarge: TextStyle(fontSize: 15, color: textPrimary),
-        bodyMedium: TextStyle(fontSize: 14, color: textSecondary),
+        bodyLarge: TextStyle(fontFamily: 'Inter', fontSize: 15, color: textPrimary),
+        bodyMedium: TextStyle(fontFamily: 'Inter', fontSize: 14, color: textSecondary),
         labelLarge: TextStyle(
+          fontFamily: 'Inter',
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
       ),
+
 
       // Card Theme
       cardTheme: CardThemeData(
