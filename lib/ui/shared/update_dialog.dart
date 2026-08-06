@@ -22,8 +22,23 @@ class UpdateDialog extends StatelessWidget {
   Future<void> _launchDownloadUrl(BuildContext context) async {
     if (status.downloadUrl.isNotEmpty) {
       final uri = Uri.parse(status.downloadUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      try {
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched) {
+          await launchUrl(uri);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open browser: $e'),
+              backgroundColor: AppTheme.danger,
+            ),
+          );
+        }
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
