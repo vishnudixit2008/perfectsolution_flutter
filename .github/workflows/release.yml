@@ -79,34 +79,35 @@ jobs:
         if: matrix.target == 'windows'
         shell: powershell
         run: |
-          $releaseDir = "build\windows\x64\runner\Release"
-          $dataDir    = "$releaseDir\data"
+          $releaseDir = 'build\windows\x64\runner\Release'
+          $dataDir = "$releaseDir\data"
 
           Write-Host "=== Release folder contents ==="
-          Get-ChildItem -Recurse $releaseDir | Select-Object FullName | Format-Table -AutoSize
-
-          # flutter_assets MUST be inside data\ for the app to find icons/logos/fonts
-          # CMake install guard may have skipped it — copy it explicitly here
-          $flutterAssetsSrc = "build\windows\x64\flutter_assets"
-          $flutterAssetsDst = "$dataDir\flutter_assets"
-          if ((Test-Path $flutterAssetsSrc) -and -not (Test-Path $flutterAssetsDst)) {
-            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-            Copy-Item -Recurse -Force $flutterAssetsSrc $flutterAssetsDst
-            Write-Host "Copied flutter_assets -> $flutterAssetsDst"
-          } elseif (Test-Path $flutterAssetsDst) {
-            Write-Host "OK: flutter_assets already present at $flutterAssetsDst"
-          } else {
-            Write-Warning "flutter_assets not found at $flutterAssetsSrc — icons/logos may be missing"
+          if (Test-Path $releaseDir) {
+            Get-ChildItem -Recurse $releaseDir | Select-Object -ExpandProperty FullName
           }
 
-          # Also ensure app.so (AOT library) is in data\
-          $aotSrc = "build\windows\x64\runner\Release\data\app.so"
-          if (-not (Test-Path $aotSrc)) {
-            $aotAlt = "build\windows\x64\app.so"
-            if (Test-Path $aotAlt) {
-              Copy-Item $aotAlt "$dataDir\app.so" -Force
-              Write-Host "Copied app.so to data\"
-            }
+          # flutter_assets must be inside data\ for the app to find icons/logos/fonts
+          $flutterAssetsSrc = 'build\windows\x64\flutter_assets'
+          $flutterAssetsDst = "$dataDir\flutter_assets"
+
+          if ((Test-Path $flutterAssetsSrc) -and (-not (Test-Path $flutterAssetsDst))) {
+            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+            Copy-Item -Recurse -Force $flutterAssetsSrc $flutterAssetsDst
+            Write-Host "Copied flutter_assets to data folder"
+          } elseif (Test-Path $flutterAssetsDst) {
+            Write-Host "OK: flutter_assets already present"
+          } else {
+            Write-Host "WARNING: flutter_assets not found - icons and logos may be missing"
+          }
+
+          # Ensure app.so (AOT library) is in data\
+          $aotDst = "$dataDir\app.so"
+          $aotAlt = 'build\windows\x64\app.so'
+          if ((-not (Test-Path $aotDst)) -and (Test-Path $aotAlt)) {
+            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+            Copy-Item $aotAlt $aotDst -Force
+            Write-Host "Copied app.so to data folder"
           }
 
       - name: Download VC++ Redistributable Installer
