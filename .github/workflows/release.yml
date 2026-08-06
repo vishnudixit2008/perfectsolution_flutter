@@ -75,42 +75,53 @@ jobs:
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
 
-      - name: Copy VCRUNTIME DLLs into Release folder
+      - name: Verify and Fix Release Folder Contents
         if: matrix.target == 'windows'
         shell: powershell
         run: |
-          # Find VC++ runtime DLLs from Visual Studio installation and copy them
-          # alongside the app so they are bundled in the installer
           $releaseDir = "build\windows\x64\runner\Release"
-          $vsDirs = @(
-            "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC",
-            "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC",
-            "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Redist\MSVC"
-          )
-          $dlls = @("vcruntime140.dll","vcruntime140_1.dll","msvcp140.dll","msvcp140_1.dll","msvcp140_2.dll")
-          foreach ($vsDir in $vsDirs) {
-            if (Test-Path $vsDir) {
-              $x64Dirs = Get-ChildItem -Path $vsDir -Recurse -Filter "x64" -Directory | Where-Object { $_.FullName -like "*CRT*" }
-              foreach ($dir in $x64Dirs) {
-                foreach ($dll in $dlls) {
-                  $src = Join-Path $dir.FullName $dll
-                  $dst = Join-Path $releaseDir $dll
-                  if ((Test-Path $src) -and -not (Test-Path $dst)) {
-                    Copy-Item $src $dst -Force
-                    Write-Host "Copied $dll from $($dir.FullName)"
-                  }
-                }
-              }
-              break
+          $dataDir    = "$releaseDir\data"
+
+          Write-Host "=== Release folder contents ==="
+          Get-ChildItem -Recurse $releaseDir | Select-Object FullName | Format-Table -AutoSize
+
+          # flutter_assets MUST be inside data\ for the app to find icons/logos/fonts
+          # CMake install guard may have skipped it — copy it explicitly here
+          $flutterAssetsSrc = "build\windows\x64\flutter_assets"
+          $flutterAssetsDst = "$dataDir\flutter_assets"
+          if ((Test-Path $flutterAssetsSrc) -and -not (Test-Path $flutterAssetsDst)) {
+            New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+            Copy-Item -Recurse -Force $flutterAssetsSrc $flutterAssetsDst
+            Write-Host "Copied flutter_assets -> $flutterAssetsDst"
+          } elseif (Test-Path $flutterAssetsDst) {
+            Write-Host "OK: flutter_assets already present at $flutterAssetsDst"
+          } else {
+            Write-Warning "flutter_assets not found at $flutterAssetsSrc — icons/logos may be missing"
+          }
+
+          # Also ensure app.so (AOT library) is in data\
+          $aotSrc = "build\windows\x64\runner\Release\data\app.so"
+          if (-not (Test-Path $aotSrc)) {
+            $aotAlt = "build\windows\x64\app.so"
+            if (Test-Path $aotAlt) {
+              Copy-Item $aotAlt "$dataDir\app.so" -Force
+              Write-Host "Copied app.so to data\"
             }
           }
-          # Verify critical DLLs exist
-          foreach ($dll in @("vcruntime140.dll","vcruntime140_1.dll","msvcp140.dll")) {
-            if (Test-Path (Join-Path $releaseDir $dll)) {
-              Write-Host "OK: $dll present in release folder"
-            } else {
-              Write-Warning "MISSING: $dll not found - app may fail on machines without VC++ runtime"
-            }
+
+      - name: Download VC++ Redistributable Installer
+        if: matrix.target == 'windows'
+        shell: powershell
+        run: |
+          # Download official Microsoft VC++ 2015-2022 x64 Redistributable
+          $url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          $out = "vc_redist.x64.exe"
+          Write-Host "Downloading VC++ Redistributable from $url ..."
+          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
+          if (Test-Path $out) {
+            Write-Host "Downloaded: $((Get-Item $out).Length) bytes"
+          } else {
+            throw "Failed to download VC++ Redistributable"
           }
 
       - name: Package Windows Installer
@@ -118,33 +129,80 @@ jobs:
         shell: powershell
         run: |
           choco install innosetup --yes --no-progress
+
+          # Write installer.iss line by line (heredoc breaks YAML indentation rules)
           $iss = "installer.iss"
-          Set-Content -Path $iss -Value "[Setup]" -Encoding UTF8
-          Add-Content -Path $iss -Value "AppName=Perfect Solution"
-          Add-Content -Path $iss -Value "AppVersion=1.0.7"
-          Add-Content -Path $iss -Value "AppPublisher=Perfect Solution"
-          Add-Content -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
-          Add-Content -Path $iss -Value "DefaultGroupName=Perfect Solution"
-          Add-Content -Path $iss -Value 'UninstallDisplayIcon={app}\shop_management_flutter.exe'
-          Add-Content -Path $iss -Value "Compression=lzma2"
-          Add-Content -Path $iss -Value "SolidCompression=yes"
-          Add-Content -Path $iss -Value "OutputDir=."
-          Add-Content -Path $iss -Value "OutputBaseFilename=PerfectSolution-Setup"
-          Add-Content -Path $iss -Value "ArchitecturesInstallIn64BitMode=x64"
-          Add-Content -Path $iss -Value "MinVersion=10.0"
-          Add-Content -Path $iss -Value ""
-          Add-Content -Path $iss -Value "[Files]"
-          Add-Content -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
-          Add-Content -Path $iss -Value ""
-          Add-Content -Path $iss -Value "[Icons]"
-          Add-Content -Path $iss -Value 'Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"'
-          Add-Content -Path $iss -Value 'Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon'
-          Add-Content -Path $iss -Value ""
-          Add-Content -Path $iss -Value "[Tasks]"
-          Add-Content -Path $iss -Value 'Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"'
-          Add-Content -Path $iss -Value ""
-          Add-Content -Path $iss -Value "[Run]"
-          Add-Content -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
+
+          # [Setup]
+          Set-Content  -Path $iss -Encoding UTF8 -Value "[Setup]"
+          Add-Content  -Path $iss -Value "AppName=Perfect Solution"
+          Add-Content  -Path $iss -Value "AppVersion=1.0.7"
+          Add-Content  -Path $iss -Value "AppPublisher=Perfect Solution"
+          Add-Content  -Path $iss -Value "AppPublisherURL=https://github.com/vishnudixit2008/perfectsolution_flutter"
+          Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
+          Add-Content  -Path $iss -Value "DefaultGroupName=Perfect Solution"
+          Add-Content  -Path $iss -Value 'UninstallDisplayIcon={app}\shop_management_flutter.exe'
+          Add-Content  -Path $iss -Value "Compression=lzma2"
+          Add-Content  -Path $iss -Value "SolidCompression=yes"
+          Add-Content  -Path $iss -Value "OutputDir=."
+          Add-Content  -Path $iss -Value "OutputBaseFilename=PerfectSolution-Setup"
+          Add-Content  -Path $iss -Value "ArchitecturesInstallIn64BitMode=x64"
+          Add-Content  -Path $iss -Value "MinVersion=10.0"
+          Add-Content  -Path $iss -Value "PrivilegesRequired=admin"
+          Add-Content  -Path $iss -Value ""
+
+          # [Files] - app files + VC++ Redist bundled inside installer
+          Add-Content  -Path $iss -Value "[Files]"
+          Add-Content  -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
+          Add-Content  -Path $iss -Value 'Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall'
+          Add-Content  -Path $iss -Value ""
+
+          # [Icons]
+          Add-Content  -Path $iss -Value "[Icons]"
+          Add-Content  -Path $iss -Value 'Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"'
+          Add-Content  -Path $iss -Value 'Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon'
+          Add-Content  -Path $iss -Value ""
+
+          # [Tasks]
+          Add-Content  -Path $iss -Value "[Tasks]"
+          Add-Content  -Path $iss -Value 'Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"'
+          Add-Content  -Path $iss -Value ""
+
+          # [Run] - launch app after install
+          Add-Content  -Path $iss -Value "[Run]"
+          Add-Content  -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
+          Add-Content  -Path $iss -Value ""
+
+          # [Code] - check prerequisites (VC++ Runtime) before installing app
+          Add-Content  -Path $iss -Value "[Code]"
+          Add-Content  -Path $iss -Value "function VCRedistX64Installed: Boolean;"
+          Add-Content  -Path $iss -Value "var"
+          Add-Content  -Path $iss -Value "  Installed: Cardinal;"
+          Add-Content  -Path $iss -Value "begin"
+          Add-Content  -Path $iss -Value "  // Check HKLM for VC++ 2015-2022 x64 runtime installed flag"
+          Add-Content  -Path $iss -Value "  Result := RegQueryDWordValue(HKLM,"
+          Add-Content  -Path $iss -Value "    'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',"
+          Add-Content  -Path $iss -Value "    'Installed', Installed) and (Installed = 1);"
+          Add-Content  -Path $iss -Value "end;"
+          Add-Content  -Path $iss -Value ""
+          Add-Content  -Path $iss -Value "function PrepareToInstall(var NeedsRestart: Boolean): String;"
+          Add-Content  -Path $iss -Value "var"
+          Add-Content  -Path $iss -Value "  ResultCode: Integer;"
+          Add-Content  -Path $iss -Value "begin"
+          Add-Content  -Path $iss -Value "  Result := '';"
+          Add-Content  -Path $iss -Value "  if not VCRedistX64Installed then begin"
+          Add-Content  -Path $iss -Value "    WizardForm.StatusLabel.Caption := 'Installing Microsoft Visual C++ Runtime...';"
+          Add-Content  -Path $iss -Value "    if not Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'),"
+          Add-Content  -Path $iss -Value "      '/install /quiet /norestart', '',"
+          Add-Content  -Path $iss -Value "      SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin"
+          Add-Content  -Path $iss -Value "      Result := 'Failed to install Microsoft Visual C++ Runtime (code: ' + IntToStr(ResultCode) + '). Please install VC++ Redistributable 2015-2022 x64 manually, then retry.';"
+          Add-Content  -Path $iss -Value "    end;"
+          Add-Content  -Path $iss -Value "  end;"
+          Add-Content  -Path $iss -Value "end;"
+
+          Write-Host "=== Generated installer.iss ==="
+          Get-Content $iss
+
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - name: Package macOS DMG
