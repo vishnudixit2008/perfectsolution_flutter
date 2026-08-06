@@ -533,7 +533,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
             padding: EdgeInsets.only(bottom: 12.0, top: 4.0),
             child: Center(
               child: Text(
-                'v1.0.7 (b19)',
+                'v1.0.8 (b20)',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

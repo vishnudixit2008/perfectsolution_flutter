@@ -96,8 +96,19 @@ class AppTheme {
         error: danger,
       ),
 
-      // Fonts
+      // Fonts & Fallbacks
       fontFamily: 'Inter',
+      fontFamilyFallback: const ['Segoe UI', 'Roboto', 'Arial', 'MaterialIcons'],
+
+      // Explicit Icon Themes for Windows & cross-platform consistency
+      iconTheme: const IconThemeData(
+        color: textPrimary,
+      ),
+      primaryIconTheme: const IconThemeData(
+        color: textPrimary,
+      ),
+
+
 
       // Text styling
       textTheme: const TextTheme(

@@ -20,15 +20,16 @@ jobs:
         include:
           - target: android
             os: ubuntu-latest
-            build_cmd: flutter build apk --release
+            build_cmd: flutter build apk --release --no-tree-shake-icons
             artifact_path: build/app/outputs/flutter-apk/app-release.apk
             asset_name: ShopManagement-Android.apk
 
           - target: windows
             os: windows-latest
-            build_cmd: flutter build windows --release
+            build_cmd: flutter build windows --release --no-tree-shake-icons
             artifact_path: build/windows/x64/runner/Release/
             asset_name: PerfectSolution-Setup.exe
+
 
           - target: macos
             os: macos-latest
@@ -179,7 +180,7 @@ jobs:
           # [Setup]
           Set-Content  -Path $iss -Encoding UTF8 -Value "[Setup]"
           Add-Content  -Path $iss -Value "AppName=Perfect Solution"
-          Add-Content  -Path $iss -Value "AppVersion=1.0.7"
+          Add-Content  -Path $iss -Value "AppVersion=1.0.8"
           Add-Content  -Path $iss -Value "AppPublisher=Perfect Solution"
           Add-Content  -Path $iss -Value "AppPublisherURL=https://github.com/vishnudixit2008/perfectsolution_flutter"
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'

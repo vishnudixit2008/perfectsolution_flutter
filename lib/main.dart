@@ -13,7 +13,9 @@ import 'data/services/ui_preferences_service.dart';
 import 'data/services/user_permission_service.dart';
 import 'ui/shared/status_management_dialog.dart';
 import 'ui/core/app_theme.dart';
+import 'ui/core/icon_registry.dart';
 import 'ui/features/pricelist/view_models/pricelist_view_model.dart';
+
 import 'ui/features/settings/view_models/settings_view_model.dart';
 import 'ui/features/sales/view_models/sales_view_model.dart';
 import 'ui/features/dashboard/view_models/recent_sales_view_model.dart';
@@ -29,6 +31,8 @@ import 'ui/navigation/navigation_view_model.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) print('IconRegistry loaded: ${IconRegistry.icons.length}');
+
 
   // Register Windows URL Scheme Protocol under HKCU (No Admin elevation required)
   await _registerWindowsProtocolHandler();

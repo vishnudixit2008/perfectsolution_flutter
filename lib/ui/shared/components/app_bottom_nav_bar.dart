@@ -297,7 +297,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
                       ),
                     ),
                     child: const Text(
-                      'v1.0.7',
+                      'v1.0.8',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
