@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:hive_flutter/hive_flutter.dart';
@@ -11,6 +12,7 @@ import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
+import 'supabase_sync_service.dart';
 
 class LocalDatabaseService {
   static const String _pricelistBoxName = 'pricelist_box';
@@ -305,8 +307,19 @@ class LocalDatabaseService {
     return _settingsBox.get('active_upi_id');
   }
 
-  Future<void> setActiveUpiId(String upiId) async {
+  Future<void> setActiveUpiId(String upiId, {bool syncToCloud = true}) async {
     await _settingsBox.put('active_upi_id', upiId);
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'active_upi_id',
+          'value': upiId,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
+    }
   }
 
   List<String> getUpiIdsList() {
@@ -319,8 +332,42 @@ class LocalDatabaseService {
     return List<String>.from(list);
   }
 
-  Future<void> saveUpiIdsList(List<String> upiIds) async {
+  Future<void> saveUpiIdsList(List<String> upiIds, {bool syncToCloud = true}) async {
     await _settingsBox.put('upi_ids_list', upiIds);
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'upi_ids_list',
+          'value': upiIds,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
+    }
+  }
+
+  Map<String, String> getUpiNamesMap() {
+    final dynamic raw = _settingsBox.get('upi_names_map');
+    if (raw is Map) {
+      return Map<String, String>.from(raw);
+    }
+    return {};
+  }
+
+  Future<void> saveUpiNamesMap(Map<String, String> names, {bool syncToCloud = true}) async {
+    await _settingsBox.put('upi_names_map', names);
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'upi_names_map',
+          'value': names,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
+    }
   }
 
   List<String> getCustomServiceNames() {
@@ -440,12 +487,18 @@ class LocalDatabaseService {
 
   int getNextInvoiceNo() {
     if (_salesBox.isEmpty) {
-      return 1001;
+      return 1;
     }
-    int maxInvoiceNo = 1000;
+    int maxInvoiceNo = 0;
     for (var key in _salesBox.keys) {
-      if (key is int && key > maxInvoiceNo) {
-        maxInvoiceNo = key;
+      int? k;
+      if (key is int) {
+        k = key;
+      } else if (key != null) {
+        k = int.tryParse(key.toString());
+      }
+      if (k != null && k > maxInvoiceNo) {
+        maxInvoiceNo = k;
       }
     }
     return maxInvoiceNo + 1;
@@ -792,8 +845,8 @@ class LocalDatabaseService {
 
   // --- Replacement Methods ---
   String getNextReplacementJobNo() {
-    if (_replacementBox.isEmpty) return 'Z223';
-    int maxNum = 222;
+    if (_replacementBox.isEmpty) return 'Z1';
+    int maxNum = 0;
     for (var key in _replacementBox.keys) {
       final keyStr = key.toString();
       if (keyStr.startsWith('Z')) {

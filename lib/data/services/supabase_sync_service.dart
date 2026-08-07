@@ -326,6 +326,28 @@ class SupabaseSyncService extends ChangeNotifier {
       for (final u in users) {
         await UserPermissionService.saveUser(u);
       }
+
+      // Shop Settings (Active UPI, UPI list, UPI reference names)
+      final activeUpi = localDb.getActiveUpiId();
+      if (activeUpi != null) {
+        await client.from('shop_settings').upsert({
+          'key': 'active_upi_id',
+          'value': activeUpi,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+      final upiList = localDb.getUpiIdsList();
+      await client.from('shop_settings').upsert({
+        'key': 'upi_ids_list',
+        'value': upiList,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+      final upiNames = localDb.getUpiNamesMap();
+      await client.from('shop_settings').upsert({
+        'key': 'upi_names_map',
+        'value': upiNames,
+        'updated_at': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
       if (kDebugMode) print('Push all local error: $e');
     }
@@ -519,6 +541,66 @@ class SupabaseSyncService extends ChangeNotifier {
       // ── Step 8: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud();
 
+      // ── Step 9: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
+      try {
+        final settingsData = await client.from('shop_settings').select();
+        final settingsMap = <String, dynamic>{};
+        for (final item in settingsData) {
+          final key = item['key']?.toString();
+          if (key != null) {
+            settingsMap[key] = item['value'];
+          }
+        }
+
+        // Active UPI ID
+        if (settingsMap.containsKey('active_upi_id') && settingsMap['active_upi_id'] != null) {
+          await localDb.setActiveUpiId(settingsMap['active_upi_id'].toString(), syncToCloud: false);
+        } else {
+          final localActive = localDb.getActiveUpiId();
+          if (localActive != null && localActive.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'active_upi_id',
+              'value': localActive,
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+
+        // UPI IDs List
+        if (settingsMap.containsKey('upi_ids_list') && settingsMap['upi_ids_list'] is List) {
+          final list = (settingsMap['upi_ids_list'] as List).map((e) => e.toString()).toList();
+          await localDb.saveUpiIdsList(list, syncToCloud: false);
+        } else {
+          final localList = localDb.getUpiIdsList();
+          if (localList.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'upi_ids_list',
+              'value': localList,
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+
+        // UPI Names Map
+        if (settingsMap.containsKey('upi_names_map') && settingsMap['upi_names_map'] is Map) {
+          final map = Map<String, String>.from(
+            (settingsMap['upi_names_map'] as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
+          );
+          await localDb.saveUpiNamesMap(map, syncToCloud: false);
+        } else {
+          final localNames = localDb.getUpiNamesMap();
+          if (localNames.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'upi_names_map',
+              'value': localNames,
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) print('Shop settings sync error: $e');
+      }
+
       _setStatus(SyncStatus.synced, 'All tables synchronized');
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');
@@ -534,7 +616,17 @@ class SupabaseSyncService extends ChangeNotifier {
     Map<String, dynamic> data, {
     LocalDatabaseService? localDb,
   }) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      if (localDb != null) {
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert',
+          'table': tableName,
+          'data': data,
+          'queued_at': DateTime.now().toIso8601String(),
+        });
+      }
+      return;
+    }
 
     try {
       _setStatus(SyncStatus.syncing, 'Syncing change...');

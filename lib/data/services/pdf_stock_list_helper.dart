@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/pricelist_item.dart';
 
@@ -195,6 +196,21 @@ class PdfStockListHelper {
       final dateStr = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
       final fileName = 'Stock_List_$dateStr.pdf';
 
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          await Printing.layoutPdf(
+            onLayout: (format) async => pdfBytes,
+            name: fileName,
+          );
+          return true;
+        } catch (_) {
+          try {
+            await Printing.sharePdf(bytes: pdfBytes, filename: fileName);
+            return true;
+          } catch (_) {}
+        }
+      }
+
       final tempDir = Directory.systemTemp;
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsBytes(pdfBytes, flush: true);
@@ -231,6 +247,14 @@ class PdfStockListHelper {
       if (await canLaunchUrl(uri)) {
         return await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
+
+      try {
+        await Printing.layoutPdf(
+          onLayout: (format) async => pdfBytes,
+          name: fileName,
+        );
+        return true;
+      } catch (_) {}
 
       return false;
     } catch (e) {

@@ -18,6 +18,7 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   final TextEditingController _upiController = TextEditingController();
+  final TextEditingController _upiNameController = TextEditingController();
   final TextEditingController _marginTBController = TextEditingController();
   final TextEditingController _marginLRController = TextEditingController();
 
@@ -37,6 +38,7 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void dispose() {
     _upiController.dispose();
+    _upiNameController.dispose();
     _marginTBController.dispose();
     _marginLRController.dispose();
     super.dispose();
@@ -462,39 +464,57 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 20),
 
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _upiController,
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. shopname@upi, 9876543210@paytm',
-                    labelText: 'Business UPI VPA *',
-                  ),
+              TextField(
+                controller: _upiController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. shopname@upi, 9876543210@paytm',
+                  labelText: 'Business UPI VPA *',
+                  prefixIcon: Icon(Icons.qr_code_rounded, size: 18),
                 ),
               ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () {
-                  final vpa = _upiController.text.trim();
-                  if (vpa.isNotEmpty) {
-                    viewModel.addUpiId(vpa);
-                    _upiController.clear();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('UPI ID added successfully.'),
-                        backgroundColor: AppTheme.success,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _upiNameController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Vishnu - HDFC Bank, Main Counter GPay',
+                        labelText: 'Name',
+                        prefixIcon: Icon(Icons.person_outline_rounded, size: 18),
                       ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
+                    ),
                   ),
-                ),
-                child: const Icon(Icons.add_rounded),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final vpa = _upiController.text.trim();
+                      final refName = _upiNameController.text.trim();
+                      if (vpa.isNotEmpty) {
+                        viewModel.addUpiId(vpa, referenceName: refName);
+                        _upiController.clear();
+                        _upiNameController.clear();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('UPI ID added successfully.'),
+                            backgroundColor: AppTheme.success,
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Add UPI'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -525,6 +545,7 @@ class _SettingsViewState extends State<SettingsView> {
                   itemBuilder: (context, index) {
                     final upi = viewModel.upiIds[index];
                     final bool isActive = viewModel.activeUpiId == upi;
+                    final String refName = viewModel.getUpiReferenceName(upi);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -550,16 +571,39 @@ class _SettingsViewState extends State<SettingsView> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                if (refName.isNotEmpty) ...[
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.person_rounded,
+                                        size: 13,
+                                        color: AppTheme.primaryLight,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          refName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.textPrimary,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                ],
                                 Text(
                                   upi,
                                   style: TextStyle(
                                     fontWeight: isActive
-                                        ? FontWeight.bold
+                                        ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: isActive
-                                        ? AppTheme.textPrimary
+                                        ? AppTheme.primaryLight
                                         : AppTheme.textSecondary,
-                                    fontSize: 14,
+                                    fontSize: 13,
                                   ),
                                 ),
                                 if (isActive) ...[
@@ -590,6 +634,20 @@ class _SettingsViewState extends State<SettingsView> {
                           ),
                           Row(
                             children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_note_rounded,
+                                  color: AppTheme.textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: () => _showEditUpiNameDialog(
+                                  context,
+                                  viewModel,
+                                  upi,
+                                  refName,
+                                ),
+                                tooltip: 'Edit Admin Reference Name',
+                              ),
                               if (!isActive)
                                 TextButton(
                                   onPressed: () =>
@@ -633,6 +691,76 @@ class _SettingsViewState extends State<SettingsView> {
                     );
                   },
                 ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditUpiNameDialog(
+    BuildContext context,
+    SettingsViewModel viewModel,
+    String upiVpa,
+    String currentName,
+  ) {
+    final nameCtrl = TextEditingController(text: currentName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            const Icon(Icons.person_rounded, color: AppTheme.primaryLight, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Edit Name',
+              style: TextStyle(fontSize: 16, color: AppTheme.textPrimary),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'UPI VPA: $upiVpa',
+              style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'e.g. Vishnu - HDFC, Main Counter GPay',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await viewModel.updateUpiReferenceName(upiVpa, nameCtrl.text);
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('UPI reference name updated.'),
+                    backgroundColor: AppTheme.success,
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
         ],
       ),
     );

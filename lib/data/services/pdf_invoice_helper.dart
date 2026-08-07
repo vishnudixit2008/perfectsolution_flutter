@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:qr/qr.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/sale.dart';
 import '../models/sale_item.dart';
@@ -489,6 +490,24 @@ class PdfInvoiceHelper {
   }) async {
     try {
       final safeName = fileName.replaceAll(RegExp(r'[/\\]'), '_');
+
+      // On Android & iOS (Mobile Devices): Use Printing package to open native PDF Viewer & Print preview sheet
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          await Printing.layoutPdf(
+            onLayout: (format) async => pdfBytes,
+            name: safeName,
+          );
+          return true;
+        } catch (e) {
+          if (kDebugMode) print('Mobile Printing.layoutPdf error: $e');
+          try {
+            await Printing.sharePdf(bytes: pdfBytes, filename: safeName);
+            return true;
+          } catch (_) {}
+        }
+      }
+
       final tempDir = Directory.systemTemp;
       final file = File('${tempDir.path}/$safeName');
       await file.writeAsBytes(pdfBytes, flush: true);
@@ -526,12 +545,20 @@ class PdfInvoiceHelper {
         } catch (_) {}
       }
 
-      // Universal fallback (url_launcher)
+      // Universal fallback
       try {
         final uri = Uri.file(file.path);
         if (await canLaunchUrl(uri)) {
           return await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
+      } catch (_) {}
+
+      try {
+        await Printing.layoutPdf(
+          onLayout: (format) async => pdfBytes,
+          name: safeName,
+        );
+        return true;
       } catch (_) {}
 
       return false;

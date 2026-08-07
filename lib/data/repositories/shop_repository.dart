@@ -51,6 +51,9 @@ class ShopRepository {
   List<String> getUpiIdsList() => _localDb.getUpiIdsList();
   Future<void> saveUpiIdsList(List<String> upiIds) async =>
       await _localDb.saveUpiIdsList(upiIds);
+  Map<String, String> getUpiNamesMap() => _localDb.getUpiNamesMap();
+  Future<void> saveUpiNamesMap(Map<String, String> names) async =>
+      await _localDb.saveUpiNamesMap(names);
   List<String> getCustomServiceNames() => _localDb.getCustomServiceNames();
   Future<void> saveCustomServiceName(String name) async =>
       await _localDb.saveCustomServiceName(name);

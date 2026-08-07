@@ -1141,162 +1141,204 @@ class _SalesViewState extends State<SalesView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Keyboard autocomplete product search bar
+          // Invoice Number Header
           Row(
             children: [
-              Expanded(
-                child: Autocomplete<PricelistItem>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<PricelistItem>.empty();
-                    }
-                    return viewModel.searchResults;
-                  },
-                  displayStringForOption: (PricelistItem option) =>
-                      option.itemName,
-                  onSelected: (PricelistItem selection) {
-                    viewModel.addProductToCart(selection);
-                  },
-                  fieldViewBuilder:
-                      (
-                        context,
-                        textEditingController,
-                        focusNode,
-                        onFieldSubmitted,
-                      ) {
-                        // Force suggestions query update on keystroke
-                        textEditingController.addListener(() {
-                          viewModel.updateSearchQuery(
-                            textEditingController.text,
-                          );
-                        });
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.03),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
-                          ),
-                          child: TextField(
-                            controller: textEditingController,
-                            focusNode: focusNode,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Search products by name or category...',
-                              prefixIcon: const Icon(
-                                Icons.search_rounded,
-                                color: AppTheme.textMuted,
-                              ),
-                              suffixIcon: textEditingController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(
-                                        Icons.clear_rounded,
-                                        size: 18,
-                                      ),
-                                      onPressed: () {
-                                        textEditingController.clear();
-                                        viewModel.updateSearchQuery('');
-                                      },
-                                    )
-                                  : null,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        color: const Color(0xFF131A2E),
-                        elevation: 4.0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        child: Container(
-                          width: MediaQuery.of(context).size.width * 0.85,
-                          constraints: const BoxConstraints(
-                            maxWidth: 450,
-                            maxHeight: 250,
-                          ),
-                          child: ListView.separated(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            separatorBuilder: (context, index) =>
-                                const Divider(color: Colors.white10, height: 1),
-
-                            itemBuilder: (BuildContext context, int index) {
-                              final PricelistItem option = options.elementAt(
-                                index,
-                              );
-                              final bool isLowStock =
-                                  option.stockQty <= option.openingStock;
-
-                              return ListTile(
-                                dense: true,
-                                title: Text(
-                                  option.itemName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Category: ${option.category ?? "General"}  |  Stock: ${option.stockQty} left',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isLowStock
-                                        ? AppTheme.danger
-                                        : AppTheme.textMuted,
-                                  ),
-                                ),
-                                trailing: Text(
-                                  '₹${option.price.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                onTap: () {
-                                  onSelected(option);
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              const Icon(
+                Icons.receipt_rounded,
+                color: AppTheme.primaryLight,
+                size: 20,
               ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => _showAddServiceDialog(context, viewModel),
-                icon: const Icon(Icons.build_rounded, size: 16),
-                label: const Text('Add Service'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.secondary.withOpacity(0.12),
-                  foregroundColor: AppTheme.secondary,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                'Invoice #${viewModel.currentOrNextInvoiceNo}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Builder(
+            builder: (context) {
+              final bool isMobile = MediaQuery.of(context).size.width < 600;
+
+              final productSearchField = Autocomplete<PricelistItem>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<PricelistItem>.empty();
+                  }
+                  return viewModel.searchResults;
+                },
+                displayStringForOption: (PricelistItem option) => option.itemName,
+                onSelected: (PricelistItem selection) {
+                  viewModel.addProductToCart(selection);
+                },
+                fieldViewBuilder: (
+                  context,
+                  textEditingController,
+                  focusNode,
+                  onFieldSubmitted,
+                ) {
+                  textEditingController.addListener(() {
+                    viewModel.updateSearchQuery(textEditingController.text);
+                  });
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: TextField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: 'Search products by name or category...',
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppTheme.primaryLight,
+                          size: 20,
+                        ),
+                        suffixIcon: textEditingController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  textEditingController.clear();
+                                  viewModel.updateSearchQuery('');
+                                },
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 12,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                optionsViewBuilder: (context, onSelected, options) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      color: const Color(0xFF131A2E),
+                      elevation: 8.0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: AppTheme.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Container(
+                        width: isMobile ? screenWidth - 32 : 450,
+                        constraints: const BoxConstraints(maxHeight: 280),
+                        child: ListView.separated(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          separatorBuilder: (context, index) =>
+                              const Divider(color: Colors.white10, height: 1),
+                          itemBuilder: (BuildContext context, int index) {
+                            final PricelistItem option = options.elementAt(index);
+                            final bool isLowStock = option.stockQty <= option.openingStock;
+
+                            return ListTile(
+                              dense: isMobile,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 4,
+                              ),
+                              title: Text(
+                                option.itemName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${option.category ?? "General"} • Stock: ${option.stockQty} left',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isLowStock ? AppTheme.danger : AppTheme.textMuted,
+                                ),
+                              ),
+                              trailing: Text(
+                                '₹${option.price.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryLight,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              onTap: () {
+                                onSelected(option);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+
+              final addServiceBtn = ElevatedButton.icon(
+                onPressed: () => _showAddServiceDialog(context, viewModel),
+                icon: const Icon(Icons.build_rounded, size: 16),
+                label: const Text(
+                  'Add Service',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.secondary.withOpacity(0.15),
+                  foregroundColor: AppTheme.secondary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+
+              if (isMobile) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    productSearchField,
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: addServiceBtn),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: productSearchField),
+                  const SizedBox(width: 12),
+                  addServiceBtn,
+                ],
+              );
+            },
+          ),
           const SizedBox(height: 8),
-          const Divider(color: Colors.white10, height: 24),
+          const Divider(color: Colors.white10, height: 20),
 
           // Cart list
           Expanded(
@@ -1564,20 +1606,54 @@ class _SalesViewState extends State<SalesView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  Icons.assignment_turned_in_rounded,
-                  color: AppTheme.primaryLight,
-                  size: 20,
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.assignment_turned_in_rounded,
+                      color: AppTheme.primaryLight,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Checkout Summary',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 12),
-                Text(
-                  'Checkout Summary',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.tag_rounded,
+                        size: 13,
+                        color: AppTheme.primaryLight,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Invoice #${cartVM.currentOrNextInvoiceNo}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryLight,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1899,7 +1975,6 @@ class _SalesViewState extends State<SalesView> {
     );
   }
 
-  // Details Modal Dialog (Bigger in size with actions)
   void _showInvoiceDetailsSheet(
     BuildContext context,
     RecentSalesViewModel viewModel,
@@ -1911,17 +1986,30 @@ class _SalesViewState extends State<SalesView> {
       context: context,
       builder: (context) {
         final isPending = sale.orderStatus == 'PENDING';
+        final bool isMobile = MediaQuery.of(context).size.width < 600;
+
         return Dialog(
           backgroundColor: const Color(0xFF0F1524),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.08)),
-          ),
+          insetPadding: isMobile
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          shape: isMobile
+              ? const RoundedRectangleBorder()
+              : RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.white.withOpacity(0.08)),
+                ),
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.8,
-            height: MediaQuery.of(context).size.height * 0.8,
-            constraints: const BoxConstraints(maxWidth: 750, maxHeight: 600),
-            padding: const EdgeInsets.all(28),
+            width: isMobile
+                ? double.infinity
+                : MediaQuery.of(context).size.width * 0.8,
+            height: isMobile
+                ? double.infinity
+                : MediaQuery.of(context).size.height * 0.8,
+            constraints: isMobile
+                ? const BoxConstraints()
+                : const BoxConstraints(maxWidth: 750, maxHeight: 600),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1934,13 +2022,13 @@ class _SalesViewState extends State<SalesView> {
                         const Icon(
                           Icons.receipt_long_rounded,
                           color: AppTheme.primaryLight,
-                          size: 24,
+                          size: 22,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Text(
                           'Invoice #${sale.invoiceNo}',
-                          style: const TextStyle(
-                            fontSize: 20,
+                          style: TextStyle(
+                            fontSize: isMobile ? 18 : 20,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
@@ -1956,224 +2044,236 @@ class _SalesViewState extends State<SalesView> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
-                // Customer Details Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
+                // Scrollable Content Section
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'BILLED TO',
-                          style: TextStyle(
-                            color: AppTheme.textMuted,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          sale.customerName ?? 'Cash / Walk-in',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        if (sale.customerNumber != null &&
-                            sale.customerNumber!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Mob: ${sale.customerNumber}',
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text(
-                          'DATE & PAYMENT',
-                          style: TextStyle(
-                            color: AppTheme.textMuted,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('dd/MM/yy hh:mm a').format(sale.saleDate),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Payment Mode: ${sale.paymentMode}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppTheme.primaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const Divider(color: Colors.white10, height: 32),
-
-                // Invoice Items
-                const Text(
-                  'INVOICE ITEMS',
-                  style: TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.01),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.04),
-                          ),
-                        ),
-                        child: Row(
+                        // Customer Details Row
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.itemDescription ?? 'Line Item',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: AppTheme.textPrimary,
-                                    ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'BILLED TO',
+                                  style: TextStyle(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
                                   ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sale.customerName ?? 'Cash / Walk-in',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                if (sale.customerNumber != null &&
+                                    sale.customerNumber!.isNotEmpty) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Qty: ${item.quantity} x ₹${item.activePrice.toStringAsFixed(0)}',
+                                    'Mob: ${sale.customerNumber}',
                                     style: const TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 11,
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
-                              ),
+                              ],
                             ),
-                            Text(
-                              '₹${item.totalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppTheme.textPrimary,
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'DATE & PAYMENT',
+                                  style: TextStyle(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat('dd/MM/yy hh:mm a')
+                                      .format(sale.saleDate),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Mode: ${sale.paymentMode}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: AppTheme.primaryLight,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-                const Divider(color: Colors.white10, height: 32),
+                        const Divider(color: Colors.white10, height: 24),
 
-                // Financial Summary Blocks
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Order Status: ',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
-                              ),
-                            ),
-                            _buildStatusChip(sale.orderStatus),
-                          ],
-                        ),
-                        if (sale.discount > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Discount: -₹${sale.discount.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: AppTheme.danger,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                        if (sale.advance > 0) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Advance Paid: ₹${sale.advance.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              color: AppTheme.success,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                        if (sale.photoList.isNotEmpty)
-                          PhotoGallerySection(photoUrls: sale.photoList),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
+                        // Invoice Items Header
                         const Text(
-                          'GRAND TOTAL',
+                          'INVOICE ITEMS',
                           style: TextStyle(
                             color: AppTheme.textMuted,
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '₹${sale.totalAmount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryLight,
-                          ),
+                        const SizedBox(height: 10),
+
+                        // Invoice Items List
+                        ...items.map((item) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.01),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.04),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.itemDescription ?? 'Line Item',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: AppTheme.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Qty: ${item.quantity} x ₹${item.activePrice.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          color: AppTheme.textMuted,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '₹${item.totalAmount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const Divider(color: Colors.white10, height: 24),
+
+                        // Financial Summary Blocks
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text(
+                                      'Order Status: ',
+                                      style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    _buildStatusChip(sale.orderStatus),
+                                  ],
+                                ),
+                                if (sale.discount > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Discount: -₹${sale.discount.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      color: AppTheme.danger,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                                if (sale.advance > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Advance Paid: ₹${sale.advance.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      color: AppTheme.success,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                                if (sale.photoList.isNotEmpty)
+                                  PhotoGallerySection(photoUrls: sale.photoList),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'GRAND TOTAL',
+                                  style: TextStyle(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '₹${sale.totalAmount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryLight,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
-                 Column(
+                // Action Buttons Block
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (isPending && UserPermissionService.canPerformModuleAction('sales', 'canVerifyStock'))
+                    if (isPending &&
+                        UserPermissionService.canPerformModuleAction(
+                            'sales', 'canVerifyStock'))
                       ElevatedButton.icon(
                         onPressed: () async {
                           final success = await viewModel.confirmOrder(
@@ -2235,8 +2335,11 @@ class _SalesViewState extends State<SalesView> {
                     const SizedBox(height: 10),
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final canEdit = UserPermissionService.canPerformModuleAction('sales', 'canEdit');
-                        final canDelete = UserPermissionService.canPerformModuleAction('sales', 'canDelete');
+                        final canEdit = UserPermissionService.canPerformModuleAction(
+                            'sales', 'canEdit');
+                        final canDelete =
+                            UserPermissionService.canPerformModuleAction(
+                                'sales', 'canDelete');
                         final isCompact = constraints.maxWidth < 460;
 
                         final editBtn = ElevatedButton.icon(
@@ -2249,7 +2352,8 @@ class _SalesViewState extends State<SalesView> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -2282,9 +2386,11 @@ class _SalesViewState extends State<SalesView> {
                           icon: const Icon(Icons.print_rounded, size: 18),
                           label: const Text('Print Receipt'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(alpha: 0.08),
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.08),
                             foregroundColor: AppTheme.textPrimary,
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 12),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -2330,7 +2436,8 @@ class _SalesViewState extends State<SalesView> {
                               ),
                               if (canDelete) ...[
                                 const SizedBox(height: 8),
-                                SizedBox(width: double.infinity, child: deleteBtn),
+                                SizedBox(
+                                    width: double.infinity, child: deleteBtn),
                               ],
                             ],
                           );

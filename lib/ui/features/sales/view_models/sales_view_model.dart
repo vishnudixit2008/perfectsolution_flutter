@@ -45,6 +45,10 @@ class SalesViewModel extends ChangeNotifier {
   int? get editingInvoiceNo => _editingInvoiceNo;
   String? get editingOrderStatus => _editingOrderStatus;
 
+  int get currentOrNextInvoiceNo {
+    return _editingInvoiceNo ?? _repository.getNextInvoiceNo();
+  }
+
   // Load available catalog list for item selector
   void loadCatalog() {
     _catalogItems = _repository.getPricelist();
