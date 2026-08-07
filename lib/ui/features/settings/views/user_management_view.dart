@@ -1434,7 +1434,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
 
     pageAccess = u != null
         ? Map.from(u.pageAccess)
-        : {for (var m in AppUser.modules) m: m != 'settings'};
+        : {for (var m in AppUser.modules) m: true};
 
     actionAccess = u != null ? Map.from(u.actionAccess) : {};
 
@@ -1447,7 +1447,10 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
             for (var m in AppUser.modules)
               m: {
                 for (var act in (AppUser.moduleActions[m] ?? {}).keys)
-                  act: act != 'canDelete' && act != 'canManageUsers'
+                  act: act == 'canView' ||
+                      (!act.startsWith('canManage') &&
+                          act != 'canDelete' &&
+                          act != 'canExport')
               }
           };
 
@@ -1573,13 +1576,14 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
         }
       } else if (preset == 'standard') {
         for (var m in AppUser.modules) {
-          pageAccess[m] = m != 'settings';
+          pageAccess[m] = true;
           final actions = AppUser.moduleActions[m] ?? {};
           pageActionAccess[m] = {
             for (var k in actions.keys)
-              k: k != 'canDelete' &&
-                  k != 'canManageUsers' &&
-                  k != 'canManageSync'
+              k: k == 'canView' ||
+                  (!k.startsWith('canManage') &&
+                      k != 'canDelete' &&
+                      k != 'canExport')
           };
           final fields = AppUser.moduleFields[m] ?? {};
           fieldAccess[m] = {
@@ -1588,7 +1592,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
         }
       } else if (preset == 'readonly') {
         for (var m in AppUser.modules) {
-          pageAccess[m] = m != 'settings';
+          pageAccess[m] = true;
           final actions = AppUser.moduleActions[m] ?? {};
           pageActionAccess[m] = {
             for (var k in actions.keys)

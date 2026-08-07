@@ -166,6 +166,8 @@ class AppUser {
     },
     'settings': {
       'canView': 'Can View Settings Screen',
+      'canManageUpi': 'Can Configure UPI Payment Settings',
+      'canManageInvoiceLayout': 'Can Configure Invoice Layout & Format',
       'canManageUsers': 'Can Access User Management & Roles',
       'canManageSync': 'Can Trigger Cloud Sync & Local Backups',
     },
@@ -316,7 +318,7 @@ class AppUser {
       name: name,
       role: 'employee',
       isActive: true,
-      pageAccess: {for (var m in modules) m: m != 'settings'},
+      pageAccess: {for (var m in modules) m: true},
       actionAccess: {
         'canAdd': true,
         'canEdit': true,
@@ -333,7 +335,10 @@ class AppUser {
         for (var m in modules)
           m: {
             for (var act in (moduleActions[m] ?? {}).keys)
-              act: act != 'canDelete' && act != 'canManageUsers'
+              act: act == 'canView' ||
+                  (act != 'canDelete' &&
+                      !act.startsWith('canManage') &&
+                      act != 'canExport')
           }
       },
       fieldAccess: _defaultFieldAccess(),
@@ -356,7 +361,7 @@ class AppUser {
     }
     // Fill missing module keys safely
     for (var m in modules) {
-      parsedPageAccess.putIfAbsent(m, () => isUserAdmin ? true : (m != 'settings'));
+      parsedPageAccess.putIfAbsent(m, () => true);
     }
 
     // 2. Page Action Access
@@ -383,7 +388,9 @@ class AppUser {
         if (userActions.containsKey(actKey)) {
           aMap[actKey] = userActions[actKey]!;
         } else {
-          aMap[actKey] = isUserAdmin || (actKey != 'canDelete' && actKey != 'canManageUsers');
+          final isRestrictedAction =
+              actKey == 'canDelete' || actKey.startsWith('canManage');
+          aMap[actKey] = isUserAdmin || !isRestrictedAction;
         }
       }
       finalPageActions[m] = aMap;

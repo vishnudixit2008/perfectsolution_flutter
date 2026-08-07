@@ -55,6 +55,33 @@ class _SettingsViewState extends State<SettingsView> {
         final double screenWidth = MediaQuery.of(context).size.width;
         final bool isDesktop = screenWidth >= 750;
 
+        final bool canManageUpi = UserPermissionService.canPerformModuleAction(
+            'settings', 'canManageUpi');
+        final bool canManageInvoiceLayout =
+            UserPermissionService.canPerformModuleAction(
+                'settings', 'canManageInvoiceLayout');
+        final bool canManageUsers = UserPermissionService.canPerformModuleAction(
+            'settings', 'canManageUsers');
+
+        final List<Widget> leftColumnCards = [];
+        if (canManageUpi) {
+          leftColumnCards.add(_buildUpiCard(context, viewModel));
+        }
+        if (canManageUsers) {
+          if (leftColumnCards.isNotEmpty) {
+            leftColumnCards.add(const SizedBox(height: 20));
+          }
+          leftColumnCards.add(_buildUserManagementCard(context));
+        }
+
+        final List<Widget> rightColumnCards = [];
+        if (canManageInvoiceLayout) {
+          rightColumnCards.add(_buildLayoutAndPrinterCard(context, viewModel));
+        }
+
+        final bool hasAnyConfigCard =
+            canManageUpi || canManageUsers || canManageInvoiceLayout;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 120),
           child: Column(
@@ -67,31 +94,37 @@ class _SettingsViewState extends State<SettingsView> {
               ),
 
               _buildUserProfileAndLogoutCard(context),
-              const SizedBox(height: 20),
 
-              // Responsive Cards Layout
-              isDesktop
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: _buildUpiCard(context, viewModel)),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildLayoutAndPrinterCard(context, viewModel),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        _buildUpiCard(context, viewModel),
-                        const SizedBox(height: 20),
-                        _buildLayoutAndPrinterCard(context, viewModel),
-                      ],
-                    ),
+              if (hasAnyConfigCard) ...[
+                const SizedBox(height: 20),
+                isDesktop
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (leftColumnCards.isNotEmpty)
+                            Expanded(
+                              child: Column(children: leftColumnCards),
+                            ),
+                          if (leftColumnCards.isNotEmpty &&
+                              rightColumnCards.isNotEmpty)
+                            const SizedBox(width: 20),
+                          if (rightColumnCards.isNotEmpty)
+                            Expanded(
+                              child: Column(children: rightColumnCards),
+                            ),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          ...leftColumnCards,
+                          if (leftColumnCards.isNotEmpty &&
+                              rightColumnCards.isNotEmpty)
+                            const SizedBox(height: 20),
+                          ...rightColumnCards,
+                        ],
+                      ),
+              ],
+
               const SizedBox(height: 32),
               const Center(
                 child: Column(
@@ -244,7 +277,7 @@ class _SettingsViewState extends State<SettingsView> {
               
               // Device Look & Feel Controls
               const Text(
-                'Look & Feel / Device Preferences',
+                'Look & Feel / Theme Settings',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -381,7 +414,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // UPI Card (unchanged)
+  // UPI Card
   // ─────────────────────────────────────────────────────────────────────────
   Widget _buildUpiCard(BuildContext context, SettingsViewModel viewModel) {
     return Container(
@@ -600,146 +633,83 @@ class _SettingsViewState extends State<SettingsView> {
                     );
                   },
                 ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 24),
+  // ─────────────────────────────────────────────────────────────────────────
+  // User Management Card
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildUserManagementCard(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
-          // User Management Tile
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.primaryLight.withOpacity(0.3)),
-            ),
-            child: MediaQuery.of(context).size.width < 600
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.admin_panel_settings_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'User Access & Permissions (RBAC)',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Manage app employees, role-based access, and granular page/action permissions.',
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: UserPermissionService
-                                  .canPerformModuleAction(
-                                      'settings', 'canManageUsers')
-                              ? () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const UserManagementView(),
-                                    ),
-                                  );
-                                }
-                              : null,
-                          icon: const Icon(Icons.manage_accounts_rounded,
-                              size: 18),
-                          label: const Text('Manage Users'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.admin_panel_settings_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'User Access & Permissions (RBAC)',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Manage app employees, role-based access, and granular page/action permissions.',
-                              style: TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: UserPermissionService
-                                .canPerformModuleAction(
-                                    'settings', 'canManageUsers')
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const UserManagementView(),
-                                  ),
-                                );
-                              }
-                            : null,
-                        icon: const Icon(Icons.manage_accounts_rounded,
-                            size: 18),
-                        label: const Text('Manage Users'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: AppTheme.glassCardDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: 12,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'User Access & Permissions (RBAC)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
                   ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Manage app employees, role-based access, and granular page/action permissions.',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: isMobile ? double.infinity : null,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const UserManagementView(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+              label: const Text('Manage Users & Permissions'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+              ),
+            ),
           ),
         ],
       ),

@@ -35,6 +35,17 @@ class StatusManagementService {
     if (!Hive.isBoxOpen(_boxName)) {
       await Hive.openBox(_boxName);
     }
+    final box = Hive.box(_boxName);
+    final List? inwardStored = box.get('${_statusListKeyPrefix}inward');
+    if (inwardStored != null) {
+      final List<String> list = List<String>.from(inwardStored);
+      final int origLen = list.length;
+      list.removeWhere((s) => s.trim().toLowerCase() == 'test');
+      if (list.length != origLen) {
+        await box.put('${_statusListKeyPrefix}inward', list);
+        _cache.remove('inward');
+      }
+    }
   }
 
   static Box _getBox() {
@@ -130,6 +141,14 @@ class StatusManagementService {
     if (moduleKey == 'requests') {
       final int initialLen = list.length;
       list.removeWhere((s) => s.trim().toLowerCase() == 'office');
+      if (list.length != initialLen) {
+        box.put('$_statusListKeyPrefix$moduleKey', list);
+      }
+    }
+
+    if (moduleKey == 'inward') {
+      final int initialLen = list.length;
+      list.removeWhere((s) => s.trim().toLowerCase() == 'test');
       if (list.length != initialLen) {
         box.put('$_statusListKeyPrefix$moduleKey', list);
       }
