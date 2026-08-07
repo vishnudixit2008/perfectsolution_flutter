@@ -1360,8 +1360,13 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   static void launchWhatsAppForRepair(InwardRepair r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
-    final message =
-        "Hello ${r.name}, We have received your ${r.devices}, Job no. of your device is ${r.jobNo} our team is thoroughly working to diagnose and resolve the problem. We will provide you with a timely update once the issue has been addressed. Thank you for your cooperation. Perfect Solution";
+    final message = '''Hello ${r.name},
+
+We have recieved your ${r.devices}, Job no. of your device is ${r.jobNo} our team is thoroughly working to diagnose and resolve the problem. We will provide you with a timely update once the issue has been addressed.
+
+Thank you for your cooperation.
+
+Perfect Solution''';
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
@@ -1987,112 +1992,205 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
           const SizedBox(height: 24),
           const SizedBox(height: 24),
-          const Text(
-            'Estimate',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: AppTheme.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Estimate Details',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              if (_estimates.isNotEmpty)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_estimates.length} item(s) • ₹${_estimatesNetTotal.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: AppTheme.primaryLight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
 
-          // Add estimate item inline form
+          // Add estimate item card (Mobile-optimized & Beautiful UI)
           Builder(
             builder: (context) {
               final catalogItems = context.watch<PricelistViewModel>().items;
-              final savedServices = context
-                  .watch<SalesViewModel>()
-                  .savedServices;
+              final savedServices =
+                  context.watch<SalesViewModel>().savedServices;
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _estType,
-                      decoration: const InputDecoration(labelText: 'Type'),
-                      dropdownColor: const Color(0xFF131A2E),
-                      items: ['Product', 'Service'].map((t) {
-                        return DropdownMenuItem(value: t, child: Text(t));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _estType = val;
-                            _estItemNameController.clear();
-                            _estPriceController.clear();
-                            _activeAutocompleteController?.clear();
-                          });
-                        }
-                      },
-                    ),
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131A2E),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primary.withValues(alpha: 0.2),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 4,
-                    child: _estType == 'Product'
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Item Type Selector Pills (Product / Service)
+                    Row(
+                      children: [
+                        const Text(
+                          'Type:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Container(
+                            height: 36,
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.08),
+                              ),
+                            ),
+                            child: Row(
+                              children: ['Product', 'Service'].map((type) {
+                                final isSelected = _estType == type;
+                                return Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _estType = type;
+                                        _estItemNameController.clear();
+                                        _estPriceController.clear();
+                                        _activeAutocompleteController?.clear();
+                                      });
+                                    },
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 150),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppTheme.primary
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            type == 'Product'
+                                                ? Icons.inventory_2_rounded
+                                                : Icons.build_circle_rounded,
+                                            size: 14,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : AppTheme.textMuted,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            type,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w500,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : AppTheme.textMuted,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Full-width Product/Service Search Box
+                    _estType == 'Product'
                         ? Autocomplete<PricelistItem>(
                             optionsBuilder:
                                 (TextEditingValue textEditingValue) {
-                                  if (textEditingValue.text.isEmpty) {
-                                    return catalogItems.take(10);
-                                  }
-                                  final query = textEditingValue.text
-                                      .toLowerCase();
-                                  return catalogItems.where(
-                                    (item) =>
-                                        item.itemName.toLowerCase().contains(
-                                          query,
-                                        ) ||
-                                        (item.category?.toLowerCase().contains(
-                                              query,
-                                            ) ??
-                                            false),
-                                  );
-                                },
+                              if (textEditingValue.text.isEmpty) {
+                                return catalogItems.take(10);
+                              }
+                              final query =
+                                  textEditingValue.text.toLowerCase();
+                              return catalogItems.where(
+                                (item) =>
+                                    item.itemName
+                                        .toLowerCase()
+                                        .contains(query) ||
+                                    (item.category
+                                            ?.toLowerCase()
+                                            .contains(query) ??
+                                        false),
+                              );
+                            },
                             displayStringForOption: (PricelistItem item) =>
                                 item.itemName,
                             onSelected: (PricelistItem selection) {
                               _estItemNameController.text = selection.itemName;
-                              _estPriceController.text = selection.price
-                                  .toStringAsFixed(0);
+                              _estPriceController.text =
+                                  selection.price.toStringAsFixed(0);
                             },
-                            fieldViewBuilder:
-                                (
-                                  context,
-                                  textEditingController,
-                                  focusNode,
-                                  onFieldSubmitted,
-                                ) {
-                                  _activeAutocompleteController =
-                                      textEditingController;
-                                  textEditingController.addListener(() {
-                                    _estItemNameController.text =
-                                        textEditingController.text;
-                                  });
-                                  return TextFormField(
-                                    controller: textEditingController,
-                                    focusNode: focusNode,
-                                    decoration: const InputDecoration(
-                                      labelText:
-                                          'Product Name (from Pricelist)',
-                                      hintText: 'Search product...',
-                                    ),
-                                  );
-                                },
+                            fieldViewBuilder: (
+                              context,
+                              textEditingController,
+                              focusNode,
+                              onFieldSubmitted,
+                            ) {
+                              _activeAutocompleteController =
+                                  textEditingController;
+                              textEditingController.addListener(() {
+                                _estItemNameController.text =
+                                    textEditingController.text;
+                              });
+                              return TextFormField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
+                                decoration: const InputDecoration(
+                                  labelText: 'Product Name (from Pricelist)',
+                                  hintText: 'Search product...',
+                                  prefixIcon:
+                                      Icon(Icons.search_rounded, size: 18),
+                                ),
+                              );
+                            },
                             optionsViewBuilder: (context, onSelected, options) {
                               return Align(
                                 alignment: Alignment.topLeft,
                                 child: Material(
-                                  color: const Color(0xFF131A2E),
-                                  elevation: 4.0,
+                                  color: const Color(0xFF161C2E),
+                                  elevation: 6.0,
+                                  borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    width: 320,
-                                    constraints: const BoxConstraints(
-                                      maxHeight: 200,
-                                    ),
+                                    width: MediaQuery.of(context).size.width *
+                                        0.8,
+                                    constraints:
+                                        const BoxConstraints(maxHeight: 200),
                                     child: ListView.builder(
                                       padding: EdgeInsets.zero,
                                       shrinkWrap: true,
@@ -2127,62 +2225,63 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                         : Autocomplete<String>(
                             optionsBuilder:
                                 (TextEditingValue textEditingValue) {
-                                  final allServices = <String>{
-                                    ...savedServices,
-                                    ...catalogItems
-                                        .where(
-                                          (i) =>
-                                              (i.category?.toLowerCase() ??
-                                                  '') ==
-                                              'service',
-                                        )
-                                        .map((i) => i.itemName),
-                                  }.toList();
-                                  if (textEditingValue.text.isEmpty) {
-                                    return allServices;
-                                  }
-                                  final query = textEditingValue.text
-                                      .toLowerCase();
-                                  return allServices.where(
-                                    (s) => s.toLowerCase().contains(query),
-                                  );
-                                },
+                              final allServices = <String>{
+                                ...savedServices,
+                                ...catalogItems
+                                    .where(
+                                      (i) =>
+                                          (i.category?.toLowerCase() ?? '') ==
+                                          'service',
+                                    )
+                                    .map((i) => i.itemName),
+                              }.toList();
+                              if (textEditingValue.text.isEmpty) {
+                                return allServices;
+                              }
+                              final query =
+                                  textEditingValue.text.toLowerCase();
+                              return allServices.where(
+                                (s) => s.toLowerCase().contains(query),
+                              );
+                            },
                             onSelected: (String selection) {
                               _estItemNameController.text = selection;
                             },
-                            fieldViewBuilder:
-                                (
-                                  context,
-                                  textEditingController,
-                                  focusNode,
-                                  onFieldSubmitted,
-                                ) {
-                                  _activeAutocompleteController =
-                                      textEditingController;
-                                  textEditingController.addListener(() {
-                                    _estItemNameController.text =
-                                        textEditingController.text;
-                                  });
-                                  return TextFormField(
-                                    controller: textEditingController,
-                                    focusNode: focusNode,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Service Name',
-                                      hintText: 'OS Install, Screen Repair...',
-                                    ),
-                                  );
-                                },
+                            fieldViewBuilder: (
+                              context,
+                              textEditingController,
+                              focusNode,
+                              onFieldSubmitted,
+                            ) {
+                              _activeAutocompleteController =
+                                  textEditingController;
+                              textEditingController.addListener(() {
+                                _estItemNameController.text =
+                                    textEditingController.text;
+                              });
+                              return TextFormField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
+                                decoration: const InputDecoration(
+                                  labelText: 'Service Name',
+                                  hintText: 'OS Install, Screen Repair...',
+                                  prefixIcon:
+                                      Icon(Icons.build_rounded, size: 18),
+                                ),
+                              );
+                            },
                             optionsViewBuilder: (context, onSelected, options) {
                               return Align(
                                 alignment: Alignment.topLeft,
                                 child: Material(
-                                  color: const Color(0xFF131A2E),
-                                  elevation: 4.0,
+                                  color: const Color(0xFF161C2E),
+                                  elevation: 6.0,
+                                  borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    width: 320,
-                                    constraints: const BoxConstraints(
-                                      maxHeight: 200,
-                                    ),
+                                    width: MediaQuery.of(context).size.width *
+                                        0.8,
+                                    constraints:
+                                        const BoxConstraints(maxHeight: 200),
                                     child: ListView.builder(
                                       padding: EdgeInsets.zero,
                                       shrinkWrap: true,
@@ -2207,39 +2306,63 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                               );
                             },
                           ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _estPriceController,
-                      decoration: const InputDecoration(labelText: 'Price (₹)'),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
+                    const SizedBox(height: 10),
+
+                    // Price, Quantity, and Add Item Button Row
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextFormField(
+                            controller: _estPriceController,
+                            decoration: const InputDecoration(
+                              labelText: 'Price (₹)',
+                              prefixText: '₹ ',
+                            ),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: _estQtyController,
+                            decoration: const InputDecoration(
+                              labelText: 'Qty',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: _addEstimateItem,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text(
+                            'Add',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      controller: _estQtyController,
-                      decoration: const InputDecoration(labelText: 'Qty'),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _addEstimateItem,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                    child: const Icon(Icons.add),
-                  ),
-                ],
+                  ],
+                ),
               );
             },
           ),
