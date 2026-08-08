@@ -201,8 +201,11 @@ class SalesViewModel extends ChangeNotifier {
 
   // Remove cart item
   void removeCartItem(String cartItemId) {
-    _cartItems.removeWhere((item) => item.id == cartItemId);
-    notifyListeners();
+    final index = _cartItems.indexWhere((item) => item.id == cartItemId);
+    if (index >= 0) {
+      _cartItems.removeAt(index);
+      notifyListeners();
+    }
   }
 
   // Setters for customer details
@@ -247,7 +250,13 @@ class SalesViewModel extends ChangeNotifier {
     _editingPhoto = sale.photo;
 
     _cartItems.clear();
-    _cartItems.addAll(items);
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
+      final uniqueId = item.id.trim().isNotEmpty
+          ? item.id
+          : 'edit_item_${sale.invoiceNo}_${i}_${DateTime.now().microsecondsSinceEpoch}';
+      _cartItems.add(item.copyWith(id: uniqueId));
+    }
 
     _customerName = sale.customerName ?? '';
     _customerNumber = sale.customerNumber ?? '';

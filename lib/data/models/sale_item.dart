@@ -61,8 +61,11 @@ class SaleItem {
   }
 
   factory SaleItem.fromJson(Map<String, dynamic> json) {
-    final String parsedId =
+    final String rawId =
         json['id']?.toString() ?? json['line_id']?.toString() ?? '';
+    final String parsedId = rawId.isNotEmpty
+        ? rawId
+        : 'item_${DateTime.now().microsecondsSinceEpoch}_${json['item_id'] ?? json['item_description'] ?? 'sale'}';
     final int parsedInvoiceNo = json['invoice_no'] is int
         ? json['invoice_no']
         : int.tryParse(json['invoice_no']?.toString() ?? '') ?? 0;

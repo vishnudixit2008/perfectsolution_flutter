@@ -3,6 +3,7 @@ import '../../../shared/date_time_picker_field.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
 import 'package:shop_management_flutter/data/models/pricelist_item.dart';
 import 'package:shop_management_flutter/data/models/sale.dart';
@@ -56,6 +57,7 @@ class _SalesViewState extends State<SalesView> {
       TextEditingController();
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _advanceController = TextEditingController();
+  TextEditingController? _productSearchController;
 
   @override
   void initState() {
@@ -953,8 +955,9 @@ class _SalesViewState extends State<SalesView> {
   void _confirmDeleteInvoice(
     BuildContext context,
     RecentSalesViewModel viewModel,
-    int invoiceNo,
-  ) {
+    int invoiceNo, {
+    VoidCallback? onDeleted,
+  }) {
     if (!UserPermissionService.canPerformModuleAction('sales', 'canDelete')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -992,6 +995,9 @@ class _SalesViewState extends State<SalesView> {
             onPressed: () async {
               Navigator.pop(context);
               await viewModel.deleteSale(invoiceNo);
+              if (onDeleted != null) {
+                onDeleted();
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.danger,
@@ -1175,6 +1181,10 @@ class _SalesViewState extends State<SalesView> {
                 displayStringForOption: (PricelistItem option) => option.itemName,
                 onSelected: (PricelistItem selection) {
                   viewModel.addProductToCart(selection);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _productSearchController?.clear();
+                    viewModel.updateSearchQuery('');
+                  });
                 },
                 fieldViewBuilder: (
                   context,
@@ -1182,6 +1192,7 @@ class _SalesViewState extends State<SalesView> {
                   focusNode,
                   onFieldSubmitted,
                 ) {
+                  _productSearchController = textEditingController;
                   textEditingController.addListener(() {
                     viewModel.updateSearchQuery(textEditingController.text);
                   });
@@ -1912,6 +1923,7 @@ class _SalesViewState extends State<SalesView> {
                     ? null
                     : () async {
                         final isEditing = cartVM.isEditing;
+                        final double checkoutAmount = cartVM.totalAmount;
                         final invoiceNo = await cartVM.checkout();
                         if (!context.mounted) return;
                         if (invoiceNo != null) {
@@ -1933,6 +1945,14 @@ class _SalesViewState extends State<SalesView> {
                           setState(() {
                             _showBillingDesk = false;
                           });
+
+                          // Show Payment QR Code Popup
+                          _showPaymentQrDialog(
+                            context,
+                            recentVM,
+                            invoiceNo,
+                            checkoutAmount,
+                          );
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -2402,6 +2422,11 @@ class _SalesViewState extends State<SalesView> {
                             context,
                             viewModel,
                             sale.invoiceNo,
+                            onDeleted: () {
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                              }
+                            },
                           ),
                           icon: const Icon(
                             Icons.delete_forever_rounded,
@@ -2648,5 +2673,233 @@ class _SalesViewState extends State<SalesView> {
     setState(() {
       _showBillingDesk = true;
     });
+  }
+
+  void _showPaymentQrDialog(
+    BuildContext context,
+    RecentSalesViewModel recentVM,
+    int invoiceNo,
+    double totalAmount,
+  ) {
+    final activeUpiId = recentVM.getActiveUpiId() ?? 'computer.perfect@ybl';
+    final upiRefName = recentVM.getUpiReferenceName(activeUpiId);
+    final sale = recentVM.getSaleByInvoiceNo(invoiceNo);
+    final items = recentVM.getSaleItems(invoiceNo);
+
+    final upiUri =
+        'upi://pay?pa=$activeUpiId&pn=Perfect%20Solution&am=${totalAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20%23$invoiceNo';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final bool isMobile = MediaQuery.of(context).size.width < 600;
+
+        return Dialog(
+          backgroundColor: const Color(0xFF0F1524),
+          insetPadding: isMobile
+              ? const EdgeInsets.symmetric(horizontal: 16, vertical: 20)
+              : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.3)),
+          ),
+          child: Container(
+            width: isMobile ? double.infinity : 440,
+            padding: EdgeInsets.all(isMobile ? 18 : 24),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Success Badge
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.success.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppTheme.success,
+                      size: 38,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Invoice #$invoiceNo Saved!',
+                    style: TextStyle(
+                      fontSize: isMobile ? 18 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Scan QR code to pay via UPI (GPay, PhonePe, Paytm)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Amount Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'AMOUNT TO PAY',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textMuted,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '₹${totalAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: isMobile ? 24 : 28,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // QR Code Box
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.25),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: QrImageView(
+                      data: upiUri,
+                      version: QrVersions.auto,
+                      size: isMobile ? 180 : 210,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Active UPI Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.qr_code_2_rounded,
+                          size: 14,
+                          color: AppTheme.primaryLight,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            upiRefName.isNotEmpty
+                                ? '$upiRefName • $activeUpiId'
+                                : activeUpiId,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryLight,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Actions
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (sale != null)
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Opening invoice in PDF viewer...'),
+                                backgroundColor: AppTheme.success,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            await PdfInvoiceHelper.printInvoice(
+                              sale: sale,
+                              items: items,
+                              activeUpiId: activeUpiId,
+                            );
+                          },
+                          icon: const Icon(Icons.print_rounded, size: 18),
+                          label: const Text(
+                            'Print Receipt',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text(
+                          'Done / Complete',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                          foregroundColor: AppTheme.textPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

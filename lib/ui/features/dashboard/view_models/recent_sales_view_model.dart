@@ -94,6 +94,18 @@ class RecentSalesViewModel extends ChangeNotifier {
     return _repository.getSaleItems(invoiceNo);
   }
 
+  String getUpiReferenceName(String upiId) {
+    return _repository.getUpiNamesMap()[upiId] ?? '';
+  }
+
+  Sale? getSaleByInvoiceNo(int invoiceNo) {
+    try {
+      return _sales.firstWhere((s) => s.invoiceNo == invoiceNo);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Verify and Confirm Order (Deducts Catalog Stock)
   Future<bool> confirmOrder(int invoiceNo) async {
     try {

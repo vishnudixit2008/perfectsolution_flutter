@@ -673,6 +673,18 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  /// Deletes all sale items for a given invoice_no before updating
+  Future<void> deleteSaleItemsForInvoice(int invoiceNo) async {
+    if (!_isInitialized) return;
+
+    try {
+      final client = Supabase.instance.client;
+      await client.from('sale_items').delete().eq('invoice_no', invoiceNo);
+    } catch (e) {
+      if (kDebugMode) print('Delete sale items error ($invoiceNo): $e');
+    }
+  }
+
   /// Batch saves estimate items for a job after parent inward repair is saved
   Future<void> saveEstimateItemsForJob(
     int jobNo,
