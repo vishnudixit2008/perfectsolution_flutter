@@ -19,7 +19,6 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
-import '../../../shared/components/app_pagination_bar.dart';
 
 import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../../pricelist/views/pricelist_view.dart';
@@ -79,10 +78,6 @@ class _PurchasesViewState extends State<PurchasesView> {
     });
     UiPreferencesService.setColumnWidth('purchases', columnKey, newWidth);
   }
-
-  // Pagination states
-  int _currentPage = 1;
-  int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -156,21 +151,7 @@ class _PurchasesViewState extends State<PurchasesView> {
         // Sort by date descending (newest purchases first)
         filtered.sort((a, b) => b.date.compareTo(a.date));
 
-        final int totalPages = (filtered.length / _itemsPerPage).ceil();
-        final int currentPage = _currentPage.clamp(
-          1,
-          totalPages > 0 ? totalPages : 1,
-        );
-        final int startIndex = (currentPage - 1) * _itemsPerPage;
-        final int endIndex = (startIndex + _itemsPerPage).clamp(
-          0,
-          filtered.length,
-        );
-        final pagedPurchases = filtered.isEmpty
-            ? <PurchaseOrder>[]
-            : filtered.sublist(startIndex, endIndex);
-
-        final groupedPurchases = _getGroupedPurchases(pagedPurchases);
+        final groupedPurchases = _getGroupedPurchases(filtered);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -274,7 +255,6 @@ class _PurchasesViewState extends State<PurchasesView> {
                   searchQuery: _searchController.text,
                   onSearchChanged: (q) => setState(() {
                     _searchController.text = q;
-                    _currentPage = 1;
                   }),
                   hintText: 'Search purchase ID, vendor...',
                 ),
@@ -289,49 +269,11 @@ class _PurchasesViewState extends State<PurchasesView> {
                               context,
                               viewModel,
                               groupedPurchases,
-                              currentPage,
-                              totalPages,
                             )
-                          : Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: _buildMobileCardsList(
-                                    context,
-                                    viewModel,
-                                    groupedPurchases,
-                                  ),
-                                ),
-                                if (totalPages > 1)
-                                  Positioned(
-                                    bottom: 12,
-                                    left: 8,
-                                    child: _buildFloatingPaginationIsland(
-                                        currentPage: currentPage,
-                                        totalPages: totalPages,
-                                        itemsPerPage: _itemsPerPage,
-                                        onItemsPerPageChanged: (val) {
-                                          setState(() {
-                                            _itemsPerPage = val;
-                                            _currentPage = 1;
-                                          });
-                                        },
-                                        onPreviousPage: () {
-                                          if (_currentPage > 1) {
-                                            setState(() {
-                                              _currentPage--;
-                                            });
-                                          }
-                                        },
-                                        onNextPage: () {
-                                          if (_currentPage < totalPages) {
-                                            setState(() {
-                                              _currentPage++;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                              ],
+                          : _buildMobileCardsList(
+                              context,
+                              viewModel,
+                              groupedPurchases,
                             )),
               ),
             ],
@@ -467,99 +409,76 @@ class _PurchasesViewState extends State<PurchasesView> {
     BuildContext context,
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
-    int currentPage,
-    int totalPages,
   ) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            width: double.infinity,
-            decoration: AppTheme.glassCardDecoration(
-              color: const Color(0x0AFFFFFF),
-              borderRadius: 12,
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.glassCardDecoration(
+        color: const Color(0x0AFFFFFF),
+        borderRadius: 12,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header Row (Status column removed - grouped under status headers)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.02),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+              ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
+            child: Row(
               children: [
-                // Header Row (Status column removed - grouped under status headers)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
-                    border: Border(
-                      bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildResizableHeader(
-                        'Date',
-                        _dateWidth,
-                        (delta) => _updateColumnWidth(
-                          'date',
-                          (_dateWidth + delta).clamp(80.0, 200.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Purchased From (Vendor)',
-                        _vendorWidth,
-                        (delta) => _updateColumnWidth(
-                          'vendor',
-                          (_vendorWidth + delta).clamp(120.0, 450.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Total Amount',
-                        _amountWidth,
-                        (delta) => _updateColumnWidth(
-                          'amount',
-                          (_amountWidth + delta).clamp(100.0, 300.0),
-                        ),
-                      ),
-                    ],
+                _buildResizableHeader(
+                  'Date',
+                  _dateWidth,
+                  (delta) => _updateColumnWidth(
+                    'date',
+                    (_dateWidth + delta).clamp(80.0, 200.0),
                   ),
                 ),
-
-                // Scrollable Body grouped by Status
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final entry in groupedPurchases.entries) ...[
-                          _buildStatusSectionHeader(
-                            entry.key,
-                            entry.value.length,
-                          ),
-                          for (final pur in entry.value) ...[
-                            _buildDesktopTableRow(context, viewModel, pur),
-                          ],
-                        ],
-                      ],
-                    ),
+                _buildResizableHeader(
+                  'Purchased From (Vendor)',
+                  _vendorWidth,
+                  (delta) => _updateColumnWidth(
+                    'vendor',
+                    (_vendorWidth + delta).clamp(120.0, 450.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Total Amount',
+                  _amountWidth,
+                  (delta) => _updateColumnWidth(
+                    'amount',
+                    (_amountWidth + delta).clamp(100.0, 300.0),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        Positioned(
-          left: 8,
-          bottom: 8,
-          child: AppPaginationBar(
-            currentPage: currentPage,
-            totalPages: totalPages,
-            itemsPerPage: _itemsPerPage,
-            onItemsPerPageChanged: (val) => setState(() {
-              _itemsPerPage = val;
-              _currentPage = 1;
-            }),
-            onPreviousPage: () => setState(() => _currentPage--),
-            onNextPage: () => setState(() => _currentPage++),
+
+          // Scrollable Body grouped by Status
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final entry in groupedPurchases.entries) ...[
+                    _buildStatusSectionHeader(
+                      entry.key,
+                      entry.value.length,
+                    ),
+                    for (final pur in entry.value) ...[
+                      _buildDesktopTableRow(context, viewModel, pur),
+                    ],
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

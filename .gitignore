@@ -21,6 +21,7 @@ migrate_working_dir/
 .project
 .classpath
 .settings/
+.VSCodeCounter/
 
 # Flutter/Dart specific
 .dart_tool/

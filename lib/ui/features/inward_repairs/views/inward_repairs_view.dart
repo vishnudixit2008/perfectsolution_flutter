@@ -21,7 +21,6 @@ import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
-import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/whatsapp_icon.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
@@ -44,6 +43,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   double _nameWidth = 200.0;
   double _mobileWidth = 150.0;
   double _devicesWidth = 250.0;
+  double _queryWidth = 200.0;
   // ignore: unused_field
   double _statusWidth = 140.0;
 
@@ -56,6 +56,8 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         UiPreferencesService.getColumnWidth('inward', 'mobile') ?? 150.0;
     _devicesWidth =
         UiPreferencesService.getColumnWidth('inward', 'devices') ?? 250.0;
+    _queryWidth =
+        UiPreferencesService.getColumnWidth('inward', 'query') ?? 200.0;
     _statusWidth =
         UiPreferencesService.getColumnWidth('inward', 'status') ?? 140.0;
   }
@@ -78,6 +80,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         case 'devices':
           _devicesWidth = newWidth;
           break;
+        case 'query':
+          _queryWidth = newWidth;
+          break;
         case 'status':
           _statusWidth = newWidth;
           break;
@@ -85,10 +90,6 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     });
     UiPreferencesService.setColumnWidth('inward', columnKey, newWidth);
   }
-
-  // Pagination states
-  int _currentPage = 1;
-  int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -159,25 +160,26 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
               statusMatch;
         }).toList();
 
-        // Sort by jobNo descending (newest repairs first)
-        filteredRepairs.sort((a, b) => b.jobNo.compareTo(a.jobNo));
+        // Primary sort by status order (configured in StatusManagementService), secondary sort by jobNo descending
+        final statusList = StatusManagementService.getStatuses('inward');
+        filteredRepairs.sort((a, b) {
+          final idxA = statusList.indexWhere(
+            (s) => s.toLowerCase() == a.status.trim().toLowerCase(),
+          );
+          final idxB = statusList.indexWhere(
+            (s) => s.toLowerCase() == b.status.trim().toLowerCase(),
+          );
+          final orderA = idxA == -1 ? 999 : idxA;
+          final orderB = idxB == -1 ? 999 : idxB;
 
-        final int totalPages = (filteredRepairs.length / _itemsPerPage).ceil();
-        final int currentPage = _currentPage.clamp(
-          1,
-          totalPages > 0 ? totalPages : 1,
-        );
-        final int startIndex = (currentPage - 1) * _itemsPerPage;
-        final int endIndex = (startIndex + _itemsPerPage).clamp(
-          0,
-          filteredRepairs.length,
-        );
-        final pagedRepairs = filteredRepairs.isEmpty
-            ? <InwardRepair>[]
-            : filteredRepairs.sublist(startIndex, endIndex);
+          if (orderA != orderB) {
+            return orderA.compareTo(orderB);
+          }
+          return b.jobNo.compareTo(a.jobNo);
+        });
 
         // Group entries by Status (Status on top, entries belonging to that status below)
-        final groupedRepairs = _getGroupedRepairs(pagedRepairs);
+        final groupedRepairs = _getGroupedRepairs(filteredRepairs);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -281,7 +283,6 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                   searchQuery: _searchController.text,
                   onSearchChanged: (q) => setState(() {
                     _searchController.text = q;
-                    _currentPage = 1;
                   }),
                   hintText: 'Search job no, customer, device...',
                 ),
@@ -296,49 +297,11 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                               context,
                               viewModel,
                               groupedRepairs,
-                              currentPage,
-                              totalPages,
                             )
-                          : Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: _buildMobileCardsList(
-                                    context,
-                                    viewModel,
-                                    groupedRepairs,
-                                  ),
-                                ),
-                                if (totalPages > 1)
-                                  Positioned(
-                                    bottom: 12,
-                                    left: 8,
-                                    child: _buildFloatingPaginationIsland(
-                                        currentPage: currentPage,
-                                        totalPages: totalPages,
-                                        itemsPerPage: _itemsPerPage,
-                                        onItemsPerPageChanged: (val) {
-                                          setState(() {
-                                            _itemsPerPage = val;
-                                            _currentPage = 1;
-                                          });
-                                        },
-                                        onPreviousPage: () {
-                                          if (_currentPage > 1) {
-                                            setState(() {
-                                              _currentPage--;
-                                            });
-                                          }
-                                        },
-                                        onNextPage: () {
-                                          if (_currentPage < totalPages) {
-                                            setState(() {
-                                              _currentPage++;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ),
-                              ],
+                          : _buildMobileCardsList(
+                              context,
+                              viewModel,
+                              groupedRepairs,
                             )),
               ),
             ],
@@ -477,115 +440,100 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     BuildContext context,
     InwardRepairsViewModel viewModel,
     Map<String, List<InwardRepair>> groupedRepairs,
-    int currentPage,
-    int totalPages,
   ) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Container(
-            width: double.infinity,
-            decoration: AppTheme.glassCardDecoration(
-              color: const Color(0x0AFFFFFF),
-              borderRadius: 12,
+    return Container(
+      width: double.infinity,
+      decoration: AppTheme.glassCardDecoration(
+        color: const Color(0x0AFFFFFF),
+        borderRadius: 12,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header Row (Status column removed - grouped under status headers)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.02),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+              ),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
+            child: Row(
               children: [
-                // Header Row (Status column removed - grouped under status headers)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
-                    border: Border(
-                      bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildResizableHeader(
-                        'Job No',
-                        _jobNoWidth,
-                        (delta) => _updateColumnWidth(
-                          'jobNo',
-                          (_jobNoWidth + delta).clamp(60.0, 200.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Date',
-                        _dateWidth,
-                        (delta) => _updateColumnWidth(
-                          'date',
-                          (_dateWidth + delta).clamp(80.0, 200.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Customer Name',
-                        _nameWidth,
-                        (delta) => _updateColumnWidth(
-                          'name',
-                          (_nameWidth + delta).clamp(120.0, 400.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Mobile',
-                        _mobileWidth,
-                        (delta) => _updateColumnWidth(
-                          'mobile',
-                          (_mobileWidth + delta).clamp(100.0, 300.0),
-                        ),
-                      ),
-                      _buildResizableHeader(
-                        'Devices / Model',
-                        _devicesWidth,
-                        (delta) => _updateColumnWidth(
-                          'devices',
-                          (_devicesWidth + delta).clamp(150.0, 500.0),
-                        ),
-                      ),
-                    ],
+                _buildResizableHeader(
+                  'Job No',
+                  _jobNoWidth,
+                  (delta) => _updateColumnWidth(
+                    'jobNo',
+                    (_jobNoWidth + delta).clamp(60.0, 200.0),
                   ),
                 ),
-
-                // Scrollable Body with Status Headers on Top and Entries Below Each Status
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final entry in groupedRepairs.entries) ...[
-                          _buildStatusSectionHeader(
-                            entry.key,
-                            entry.value.length,
-                          ),
-                          for (final repair in entry.value) ...[
-                            _buildDesktopTableRow(context, viewModel, repair),
-                          ],
-                        ],
-                      ],
-                    ),
+                _buildResizableHeader(
+                  'Date',
+                  _dateWidth,
+                  (delta) => _updateColumnWidth(
+                    'date',
+                    (_dateWidth + delta).clamp(80.0, 200.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Customer Name',
+                  _nameWidth,
+                  (delta) => _updateColumnWidth(
+                    'name',
+                    (_nameWidth + delta).clamp(120.0, 400.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Mobile',
+                  _mobileWidth,
+                  (delta) => _updateColumnWidth(
+                    'mobile',
+                    (_mobileWidth + delta).clamp(100.0, 300.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Devices / Model',
+                  _devicesWidth,
+                  (delta) => _updateColumnWidth(
+                    'devices',
+                    (_devicesWidth + delta).clamp(150.0, 500.0),
+                  ),
+                ),
+                _buildResizableHeader(
+                  'Query / Problem',
+                  _queryWidth,
+                  (delta) => _updateColumnWidth(
+                    'query',
+                    (_queryWidth + delta).clamp(120.0, 400.0),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        Positioned(
-          left: 8,
-          bottom: 8,
-          child: AppPaginationBar(
-            currentPage: currentPage,
-            totalPages: totalPages,
-            itemsPerPage: _itemsPerPage,
-            onItemsPerPageChanged: (val) => setState(() {
-              _itemsPerPage = val;
-              _currentPage = 1;
-            }),
-            onPreviousPage: () => setState(() => _currentPage--),
-            onNextPage: () => setState(() => _currentPage++),
+
+          // Scrollable Body with Status Headers on Top and Entries Below Each Status
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final entry in groupedRepairs.entries) ...[
+                    _buildStatusSectionHeader(
+                      entry.key,
+                      entry.value.length,
+                    ),
+                    for (final repair in entry.value) ...[
+                      _buildDesktopTableRow(context, viewModel, repair),
+                    ],
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -642,6 +590,18 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 repair.devices,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Container(
+              width: _queryWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                (repair.query != null && repair.query!.isNotEmpty)
+                    ? repair.query!
+                    : '-',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: AppTheme.textSecondary),
               ),
             ),
           ],

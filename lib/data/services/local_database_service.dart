@@ -301,7 +301,15 @@ class LocalDatabaseService {
   /// Returns all pending operation keys (for targeted removal after flush).
   List<dynamic> getPendingSyncKeys() => _pendingSyncBox.keys.toList();
 
-  // --- Settings Methods ---
+  // --- Settings & Sync Timestamp Methods ---
+
+  String? getLastSyncTimestamp(String tableName) {
+    return _settingsBox.get('last_sync_$tableName')?.toString();
+  }
+
+  Future<void> setLastSyncTimestamp(String tableName, String isoTimestamp) async {
+    await _settingsBox.put('last_sync_$tableName', isoTimestamp);
+  }
 
   String? getActiveUpiId() {
     return _settingsBox.get('active_upi_id');

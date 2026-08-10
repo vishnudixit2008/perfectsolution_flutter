@@ -21,6 +21,8 @@ import '../features/dashboard/view_models/recent_sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
 import '../shared/update_dialog.dart';
+import '../features/settings/views/upi_qr_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../data/services/user_permission_service.dart';
 import '../../data/models/app_user.dart';
@@ -137,6 +139,33 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
           ? AppBottomNavBar(currentIndex: currentIndex)
           : null,
     );
+  }
+
+  void _openUpiQrScreen(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      showDialog(
+        context: context,
+        useSafeArea: false,
+        builder: (_) => Dialog.fullscreen(
+          backgroundColor: const Color(0xFF080D1A),
+          child: const UpiQrScreen(),
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: const Color(0xFF0F1524),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppTheme.secondary.withValues(alpha: 0.25)),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+          child: const UpiQrScreen(),
+        ),
+      );
+    }
   }
 
   Widget _buildActiveView(int currentIndex) {
@@ -369,6 +398,62 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
           ),
 
           const SizedBox(height: 8),
+
+          // QR Pay Button (Desktop Sidebar)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: InkWell(
+              onTap: () => _openUpiQrScreen(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.secondary, Color(0xFF2DD4BF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.secondary.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.qr_code_2_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'UPI QR Pay',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.open_in_new_rounded,
+                      size: 14,
+                      color: Colors.white70,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
           const Divider(color: Colors.white10, height: 1),
           const SizedBox(height: 12),
 
@@ -529,19 +614,26 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
               );
             },
           ),
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12.0, top: 4.0),
-            child: Center(
-              child: Text(
-                'v1.0.8 (b21)',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textMuted,
-                  letterSpacing: 0.5,
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              final version = snapshot.hasData ? snapshot.data!.version : '1.1.3';
+              final buildNumber = snapshot.hasData ? snapshot.data!.buildNumber : '27';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0, top: 4.0),
+                child: Center(
+                  child: Text(
+                    'v$version (b$buildNumber)',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textMuted,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),

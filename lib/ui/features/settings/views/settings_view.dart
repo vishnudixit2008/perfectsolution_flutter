@@ -7,6 +7,8 @@ import 'package:shop_management_flutter/data/services/user_permission_service.da
 import 'package:shop_management_flutter/data/models/app_user.dart';
 import 'package:shop_management_flutter/ui/features/auth/view_models/auth_view_model.dart';
 import 'package:shop_management_flutter/ui/shared/components/app_page_header.dart';
+import 'package:shop_management_flutter/ui/shared/components/app_floating_action_button.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'user_management_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -84,73 +86,85 @@ class _SettingsViewState extends State<SettingsView> {
         final bool hasAnyConfigCard =
             canManageUpi || canManageUsers || canManageInvoiceLayout;
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppPageHeader(
-                title: 'Settings',
-                subtitle:
-                    'User preferences, look & feel, invoice layout & app details',
-              ),
-
-              _buildUserProfileAndLogoutCard(context),
-
-              if (hasAnyConfigCard) ...[
-                const SizedBox(height: 20),
-                isDesktop
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (leftColumnCards.isNotEmpty)
-                            Expanded(
-                              child: Column(children: leftColumnCards),
-                            ),
-                          if (leftColumnCards.isNotEmpty &&
-                              rightColumnCards.isNotEmpty)
-                            const SizedBox(width: 20),
-                          if (rightColumnCards.isNotEmpty)
-                            Expanded(
-                              child: Column(children: rightColumnCards),
-                            ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          ...leftColumnCards,
-                          if (leftColumnCards.isNotEmpty &&
-                              rightColumnCards.isNotEmpty)
-                            const SizedBox(height: 20),
-                          ...rightColumnCards,
-                        ],
-                      ),
-              ],
-
-              const SizedBox(height: 32),
-              const Center(
-                child: Column(
-                  children: [
-                    Text(
-                      'Perfect Solution App',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Version 1.0.8 (Build 21)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                  ],
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton:
+              !isDesktop ? const AppFloatingActionButton.qrOnly() : null,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppPageHeader(
+                  title: 'Settings',
+                  subtitle:
+                      'User preferences, look & feel, invoice layout & app details',
                 ),
-              ),
-            ],
+
+                _buildUserProfileAndLogoutCard(context),
+
+                if (hasAnyConfigCard) ...[
+                  const SizedBox(height: 20),
+                  isDesktop
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (leftColumnCards.isNotEmpty)
+                              Expanded(
+                                child: Column(children: leftColumnCards),
+                              ),
+                            if (leftColumnCards.isNotEmpty &&
+                                rightColumnCards.isNotEmpty)
+                              const SizedBox(width: 20),
+                            if (rightColumnCards.isNotEmpty)
+                              Expanded(
+                                child: Column(children: rightColumnCards),
+                              ),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            ...leftColumnCards,
+                            if (leftColumnCards.isNotEmpty &&
+                                rightColumnCards.isNotEmpty)
+                              const SizedBox(height: 20),
+                            ...rightColumnCards,
+                          ],
+                        ),
+                ],
+
+                const SizedBox(height: 32),
+                Center(
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Perfect Solution App',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      FutureBuilder<PackageInfo>(
+                        future: PackageInfo.fromPlatform(),
+                        builder: (context, snapshot) {
+                          final version = snapshot.hasData ? snapshot.data!.version : '1.1.3';
+                          final buildNumber = snapshot.hasData ? snapshot.data!.buildNumber : '27';
+                          return Text(
+                            'Version $version (Build $buildNumber)',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textMuted,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

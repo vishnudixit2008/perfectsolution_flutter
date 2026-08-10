@@ -16,7 +16,6 @@ import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../../../navigation/navigation_view_model.dart';
 import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
-import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
@@ -218,20 +217,6 @@ class _SalesViewState extends State<SalesView> {
     });
 
     // Pagination calculations
-    final int totalItems = filteredSales.length;
-    final int totalPages = (totalItems / viewModel.itemsPerPage).ceil().clamp(
-      1,
-      99999,
-    );
-    final int currentPage = viewModel.currentPage.clamp(1, totalPages);
-
-    final int startIndex = (currentPage - 1) * viewModel.itemsPerPage;
-    final int endIndex = (startIndex + viewModel.itemsPerPage).clamp(
-      0,
-      totalItems,
-    );
-    final pagedSales = filteredSales.sublist(startIndex, endIndex);
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       floatingActionButton: isDesktop
@@ -330,30 +315,11 @@ class _SalesViewState extends State<SalesView> {
           Expanded(
             child: filteredSales.isEmpty
                 ? _buildEmptyLedger(context)
-                : Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _buildSalesTableOrCards(
-                          context,
-                          viewModel,
-                          pagedSales,
-                          isDesktop,
-                        ),
-                      ),
-                      Positioned(
-                        left: 8,
-                        bottom: 8,
-                        child: AppPaginationBar(
-                          currentPage: currentPage,
-                          totalPages: totalPages,
-                          itemsPerPage: viewModel.itemsPerPage,
-                          onItemsPerPageChanged: (val) =>
-                              viewModel.setItemsPerPage(val),
-                          onPreviousPage: () => viewModel.previousPage(),
-                          onNextPage: () => viewModel.nextPage(totalPages),
-                        ),
-                      ),
-                    ],
+                : _buildSalesTableOrCards(
+                    context,
+                    viewModel,
+                    filteredSales,
+                    isDesktop,
                   ),
           ),
         ],

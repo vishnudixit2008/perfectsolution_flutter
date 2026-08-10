@@ -237,13 +237,8 @@ class PricelistViewModel extends ChangeNotifier {
     return list;
   }
 
-  // Get paged items to minimize rendering memory and lag
-  List<PricelistItem> get pagedItems {
-    final list = filteredItems;
-    final int startIndex = (_currentPage - 1) * _itemsPerPage;
-    if (startIndex >= list.length) return [];
-    return list.skip(startIndex).take(_itemsPerPage).toList();
-  }
+  // Get items for continuous rendering
+  List<PricelistItem> get pagedItems => filteredItems;
 
   // Get items grouped by category for Android/mobile listing
   Map<String, List<PricelistItem>> get groupedFilteredItems {

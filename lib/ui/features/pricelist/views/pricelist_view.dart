@@ -8,7 +8,6 @@ import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_stock_badge.dart';
-import '../../../shared/components/app_pagination_bar.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
@@ -116,28 +115,9 @@ class _PricelistViewState extends State<PricelistView> {
               Expanded(
                 child: viewModel.filteredItems.isEmpty
                     ? _buildEmptyState(context, viewModel)
-                    : Stack(
-                        children: [
-                          Positioned.fill(
-                            child: isDesktop
-                                ? _buildDesktopGrid(context, viewModel)
-                                : _buildMobileCardsList(context, viewModel),
-                          ),
-                          Positioned(
-                            left: 8,
-                            bottom: 8,
-                            child: AppPaginationBar(
-                              currentPage: viewModel.currentPage,
-                              totalPages: viewModel.totalPages,
-                              itemsPerPage: viewModel.itemsPerPage,
-                              onItemsPerPageChanged: (val) =>
-                                  viewModel.setItemsPerPage(val),
-                              onPreviousPage: () => viewModel.previousPage(),
-                              onNextPage: () => viewModel.nextPage(),
-                            ),
-                          ),
-                        ],
-                      ),
+                    : (isDesktop
+                        ? _buildDesktopGrid(context, viewModel)
+                        : _buildMobileCardsList(context, viewModel)),
               ),
             ],
           ),
