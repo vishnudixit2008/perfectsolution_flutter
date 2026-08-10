@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import '../features/pricelist/views/pricelist_view.dart';
@@ -37,11 +38,20 @@ class MainNavigationContainer extends StatefulWidget {
 }
 
 class _MainNavigationContainerState extends State<MainNavigationContainer> {
+  bool _isSyncing = false;
+  Timer? _updateCheckTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateDialog.showIfNeeded(context);
+    });
+    // Check for app updates every 6 hours while the app is kept running
+    _updateCheckTimer = Timer.periodic(const Duration(hours: 6), (_) {
+      if (mounted) {
+        UpdateDialog.showIfNeeded(context);
+      }
     });
   }
 
@@ -67,7 +77,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 7, 'module': 'settings'},
   ];
 
-  bool _isSyncing = false;
+  @override
+  void dispose() {
+    _updateCheckTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _triggerManualSync(BuildContext context) async {
     if (_isSyncing) return;

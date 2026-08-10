@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'ui_preferences_service.dart';
 
 class AppVersionStatus {
   final String currentVersion;
@@ -52,9 +53,28 @@ class UpdateCheckService {
     return 0;
   }
 
+  static const String _prefKeyLastCheck = 'app_update_last_check_timestamp';
+  static const Duration _checkInterval = Duration(hours: 6);
+
   /// Queries Supabase app_versions table and compares against local PackageInfo.
-  static Future<AppVersionStatus?> checkForUpdates() async {
+  /// Throttles network checks to at most once every 6 hours unless [forceCheck] is true.
+  static Future<AppVersionStatus?> checkForUpdates({bool forceCheck = false}) async {
     try {
+      final now = DateTime.now();
+      final lastCheckMillis = (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() ?? 0;
+      final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
+
+      if (!forceCheck && now.difference(lastCheck) < _checkInterval) {
+        if (kDebugMode) {
+          final remainingMins = (_checkInterval - now.difference(lastCheck)).inMinutes;
+          print('UpdateCheckService: Skipped check. Next check in $remainingMins mins (0 Egress saved!).');
+        }
+        return null;
+      }
+
+      // Record check timestamp
+      await UiPreferencesService.setValue(_prefKeyLastCheck, now.millisecondsSinceEpoch);
+
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVer = packageInfo.version.isNotEmpty ? packageInfo.version : '0.9.0';
       final platform = currentPlatform;

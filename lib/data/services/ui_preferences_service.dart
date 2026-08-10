@@ -40,4 +40,12 @@ class UiPreferencesService {
     widths[pageKey] = pageMap;
     await box.put(_columnWidthsKey, widths);
   }
+
+  static dynamic getValue(String key) {
+    return _getBox().get(key);
+  }
+
+  static Future<void> setValue(String key, dynamic value) async {
+    await _getBox().put(key, value);
+  }
 }
