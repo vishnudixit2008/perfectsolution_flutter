@@ -15,6 +15,7 @@ import '../models/request_order.dart';
 import '../models/sale.dart';
 import '../services/local_database_service.dart';
 import '../services/user_permission_service.dart';
+import 'ui_preferences_service.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
@@ -373,10 +374,26 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.syncing, 'Syncing changes from cloud...');
       final client = Supabase.instance.client;
 
+      final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
+      final String? lastSyncIso = (!force && lastSyncMillis > 0)
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 5000).toIso8601String()
+          : null;
+      final bool isDelta = lastSyncIso != null;
+
+      if (kDebugMode) {
+        print(isDelta
+            ? '[SupabaseSync] Performing Delta Sync for changes after $lastSyncIso'
+            : '[SupabaseSync] Performing Full Sync');
+      }
+
       // ── Step 0: Apply remote deletions (tombstones) ────────────────────────
       // This ensures records deleted on any device are removed everywhere.
       try {
-        final deletions = await client.from('deleted_records').select();
+        var tombstoneQuery = client.from('deleted_records').select();
+        if (isDelta) {
+          tombstoneQuery = tombstoneQuery.gt('created_at', lastSyncIso);
+        }
+        final deletions = await tombstoneQuery;
         for (final d in deletions) {
           final tbl = d['table_name']?.toString() ?? '';
           final rid = d['record_id']?.toString();
@@ -397,24 +414,24 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         }
       } catch (e) {
-        // Tombstone table may not exist yet on older deployments — safe to skip
         if (kDebugMode) print('Tombstone sync skipped: $e');
       }
 
       // ── Step 1: Inward Repairs ─────────────────────────────────────────────
-      final inwardData = await client.from('inward_repairs').select();
-      final inwardItemsData = await client
-          .from('inward_estimate_items')
-          .select();
+      var inwardQuery = client.from('inward_repairs').select();
+      var inwardItemsQuery = client.from('inward_estimate_items').select();
+      if (isDelta) {
+        inwardQuery = inwardQuery.gt('updated_at', lastSyncIso);
+        inwardItemsQuery = inwardItemsQuery.gt('updated_at', lastSyncIso);
+      }
+      final inwardData = await inwardQuery;
+      final inwardItemsData = await inwardItemsQuery;
+
       final repairsMap = <int, Map<String, dynamic>>{};
       final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
 
       for (final json in inwardData) {
         final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
-
-        // Conflict resolution: if local has a newer updatedAt, keep local
-        // but still store the cloud version in the map (cloud wins by default).
-        // Individual saves via pushRecordToCloud already keep cloud updated.
         repairsMap[cloudRepair.jobNo] = cloudRepair.toJson();
 
         final itemsJson = inwardItemsData
@@ -428,7 +445,6 @@ class SupabaseSyncService extends ChangeNotifier {
             )
             .toList();
 
-        // Preserve local estimate items if cloud data hasn't populated yet
         if (parsedItems.isEmpty) {
           final existingLocal = localDb.getInwardEstimateItems(cloudRepair.jobNo);
           if (existingLocal.isNotEmpty) {
@@ -438,42 +454,46 @@ class SupabaseSyncService extends ChangeNotifier {
 
         inwardItemsMap[cloudRepair.jobNo] = parsedItems;
       }
-      await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap);
+      await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: !isDelta);
 
       // ── Step 2: Replacements ───────────────────────────────────────────────
-      final replacementData = await client.from('replacements').select();
+      var replacementQuery = client.from('replacements').select();
+      if (isDelta) replacementQuery = replacementQuery.gt('updated_at', lastSyncIso);
+      final replacementData = await replacementQuery;
       final replacementMap = <String, Map<String, dynamic>>{};
       for (final json in replacementData) {
         final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
         replacementMap[repl.jobNo] = repl.toJson();
       }
-      await localDb.saveAllReplacements(replacementMap);
+      await localDb.saveAllReplacements(replacementMap, clearOthers: !isDelta);
 
       // ── Step 3: Requests ───────────────────────────────────────────────────
-      final requestData = await client.from('requests').select();
+      var requestQuery = client.from('requests').select();
+      if (isDelta) requestQuery = requestQuery.gt('updated_at', lastSyncIso);
+      final requestData = await requestQuery;
       final requestMap = <String, Map<String, dynamic>>{};
       for (final json in requestData) {
         final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
         requestMap[req.id] = req.toJson();
       }
-      await localDb.saveAllRequests(requestMap);
+      await localDb.saveAllRequests(requestMap, clearOthers: !isDelta);
 
       // ── Step 4: Calls ──────────────────────────────────────────────────────
-      final callData = await client.from('calls').select();
+      var callQuery = client.from('calls').select();
+      if (isDelta) callQuery = callQuery.gt('updated_at', lastSyncIso);
+      final callData = await callQuery;
       final callMap = <int, Map<String, dynamic>>{};
       final List<Map<String, dynamic>> callsToRepushWithPhoto = [];
       for (final json in callData) {
         final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
         Map<String, dynamic> callJson = cloudCall.toJson();
 
-        // Preserve local photo if cloud has no photo (photo may be Base64 stored only locally)
         if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
           final localRaw = localDb.getCallById(cloudCall.id);
           if (localRaw != null) {
             final localPhoto = localRaw['photo']?.toString();
             if (localPhoto != null && localPhoto.isNotEmpty) {
               callJson['photo'] = localPhoto;
-              // Re-push the photo to Supabase so it persists in cloud too
               callsToRepushWithPhoto.add(callJson);
             }
           }
@@ -481,9 +501,8 @@ class SupabaseSyncService extends ChangeNotifier {
 
         callMap[cloudCall.id] = callJson;
       }
-      await localDb.saveAllCalls(callMap);
+      await localDb.saveAllCalls(callMap, clearOthers: !isDelta);
 
-      // Push back any calls where local had photo but cloud didn't
       for (final callJson in callsToRepushWithPhoto) {
         try {
           await client.from('calls').upsert(callJson);
@@ -493,8 +512,14 @@ class SupabaseSyncService extends ChangeNotifier {
       }
 
       // ── Step 5: Sales ──────────────────────────────────────────────────────
-      final salesData = await client.from('sales').select();
-      final salesItemsData = await client.from('sale_items').select();
+      var salesQuery = client.from('sales').select();
+      var salesItemsQuery = client.from('sale_items').select();
+      if (isDelta) {
+        salesQuery = salesQuery.gt('updated_at', lastSyncIso);
+        salesItemsQuery = salesItemsQuery.gt('updated_at', lastSyncIso);
+      }
+      final salesData = await salesQuery;
+      final salesItemsData = await salesItemsQuery;
       final salesMap = <int, Map<String, dynamic>>{};
       final salesItemsMap = <int, List<Map<String, dynamic>>>{};
 
@@ -512,13 +537,17 @@ class SupabaseSyncService extends ChangeNotifier {
             )
             .toList();
       }
-      await localDb.saveAllSales(salesMap, salesItemsMap);
+      await localDb.saveAllSales(salesMap, salesItemsMap, clearOthers: !isDelta);
 
       // ── Step 6: Purchases ──────────────────────────────────────────────────
-      final purchaseData = await client.from('purchases').select();
-      final purchaseItemsData = await client
-          .from('purchase_order_items')
-          .select();
+      var purchaseQuery = client.from('purchases').select();
+      var purchaseItemsQuery = client.from('purchase_order_items').select();
+      if (isDelta) {
+        purchaseQuery = purchaseQuery.gt('updated_at', lastSyncIso);
+        purchaseItemsQuery = purchaseItemsQuery.gt('updated_at', lastSyncIso);
+      }
+      final purchaseData = await purchaseQuery;
+      final purchaseItemsData = await purchaseItemsQuery;
       final purchasesMap = <String, Map<String, dynamic>>{};
       final purchaseItemsMap = <String, List<Map<String, dynamic>>>{};
 
@@ -536,23 +565,27 @@ class SupabaseSyncService extends ChangeNotifier {
             )
             .toList();
       }
-      await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap);
+      await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap, clearOthers: !isDelta);
 
       // ── Step 7: Pricelist ──────────────────────────────────────────────────
-      final pricelistData = await client.from('pricelist').select();
+      var pricelistQuery = client.from('pricelist').select();
+      if (isDelta) pricelistQuery = pricelistQuery.gt('updated_at', lastSyncIso);
+      final pricelistData = await pricelistQuery;
       final pricelistMap = <int, Map<String, dynamic>>{};
       for (final json in pricelistData) {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
         pricelistMap[item.id] = item.toJson();
       }
-      await localDb.saveAllPricelistItems(pricelistMap);
+      await localDb.saveAllPricelistItems(pricelistMap, clearOthers: !isDelta);
 
       // ── Step 8: Users & Permissions ────────────────────────────────────────
-      await UserPermissionService.syncUsersFromCloud();
+      await UserPermissionService.syncUsersFromCloud(force: force);
 
       // ── Step 9: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
       try {
-        final settingsData = await client.from('shop_settings').select();
+        var settingsQuery = client.from('shop_settings').select();
+        if (isDelta) settingsQuery = settingsQuery.gt('updated_at', lastSyncIso);
+        final settingsData = await settingsQuery;
         final settingsMap = <String, dynamic>{};
         for (final item in settingsData) {
           final key = item['key']?.toString();
@@ -561,10 +594,9 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         }
 
-        // Active UPI ID
         if (settingsMap.containsKey('active_upi_id') && settingsMap['active_upi_id'] != null) {
           await localDb.setActiveUpiId(settingsMap['active_upi_id'].toString(), syncToCloud: false);
-        } else {
+        } else if (!isDelta) {
           final localActive = localDb.getActiveUpiId();
           if (localActive != null && localActive.isNotEmpty) {
             await client.from('shop_settings').upsert({
@@ -575,11 +607,10 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         }
 
-        // UPI IDs List
         if (settingsMap.containsKey('upi_ids_list') && settingsMap['upi_ids_list'] is List) {
           final list = (settingsMap['upi_ids_list'] as List).map((e) => e.toString()).toList();
           await localDb.saveUpiIdsList(list, syncToCloud: false);
-        } else {
+        } else if (!isDelta) {
           final localList = localDb.getUpiIdsList();
           if (localList.isNotEmpty) {
             await client.from('shop_settings').upsert({
@@ -590,13 +621,12 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         }
 
-        // UPI Names Map
         if (settingsMap.containsKey('upi_names_map') && settingsMap['upi_names_map'] is Map) {
           final map = Map<String, String>.from(
             (settingsMap['upi_names_map'] as Map).map((k, v) => MapEntry(k.toString(), v.toString())),
           );
           await localDb.saveUpiNamesMap(map, syncToCloud: false);
-        } else {
+        } else if (!isDelta) {
           final localNames = localDb.getUpiNamesMap();
           if (localNames.isNotEmpty) {
             await client.from('shop_settings').upsert({
@@ -611,6 +641,7 @@ class SupabaseSyncService extends ChangeNotifier {
       }
 
       _lastFullSyncTime = DateTime.now();
+      await UiPreferencesService.setValue('last_full_sync_timestamp', _lastFullSyncTime!.millisecondsSinceEpoch);
       _setStatus(SyncStatus.synced, 'All tables synchronized');
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');

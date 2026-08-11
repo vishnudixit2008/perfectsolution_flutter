@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_user.dart';
+import 'ui_preferences_service.dart';
 import '../../ui/shared/status_management_dialog.dart';
 
 class UserPermissionService {
@@ -67,6 +68,9 @@ class UserPermissionService {
     return null;
   }
 
+  static AppUser? _cachedCurrentUser;
+  static bool _isSyncingUsers = false;
+
   static String getCurrentUserEmail() {
     final box = _getBox();
     if (box == null) return 'perfectsolutionnoida@gmail.com';
@@ -75,6 +79,7 @@ class UserPermissionService {
 
   static Future<void> setCurrentUser(String email) async {
     final cleanEmail = email.toLowerCase().trim();
+    _cachedCurrentUser = null;
     final box = _getBox();
     if (box != null) {
       await box.put(_currentEmailKey, cleanEmail);
@@ -100,32 +105,39 @@ class UserPermissionService {
         if (box != null) {
           await box.put(cleanEmail, cloudUser.toJson());
         }
+        _cachedCurrentUser = null;
       }
     } catch (_) {}
   }
 
   static AppUser getCurrentUser() {
+    if (_cachedCurrentUser != null) {
+      return _cachedCurrentUser!;
+    }
     try {
       final email = getCurrentUserEmail().toLowerCase().trim();
 
       // Permanent Pure Admins override everything
       if (AppUser.isPermanentAdmin(email)) {
         final name = email.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin';
-        return AppUser.defaultAdmin(email: email, name: name);
+        _cachedCurrentUser = AppUser.defaultAdmin(email: email, name: name);
+        return _cachedCurrentUser!;
       }
 
       final box = _getBox();
       if (box != null) {
         final raw = box.get(email);
         if (raw != null && raw is Map) {
-          return AppUser.fromJson(Map<String, dynamic>.from(raw));
+          _cachedCurrentUser = AppUser.fromJson(Map<String, dynamic>.from(raw));
+          return _cachedCurrentUser!;
         }
       }
     } catch (_) {}
 
     // Fallback for non-permanent admins: default employee role (restricted), NEVER default admin!
     final currentEmail = getCurrentUserEmail();
-    return AppUser.defaultEmployee(currentEmail, 'User');
+    _cachedCurrentUser = AppUser.defaultEmployee(currentEmail, 'User');
+    return _cachedCurrentUser!;
   }
 
   static List<AppUser> getAllUsers() {
@@ -144,8 +156,22 @@ class UserPermissionService {
 
   /// Sync all users from Supabase app_users table to local Hive storage
   /// Purges local Hive user entries that were deleted on Supabase Cloud.
-  static Future<void> syncUsersFromCloud() async {
+  /// Throttled to max once per 15 minutes unless [force] is true.
+  static Future<void> syncUsersFromCloud({bool force = false}) async {
+    if (_isSyncingUsers) return;
+    _isSyncingUsers = true;
+
     try {
+      final now = DateTime.now();
+      final lastCheckMillis = (UiPreferencesService.getValue('last_users_sync_time') as num?)?.toInt() ?? 0;
+      final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
+
+      if (!force && now.difference(lastCheck).inMinutes < 15) {
+        return;
+      }
+
+      await UiPreferencesService.setValue('last_users_sync_time', now.millisecondsSinceEpoch);
+
       final response = await Supabase.instance.client
           .from('app_users')
           .select()
@@ -174,7 +200,11 @@ class UserPermissionService {
           await box.delete(key);
         }
       }
-    } catch (_) {}
+      _cachedCurrentUser = null;
+    } catch (_) {
+    } finally {
+      _isSyncingUsers = false;
+    }
   }
 
   static Future<void> saveUser(AppUser user) async {
