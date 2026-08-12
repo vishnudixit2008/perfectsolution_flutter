@@ -66,15 +66,10 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Prepare macOS Native Configs
-        if: matrix.target == 'macos'
-        run: |
-          cd macos
-          pod install --repo-update
-          cd ..
-
       - name: Build Target Artifact
-        run: ${{ matrix.build_cmd }}
+        run: |
+          ${{ matrix.build_cmd }} || (sleep 5 && ${{ matrix.build_cmd }})
+
 
       - name: Verify and Fix Release Folder Contents
         if: matrix.target == 'windows'
