@@ -74,3 +74,8 @@ macos/Runner.xcworkspace/
 # Environment / Secret Keys
 .env
 .env.*
+
+# Antigravity Agent Local Configs & Skills
+.agents/
+skills-lock.json
+
