@@ -66,6 +66,12 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Prepare macOS Native Configs
+        if: matrix.target == 'macos'
+        run: |
+          cd macos
+          pod install --repo-update
+          cd ..
 
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
@@ -175,6 +181,7 @@ jobs:
           Set-Content  -Path $iss -Encoding UTF8 -Value "[Setup]"
           Add-Content  -Path $iss -Value "AppName=Perfect Solution"
           Add-Content  -Path $iss -Value "AppVersion=1.1.9"
+
           Add-Content  -Path $iss -Value "AppPublisher=Perfect Solution"
           Add-Content  -Path $iss -Value "AppPublisherURL=https://github.com/vishnudixit2008/perfectsolution_flutter"
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
