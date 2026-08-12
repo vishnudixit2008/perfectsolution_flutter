@@ -50,13 +50,14 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateDialog.showIfNeeded(context);
+      // Cold app launch: always check for update and bypass 1-hour skip suppression
+      UpdateDialog.showIfNeeded(context, isAppLaunch: true);
       _setupKioskBroadcastListener();
     });
     // Check for app updates every 1 hour while the app is kept running
     _updateCheckTimer = Timer.periodic(const Duration(hours: 1), (_) {
       if (mounted) {
-        UpdateDialog.showIfNeeded(context);
+        UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
     });
   }
@@ -174,12 +175,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       if (context.mounted) {
         _reloadAllViewModels(context);
       }
-      // Always re-check for updates after a manual sync tap — forceCheck
-      // bypasses the within-session throttle so the popup shows every time
-      // the user taps the sync button, even if they skipped it before.
+      // Re-check for updates after manual sync tap (isAppLaunch: false respects 1-hour skip suppression)
       if (context.mounted) {
-        await UpdateDialog.showIfNeeded(context, forceCheck: true);
+        await UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
+
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }

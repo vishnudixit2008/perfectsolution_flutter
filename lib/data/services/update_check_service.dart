@@ -55,33 +55,44 @@ class UpdateCheckService {
 
   static const String _prefKeyLastCheck = 'app_update_last_check_timestamp';
   static const Duration _checkInterval = Duration(hours: 1);
+  static const Duration _skipSuppressDuration = Duration(hours: 1);
 
-  // In-memory flag: true after the first successful check this session.
-  // Using an in-memory flag (not persistent storage) ensures every cold
-  // app launch always performs a fresh check regardless of the throttle window.
-  static bool _checkedThisSession = false;
+  static DateTime? _skippedTimestamp;
+
+  /// Records that the user explicitly skipped the update dialog.
+  /// Suppresses update popups on manual sync taps for 1 hour.
+  static void recordSkip() {
+    _skippedTimestamp = DateTime.now();
+    if (kDebugMode) {
+      print('UpdateCheckService: Update skipped. Popups suppressed for 1 hour during session.');
+    }
+  }
+
+  /// Returns true if the user skipped an update less than 1 hour ago.
+  static bool get isSkippedWithinHour {
+    if (_skippedTimestamp == null) return false;
+    return DateTime.now().difference(_skippedTimestamp!) < _skipSuppressDuration;
+  }
 
   /// Queries Supabase app_versions table and compares against local PackageInfo.
-  /// Always checks on a cold launch (first call per session). Subsequent calls
-  /// within the same session are throttled to once per hour unless [forceCheck] is true.
-  static Future<AppVersionStatus?> checkForUpdates({bool forceCheck = false}) async {
+  ///
+  /// Set [isAppLaunch] to true for cold app restarts to bypass the 1-hour skip suppression.
+  /// On manual cloud sync taps ([isAppLaunch] = false), if the update was skipped less than 1 hour ago,
+  /// the check is suppressed.
+  static Future<AppVersionStatus?> checkForUpdates({
+    bool isAppLaunch = false,
+    bool forceCheck = false,
+  }) async {
     try {
       final now = DateTime.now();
 
-      // On a cold launch (_checkedThisSession == false) always check,
-      // ignoring the persistent throttle timestamp entirely.
-      if (!forceCheck && _checkedThisSession) {
-        final lastCheckMillis =
-            (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() ?? 0;
-        final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
-        if (now.difference(lastCheck) < _checkInterval) {
-          if (kDebugMode) {
-            final remainingMins = (_checkInterval - now.difference(lastCheck)).inMinutes;
-            print('UpdateCheckService: Skipped (within-session throttle). '
-                'Next check in $remainingMins mins.');
-          }
-          return null;
+      // On manual sync taps (not app launch), respect the 1-hour skip suppression window
+      if (!isAppLaunch && isSkippedWithinHour && !forceCheck) {
+        if (kDebugMode) {
+          final remainingMins = _skipSuppressDuration.inMinutes - now.difference(_skippedTimestamp!).inMinutes;
+          print('UpdateCheckService: Update suppressed by user skip. Resumes in $remainingMins mins.');
         }
+        return null;
       }
 
       final packageInfo = await PackageInfo.fromPlatform();
@@ -94,9 +105,6 @@ class UpdateCheckService {
           .eq('platform', platform)
           .maybeSingle();
 
-      // Only save the timestamp AFTER a successful Supabase response so that
-      // a failed/offline check does not burn the throttle window.
-      _checkedThisSession = true;
       await UiPreferencesService.setValue(_prefKeyLastCheck, now.millisecondsSinceEpoch);
 
       if (res != null) {

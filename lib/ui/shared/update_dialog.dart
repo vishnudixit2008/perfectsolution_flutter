@@ -8,16 +8,15 @@ class UpdateDialog extends StatelessWidget {
 
   const UpdateDialog({super.key, required this.status});
 
-  /// Checks for an update and shows the popup if one is available.
-  ///
-  /// Set [forceCheck] to true to bypass the 1-hour within-session throttle
-  /// (used by the cloud sync button so every tap re-fetches from Supabase).
   static Future<void> showIfNeeded(
     BuildContext context, {
+    bool isAppLaunch = false,
     bool forceCheck = false,
   }) async {
-    final updateStatus =
-        await UpdateCheckService.checkForUpdates(forceCheck: forceCheck);
+    final updateStatus = await UpdateCheckService.checkForUpdates(
+      isAppLaunch: isAppLaunch,
+      forceCheck: forceCheck,
+    );
     if (updateStatus != null && updateStatus.hasUpdate && context.mounted) {
       showDialog(
         context: context,
@@ -213,7 +212,10 @@ class UpdateDialog extends StatelessWidget {
                   children: [
                     if (!status.isMandatory) ...[
                       TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () {
+                          UpdateCheckService.recordSkip();
+                          Navigator.of(context).pop();
+                        },
                         child: const Text(
                           'Skip for Now',
                           style: TextStyle(color: AppTheme.textMuted),
@@ -221,6 +223,7 @@ class UpdateDialog extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                     ],
+
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _launchDownloadUrl(context),
