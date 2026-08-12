@@ -61,7 +61,10 @@ jobs:
           cache: true
 
       - name: Enable Desktop Support
-        run: flutter config --enable-macos-desktop --enable-windows-desktop
+        run: |
+          flutter config --enable-macos-desktop --enable-windows-desktop
+          flutter create --platforms=macos,windows .
+
 
       - name: Install Dependencies
         run: flutter pub get

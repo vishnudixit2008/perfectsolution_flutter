@@ -324,16 +324,19 @@ class AuthViewModel extends ChangeNotifier {
             timeout: const Duration(seconds: 45),
           );
 
-          if (callbackUri != null) {
+          // Only attempt code exchange if user is not already signed in via listener or AppLinks
+          if (callbackUri != null && Supabase.instance.client.auth.currentSession == null) {
             try {
               await Supabase.instance.client.auth.getSessionFromUrl(callbackUri);
             } catch (e) {
-              if (kDebugMode) print('getSessionFromUrl error: $e');
+              if (kDebugMode) print('getSessionFromUrl exception (safe handling): $e');
+              await Future.delayed(const Duration(milliseconds: 500));
             }
           }
 
-          // Check if session is now active (via loopback or auth listener)
+          // Check if session is now active (via loopback, deep link, or auth state listener)
           final session = Supabase.instance.client.auth.currentSession;
+
           if (session != null && session.user.email != null) {
             final userEmail = session.user.email!.trim().toLowerCase();
             final isAuth =
