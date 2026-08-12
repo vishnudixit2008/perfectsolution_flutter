@@ -37,19 +37,31 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
-            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "shopmanagement123"
-            storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
-            storePassword = keystoreProperties.getProperty("storePassword") ?: "shopmanagement123"
+        val keystorePath = keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks"
+        val keystoreFile = file(keystorePath)
+        val altKeystoreFile = project.file("app/$keystorePath")
+
+        if (keystorePropertiesFile.exists() && (keystoreFile.exists() || altKeystoreFile.exists())) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
+                keyPassword = keystoreProperties.getProperty("keyPassword") ?: "shopmanagement123"
+                storeFile = if (keystoreFile.exists()) keystoreFile else altKeystoreFile
+                storePassword = keystoreProperties.getProperty("storePassword") ?: "shopmanagement123"
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            val releaseConfig = signingConfigs.findByName("release")
+            if (releaseConfig != null) {
+                signingConfig = releaseConfig
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
+
 }
 
 flutter {

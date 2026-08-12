@@ -14,22 +14,26 @@ class WindowsOAuthService {
     _completer = Completer<Uri>();
 
     try {
-      // Preferred port 54321, or OS auto-assigned port
+      // Use dedicated fixed loopback port 43211 (avoid 54321 which is used by local Supabase)
+      const int primaryPort = 43211;
       try {
-        _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 54321);
+        _server = await HttpServer.bind(InternetAddress.loopbackIPv4, primaryPort);
       } catch (_) {
-        _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        try {
+          _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 43212);
+        } catch (_) {
+          _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        }
       }
 
-      final port = _server?.port ?? 54321;
+      final port = _server?.port ?? primaryPort;
       final redirectUrl = 'http://localhost:$port/auth/v1/callback';
 
       _server?.listen((HttpRequest request) async {
         final uri = request.uri;
         final path = uri.path;
 
-        // Handle both root path '/' and '/auth/v1/callback' or '/callback_hash'
-        // If request is for callback hash handler (access_token in hash fragment)
+        // Handle callback hash handler (access_token in hash fragment)
         if (path.contains('callback_hash')) {
           final queryParams = uri.query;
           final fullUri = Uri.parse('http://localhost:$port/auth/v1/callback#$queryParams');
@@ -43,6 +47,7 @@ class WindowsOAuthService {
           await request.response.close();
           return;
         }
+
 
         // Standard callback HTML response for '/', '/auth/v1/callback', etc.
         request.response

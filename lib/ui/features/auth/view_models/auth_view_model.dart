@@ -324,28 +324,34 @@ class AuthViewModel extends ChangeNotifier {
           );
 
           if (callbackUri != null) {
-            await Supabase.instance.client.auth.getSessionFromUrl(callbackUri);
-            final session = Supabase.instance.client.auth.currentSession;
-            if (session != null && session.user.email != null) {
-              final userEmail = session.user.email!.trim().toLowerCase();
-              final isAuth =
-                  await UserPermissionService.isAuthorizedUserAsync(userEmail);
-              if (isAuth) {
-                await UserPermissionService.setCurrentUser(userEmail);
-                await _updateRememberMeSession(userEmail, rememberMe);
-                _isAuthenticated = true;
-                _isLoading = false;
-                _errorMessage = null;
-                notifyListeners();
-                return true;
-              } else {
-                await Supabase.instance.client.auth.signOut();
-                _errorMessage =
-                    'Access Denied: Your account ($userEmail) is not permitted to use this app.';
-                _isLoading = false;
-                notifyListeners();
-                return false;
-              }
+            try {
+              await Supabase.instance.client.auth.getSessionFromUrl(callbackUri);
+            } catch (e) {
+              if (kDebugMode) print('getSessionFromUrl error: $e');
+            }
+          }
+
+          // Check if session is now active (via loopback or deep link protocol)
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null && session.user.email != null) {
+            final userEmail = session.user.email!.trim().toLowerCase();
+            final isAuth =
+                await UserPermissionService.isAuthorizedUserAsync(userEmail);
+            if (isAuth) {
+              await UserPermissionService.setCurrentUser(userEmail);
+              await _updateRememberMeSession(userEmail, rememberMe);
+              _isAuthenticated = true;
+              _isLoading = false;
+              _errorMessage = null;
+              notifyListeners();
+              return true;
+            } else {
+              await Supabase.instance.client.auth.signOut();
+              _errorMessage =
+                  'Access Denied: Your account ($userEmail) is not permitted to use this app.';
+              _isLoading = false;
+              notifyListeners();
+              return false;
             }
           } else {
             _errorMessage =
@@ -354,6 +360,7 @@ class AuthViewModel extends ChangeNotifier {
             notifyListeners();
             return false;
           }
+
         } catch (e) {
           await WindowsOAuthService.stopLocalServer();
           if (kDebugMode) print('Windows OAuth error: $e');
