@@ -18,6 +18,7 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -888,41 +889,95 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: repair.name,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: repair.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Devices / Model',
-              value: repair.devices,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Problem Reported',
-              value: repair.query ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Purchased From',
-              value: repair.purchasedFrom ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes / Diagnostics',
-              value: repair.notes ?? 'N/A',
-              scaleFactor: scale,
-            ),
+            if (repair.name.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: repair.name,
+                scaleFactor: scale,
+              ),
+            if (repair.mobileNo != null && repair.mobileNo!.trim().isNotEmpty && repair.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: repair.mobileNo!,
+                scaleFactor: scale,
+              ),
+            if (repair.devices.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Devices / Model',
+                value: repair.devices,
+                scaleFactor: scale,
+              ),
+            if (repair.query != null && repair.query!.trim().isNotEmpty && repair.query != 'N/A')
+              ScaledInfoRow(
+                label: 'Problem Reported',
+                value: repair.query!,
+                scaleFactor: scale,
+              ),
+            if (repair.purchasedFrom != null && repair.purchasedFrom!.trim().isNotEmpty && repair.purchasedFrom != 'N/A')
+              ScaledInfoRow(
+                label: 'Purchased From',
+                value: repair.purchasedFrom!,
+                scaleFactor: scale,
+              ),
+            if (repair.notes != null && repair.notes!.trim().isNotEmpty && repair.notes != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes / Diagnostics',
+                value: repair.notes!,
+                scaleFactor: scale,
+              ),
             ScaledInfoRow(
               label: 'Status',
               value: repair.status,
               scaleFactor: scale,
             ),
+            if (repair.status.trim().toLowerCase() == 'completed' || repair.status.trim().toLowerCase() == 'delivered' || repair.completionDate != null) ...[
+              Builder(
+                builder: (context) {
+                  final compDate = repair.completionDate ?? repair.updatedAt;
+                  final formattedCompDate = DateFormat('dd MMM yyyy, hh:mm a').format(compDate);
+                  return Container(
+                    margin: EdgeInsets.symmetric(vertical: 6 * scale),
+                    padding: EdgeInsets.symmetric(horizontal: 10 * scale, vertical: 8 * scale),
+                    decoration: BoxDecoration(
+                      color: AppTheme.success.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 16 * scale),
+                        SizedBox(width: 8 * scale),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'COMPLETED ON',
+                                style: TextStyle(
+                                  fontSize: 10 * scale,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.success,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              SizedBox(height: 2 * scale),
+                              Text(
+                                formattedCompDate,
+                                style: TextStyle(
+                                  fontSize: 12 * scale,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
             if (items.isNotEmpty) ...[
               SizedBox(height: 8 * scale),
               Text(
@@ -1914,10 +1969,11 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                               UserPermissionService.getAllowedSelectableStatuses(
                             'inward',
                           );
-                          if (!list.contains(_status)) {
-                            list.add(_status);
+                          final List<String> selectableList = List.from(list);
+                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
+                            selectableList.insert(0, _status);
                           }
-                          return list;
+                          return selectableList;
                         })().map((st) {
                           return DropdownMenuItem(value: st, child: Text(st));
                         }).toList(),
@@ -2090,96 +2146,14 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
                     // Full-width Product/Service Search Box
                     _estType == 'Product'
-                        ? Autocomplete<PricelistItem>(
-                            optionsBuilder:
-                                (TextEditingValue textEditingValue) {
-                              if (textEditingValue.text.isEmpty) {
-                                return catalogItems.take(10);
-                              }
-                              final query =
-                                  textEditingValue.text.toLowerCase();
-                              return catalogItems.where(
-                                (item) =>
-                                    item.itemName
-                                        .toLowerCase()
-                                        .contains(query) ||
-                                    (item.category
-                                            ?.toLowerCase()
-                                            .contains(query) ??
-                                        false),
-                              );
-                            },
-                            displayStringForOption: (PricelistItem item) =>
-                                item.itemName,
+                        ? AppKeyboardAutocomplete(
+                            controller: _estItemNameController,
+                            catalogItems: catalogItems,
+                            hintText: 'Search product...',
                             onSelected: (PricelistItem selection) {
                               _estItemNameController.text = selection.itemName;
                               _estPriceController.text =
                                   selection.price.toStringAsFixed(0);
-                            },
-                            fieldViewBuilder: (
-                              context,
-                              textEditingController,
-                              focusNode,
-                              onFieldSubmitted,
-                            ) {
-                              _activeAutocompleteController =
-                                  textEditingController;
-                              textEditingController.addListener(() {
-                                _estItemNameController.text =
-                                    textEditingController.text;
-                              });
-                              return TextFormField(
-                                controller: textEditingController,
-                                focusNode: focusNode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Product Name (from Pricelist)',
-                                  hintText: 'Search product...',
-                                  prefixIcon:
-                                      Icon(Icons.search_rounded, size: 18),
-                                ),
-                              );
-                            },
-                            optionsViewBuilder: (context, onSelected, options) {
-                              return Align(
-                                alignment: Alignment.topLeft,
-                                child: Material(
-                                  color: const Color(0xFF161C2E),
-                                  elevation: 6.0,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    width: MediaQuery.of(context).size.width *
-                                        0.8,
-                                    constraints:
-                                        const BoxConstraints(maxHeight: 200),
-                                    child: ListView.builder(
-                                      padding: EdgeInsets.zero,
-                                      shrinkWrap: true,
-                                      itemCount: options.length,
-                                      itemBuilder: (context, index) {
-                                        final item = options.elementAt(index);
-                                        return ListTile(
-                                          dense: true,
-                                          title: Text(
-                                            item.itemName,
-                                            style: const TextStyle(
-                                              color: AppTheme.textPrimary,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            '₹${item.price.toStringAsFixed(0)} • Stock: ${item.stockQty}',
-                                            style: const TextStyle(
-                                              color: AppTheme.textMuted,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                          onTap: () => onSelected(item),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              );
                             },
                           )
                         : Autocomplete<String>(

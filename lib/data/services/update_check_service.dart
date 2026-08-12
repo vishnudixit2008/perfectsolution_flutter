@@ -54,7 +54,7 @@ class UpdateCheckService {
   }
 
   static const String _prefKeyLastCheck = 'app_update_last_check_timestamp';
-  static const Duration _checkInterval = Duration(hours: 6);
+  static const Duration _checkInterval = Duration(hours: 1);
 
   /// Queries Supabase app_versions table and compares against local PackageInfo.
   /// Throttles network checks to at most once every 6 hours unless [forceCheck] is true.
@@ -64,7 +64,9 @@ class UpdateCheckService {
       final lastCheckMillis = (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() ?? 0;
       final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
 
-      if (!forceCheck && now.difference(lastCheck) < _checkInterval) {
+      final isFirstCheckInSession = (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() == null;
+
+      if (!forceCheck && !isFirstCheckInSession && now.difference(lastCheck) < _checkInterval) {
         if (kDebugMode) {
           final remainingMins = (_checkInterval - now.difference(lastCheck)).inMinutes;
           print('UpdateCheckService: Skipped check. Next check in $remainingMins mins (0 Egress saved!).');

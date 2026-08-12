@@ -63,17 +63,22 @@ class _AppSearchFilterBarState extends State<AppSearchFilterBar> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final double verticalMargin = isMobile ? 6.0 : 12.0;
+    final double collapsedPaddingV = isMobile ? 6.0 : 10.0;
+    final double expandedPadding = isMobile ? 8.0 : 12.0;
+
     if (!_isExpanded) {
       return Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: verticalMargin),
         child: InkWell(
           onTap: _expandAndFocus,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: collapsedPaddingV),
             decoration: BoxDecoration(
               color: const Color(0xFF131A2E),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             ),
             child: Row(
@@ -81,16 +86,16 @@ class _AppSearchFilterBarState extends State<AppSearchFilterBar> {
                 const Icon(
                   Icons.search_rounded,
                   color: AppTheme.textSecondary,
-                  size: 20,
+                  size: 18,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.searchQuery.isNotEmpty
                         ? 'Search: "${widget.searchQuery}"'
                         : widget.hintText,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: widget.searchQuery.isNotEmpty
                           ? AppTheme.textPrimary
                           : AppTheme.textMuted,
@@ -105,29 +110,29 @@ class _AppSearchFilterBarState extends State<AppSearchFilterBar> {
                 if (widget.activeFilterCount > 0) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
+                      horizontal: 6,
+                      vertical: 1,
                     ),
                     decoration: BoxDecoration(
                       color: AppTheme.primary,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '${widget.activeFilterCount}',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                 ],
                 IconButton(
                   icon: const Icon(
                     Icons.tune_rounded,
                     color: AppTheme.primaryLight,
-                    size: 18,
+                    size: 16,
                   ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -141,11 +146,11 @@ class _AppSearchFilterBarState extends State<AppSearchFilterBar> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: verticalMargin),
+      padding: EdgeInsets.all(expandedPadding),
       decoration: BoxDecoration(
         color: const Color(0xFF131A2E),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(

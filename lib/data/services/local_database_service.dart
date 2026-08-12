@@ -526,8 +526,17 @@ class LocalDatabaseService {
   }
 
   List<SaleItem> getSaleItems(int invoiceNo) {
-    final List<dynamic>? rawList = _saleItemsBox.get(invoiceNo);
-    if (rawList == null) return [];
+    dynamic rawList = _saleItemsBox.get(invoiceNo) ??
+        _saleItemsBox.get(invoiceNo.toString());
+    if (rawList == null) {
+      for (final key in _saleItemsBox.keys) {
+        if (key.toString() == invoiceNo.toString()) {
+          rawList = _saleItemsBox.get(key);
+          break;
+        }
+      }
+    }
+    if (rawList == null || rawList is! List) return [];
     return rawList
         .map((raw) => SaleItem.fromJson(Map<String, dynamic>.from(raw)))
         .toList();

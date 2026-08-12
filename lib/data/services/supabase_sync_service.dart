@@ -23,9 +23,10 @@ class SupabaseSyncService extends ChangeNotifier {
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';
   static const String _keyKey = 'supabase_anon_key';
-  static const String _defaultUrl = 'https://fgsqgrgxjrclswkggnmc.supabase.co';
+  static const String _defaultUrl =
+      'https://seminar-antidote-abrasion.ngrok-free.dev';
   static const String _defaultAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZnc3Fncmd4anJjbHN3a2dnbm1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MTU4NDgsImV4cCI6MjEwMDI5MTg0OH0._XyKP9DTbrs7mbHTsmlLmv6FkfYTjey4kXjfpNt0n0w';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
   static final SupabaseSyncService instance = SupabaseSyncService._internal();
   SupabaseSyncService._internal();
@@ -50,6 +51,7 @@ class SupabaseSyncService extends ChangeNotifier {
   Future<void> init(LocalDatabaseService localDb) async {
     try {
       final box = await Hive.openBox(_boxName);
+      // Force local settings box to use local Cloudflare Tunnel endpoint
       _supabaseUrl = _defaultUrl;
       _supabaseAnonKey = _defaultAnonKey;
 
@@ -526,11 +528,20 @@ class SupabaseSyncService extends ChangeNotifier {
       for (final json in salesData) {
         final sale = Sale.fromJson(Map<String, dynamic>.from(json));
         salesMap[sale.invoiceNo] = sale.toJson();
-        final itemsJson = salesItemsData
+        var itemsJson = salesItemsData
             .where(
               (i) => i['invoice_no']?.toString() == sale.invoiceNo.toString(),
             )
             .toList();
+
+        // In Delta Sync, if items weren't updated recently, retain existing local items for this invoice
+        if (itemsJson.isEmpty) {
+          final existingLocalItems = localDb.getSaleItems(sale.invoiceNo);
+          if (existingLocalItems.isNotEmpty) {
+            itemsJson = existingLocalItems.map((e) => e.toJson()).toList();
+          }
+        }
+
         salesItemsMap[sale.invoiceNo] = itemsJson
             .map(
               (i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson(),
@@ -554,9 +565,17 @@ class SupabaseSyncService extends ChangeNotifier {
       for (final json in purchaseData) {
         final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
         purchasesMap[pur.id] = pur.toJson();
-        final itemsJson = purchaseItemsData
+        var itemsJson = purchaseItemsData
             .where((i) => i['purchase_id']?.toString() == pur.id.toString())
             .toList();
+
+        if (itemsJson.isEmpty) {
+          final existingLocalItems = localDb.getPurchaseOrderItems(pur.id);
+          if (existingLocalItems.isNotEmpty) {
+            itemsJson = existingLocalItems.map((e) => e.toSupabaseJson()).toList();
+          }
+        }
+
         purchaseItemsMap[pur.id] = itemsJson
             .map(
               (i) => PurchaseOrderItem.fromJson(

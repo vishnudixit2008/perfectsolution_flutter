@@ -891,17 +891,25 @@ class _PricelistViewState extends State<PricelistView> {
     showDialog(
       context: context,
       builder: (context) {
+        final double screenWidth = MediaQuery.of(context).size.width;
+        final double screenHeight = MediaQuery.of(context).size.height;
+        final bool isMobile = screenWidth < 600;
+
         return Dialog(
           backgroundColor: const Color(0xFF0F1524),
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: isMobile ? 12 : 24,
+            vertical: isMobile ? 16 : 24,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: Colors.white.withOpacity(0.08)),
           ),
           child: Container(
-            width: MediaQuery.of(context).size.width * 0.8,
-            height: MediaQuery.of(context).size.height * 0.75,
-            constraints: const BoxConstraints(maxWidth: 680, maxHeight: 580),
-            padding: const EdgeInsets.all(24),
+            width: isMobile ? screenWidth * 0.95 : screenWidth * 0.85,
+            height: isMobile ? screenHeight * 0.85 : screenHeight * 0.8,
+            constraints: const BoxConstraints(maxWidth: 820, maxHeight: 720),
+            padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1440,8 +1448,8 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                     enabled: isDescMod,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText: 'Specifications / Details',
-                      hintText: 'Optional item specifications...',
+                      labelText: 'Description',
+                      hintText: 'Optional item description...',
                     ),
                   ),
                   const SizedBox(height: 16),

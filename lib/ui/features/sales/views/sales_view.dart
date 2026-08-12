@@ -21,11 +21,13 @@ import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/photo_attachment_widget.dart';
+import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/status_management_dialog.dart';
 
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/services/kiosk_broadcast_service.dart';
 
 class SalesView extends StatefulWidget {
   const SalesView({super.key});
@@ -41,8 +43,8 @@ class _SalesViewState extends State<SalesView> {
   // Resizable column widths for Sales Ledger
   double _invoiceColumnWidth = 100.0;
   double _dateColumnWidth = 130.0;
-  double _nameColumnWidth = 220.0;
-  double _numberColumnWidth = 150.0;
+  double _nameColumnWidth = 180.0;
+  double _itemsColumnWidth = 250.0;
   double _amountColumnWidth = 120.0;
 
   // Selection states
@@ -56,7 +58,7 @@ class _SalesViewState extends State<SalesView> {
       TextEditingController();
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _advanceController = TextEditingController();
-  TextEditingController? _productSearchController;
+
 
   @override
   void initState() {
@@ -476,28 +478,43 @@ class _SalesViewState extends State<SalesView> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               alignment: Alignment.centerLeft,
               child: Text(
-                sale.customerName ?? 'Cash / Walk-in',
+                (sale.customerName != null && sale.customerName!.trim().isNotEmpty)
+                    ? sale.customerName!
+                    : 'Cash / Walk-in',
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // Customer Phone cell
+            // Items & Services cell
             Container(
-              width: _numberColumnWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              width: _itemsColumnWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               alignment: Alignment.centerLeft,
-              child: Text(
-                (sale.customerNumber == null || sale.customerNumber!.isEmpty)
-                    ? '-'
-                    : sale.customerNumber!,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                ),
+              child: Builder(
+                builder: (context) {
+                  final items = viewModel.getSaleItems(sale.invoiceNo);
+                  final String itemsSummary = items.isNotEmpty
+                      ? items
+                          .map((i) =>
+                              '${i.itemDescription ?? i.serviceName ?? "Item"} (${i.quantity})')
+                          .join(', ')
+                      : '-';
+
+                  return Text(
+                    itemsSummary,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
               ),
             ),
             // Payment Mode cell
@@ -779,18 +796,20 @@ class _SalesViewState extends State<SalesView> {
                     _nameColumnWidth,
                     (delta) => setState(
                       () => _nameColumnWidth = (_nameColumnWidth + delta).clamp(
-                        150.0,
-                        500.0,
+                        100.0,
+                        400.0,
                       ),
                     ),
                   ),
                   _buildResizableHeaderSales(
                     viewModel,
-                    'Mobile Details',
-                    _numberColumnWidth,
+                    'Items / Services',
+                    _itemsColumnWidth,
                     (delta) => setState(
-                      () => _numberColumnWidth = (_numberColumnWidth + delta)
-                          .clamp(100.0, 300.0),
+                      () => _itemsColumnWidth = (_itemsColumnWidth + delta).clamp(
+                        150.0,
+                        600.0,
+                      ),
                     ),
                   ),
                   _buildResizableHeaderSales(
@@ -858,57 +877,94 @@ class _SalesViewState extends State<SalesView> {
             for (final entry in groupedSales.entries) ...[
               _buildStatusSectionHeader(entry.key, entry.value.length),
               for (final sale in entry.value) ...[
-                AppListCard(
-                  title: 'Invoice #${sale.invoiceNo}',
-                  subtitle: sale.customerName?.isNotEmpty == true
-                      ? sale.customerName!
-                      : 'Walk-in Customer',
-                  metadataRows: [
-                    if (sale.customerNumber != null &&
-                        sale.customerNumber!.trim().isNotEmpty &&
-                        sale.customerNumber != 'N/A')
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.phone_rounded,
-                            size: 13,
-                            color: AppTheme.textMuted,
+                Builder(
+                  builder: (context) {
+                    final items = viewModel.getSaleItems(sale.invoiceNo);
+                    final String itemsSummary = items.isNotEmpty
+                        ? items
+                            .map((i) =>
+                                '${i.itemDescription ?? "Item"} (${i.quantity})')
+                            .join(', ')
+                        : 'No items recorded';
+
+                    final String customerTitle = sale.customerName?.isNotEmpty == true
+                        ? sale.customerName!
+                        : 'Walk-in Customer';
+
+                    return AppListCard(
+                      title: customerTitle,
+                      subtitle: 'Invoice #${sale.invoiceNo} • ${sale.paymentMode}',
+                      metadataRows: [
+                        if (sale.customerNumber != null &&
+                            sale.customerNumber!.trim().isNotEmpty &&
+                            sale.customerNumber != 'N/A')
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.phone_rounded,
+                                size: 12,
+                                color: AppTheme.textMuted,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                sale.customerNumber!,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            sale.customerNumber!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.inventory_2_outlined,
+                              size: 12,
+                              color: AppTheme.primaryLight,
                             ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.success,
-                          ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                itemsSummary,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textMuted,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          DateFormat('dd MMM yyyy, hh:mm a').format(sale.saleDate),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textMuted,
-                          ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.success,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('dd MMM yyyy, hh:mm a').format(sale.saleDate),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                  ],
-                  onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
-                  onDelete: () =>
-                      _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
+                      onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
+                      onDelete: () =>
+                          _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
+                    );
+                  },
                 ),
               ],
             ],
@@ -1137,135 +1193,14 @@ class _SalesViewState extends State<SalesView> {
             builder: (context) {
               final bool isMobile = MediaQuery.of(context).size.width < 600;
 
-              final productSearchField = Autocomplete<PricelistItem>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return const Iterable<PricelistItem>.empty();
-                  }
-                  return viewModel.searchResults;
-                },
-                displayStringForOption: (PricelistItem option) => option.itemName,
+              final productSearchField = AppKeyboardAutocomplete(
+                catalogItems: viewModel.catalogItems,
+                isMobile: isMobile,
+                hintText: 'Search products by name or category...',
+                clearOnSelect: true,
+                autoFocusAfterSelect: true,
                 onSelected: (PricelistItem selection) {
                   viewModel.addProductToCart(selection);
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _productSearchController?.clear();
-                    viewModel.updateSearchQuery('');
-                  });
-                },
-                fieldViewBuilder: (
-                  context,
-                  textEditingController,
-                  focusNode,
-                  onFieldSubmitted,
-                ) {
-                  _productSearchController = textEditingController;
-                  textEditingController.addListener(() {
-                    viewModel.updateSearchQuery(textEditingController.text);
-                  });
-
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppTheme.primary.withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: TextField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        hintText: 'Search products by name or category...',
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: AppTheme.primaryLight,
-                          size: 20,
-                        ),
-                        suffixIcon: textEditingController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.clear_rounded,
-                                  size: 18,
-                                ),
-                                onPressed: () {
-                                  textEditingController.clear();
-                                  viewModel.updateSearchQuery('');
-                                },
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 12,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-                optionsViewBuilder: (context, onSelected, options) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      color: const Color(0xFF131A2E),
-                      elevation: 8.0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: AppTheme.primary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Container(
-                        width: isMobile ? screenWidth - 32 : 450,
-                        constraints: const BoxConstraints(maxHeight: 280),
-                        child: ListView.separated(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(color: Colors.white10, height: 1),
-                          itemBuilder: (BuildContext context, int index) {
-                            final PricelistItem option = options.elementAt(index);
-                            final bool isLowStock = option.stockQty <= option.openingStock;
-
-                            return ListTile(
-                              dense: isMobile,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 4,
-                              ),
-                              title: Text(
-                                option.itemName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${option.category ?? "General"} • Stock: ${option.stockQty} left',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isLowStock ? AppTheme.danger : AppTheme.textMuted,
-                                ),
-                              ),
-                              trailing: Text(
-                                '₹${option.price.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primaryLight,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              onTap: () {
-                                onSelected(option);
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  );
                 },
               );
 
@@ -1487,21 +1422,22 @@ class _SalesViewState extends State<SalesView> {
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.edit_note_rounded,
-                                        size: 16,
-                                        color: AppTheme.primaryLight,
+                                    if (UserPermissionService.canPerformModuleAction('sales', 'canOverridePrice'))
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.edit_note_rounded,
+                                          size: 16,
+                                          color: AppTheme.primaryLight,
+                                        ),
+                                        onPressed: () => _showPriceOverrideDialog(
+                                          context,
+                                          viewModel,
+                                          item,
+                                        ),
+                                        padding: const EdgeInsets.only(left: 4),
+                                        constraints: const BoxConstraints(),
+                                        tooltip: 'Override Price',
                                       ),
-                                      onPressed: () => _showPriceOverrideDialog(
-                                        context,
-                                        viewModel,
-                                        item,
-                                      ),
-                                      padding: const EdgeInsets.only(left: 4),
-                                      constraints: const BoxConstraints(),
-                                      tooltip: 'Override Price',
-                                    ),
                                   ],
                                 ),
                                 Row(
@@ -1765,7 +1701,7 @@ class _SalesViewState extends State<SalesView> {
                 ),
               ],
             ),
-            if (cartVM.isEditing) ...[
+            if (cartVM.isEditing && UserPermissionService.isFieldVisible('sales', 'orderStatus')) ...[
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1782,9 +1718,16 @@ class _SalesViewState extends State<SalesView> {
                       border: Border.all(color: Colors.white.withOpacity(0.08)),
                     ),
                     child: DropdownButton<String>(
-                      value: ['Confirmed', 'PENDING'].contains(cartVM.editingOrderStatus)
-                          ? cartVM.editingOrderStatus
-                          : 'Confirmed',
+                      value: (() {
+                        final current = cartVM.editingOrderStatus ?? 'Confirmed';
+                        final allowed = UserPermissionService.getAllowedSelectableStatuses('sales');
+                        if (allowed.isEmpty) return current;
+                        final match = allowed.firstWhere(
+                          (s) => s.trim().toLowerCase() == current.trim().toLowerCase(),
+                          orElse: () => allowed.first,
+                        );
+                        return match;
+                      })(),
                       underline: const SizedBox(),
                       dropdownColor: const Color(0xFF131A2E),
                       style: const TextStyle(
@@ -1792,15 +1735,38 @@ class _SalesViewState extends State<SalesView> {
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'Confirmed', child: Text('Confirmed')),
-                        DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          cartVM.setEditingOrderStatus(val);
+                      items: (() {
+                        final list = UserPermissionService.getAllowedSelectableStatuses(
+                          'sales',
+                          allAvailableStatuses: ['Confirmed', 'Pending'],
+                        );
+                        final current = cartVM.editingOrderStatus ?? 'Confirmed';
+                        final Set<String> seen = {};
+                        final List<String> cleanList = [];
+                        
+                        // Add permitted items without case-insensitive duplicates
+                        for (final s in list) {
+                          final normalized = s.trim().toLowerCase() == 'pending' ? 'Pending' : (s.trim().toLowerCase() == 'confirmed' ? 'Confirmed' : s);
+                          if (seen.add(normalized.toLowerCase())) {
+                            cleanList.add(normalized);
+                          }
                         }
-                      },
+                        // Ensure current selected status is present if not already added
+                        final currentNormalized = current.trim().toLowerCase() == 'pending' ? 'Pending' : (current.trim().toLowerCase() == 'confirmed' ? 'Confirmed' : current);
+                        if (currentNormalized.isNotEmpty && !seen.contains(currentNormalized.toLowerCase())) {
+                          cleanList.insert(0, currentNormalized);
+                        }
+                        return cleanList;
+                      })().map((st) {
+                        return DropdownMenuItem<String>(value: st, child: Text(st));
+                      }).toList(),
+                      onChanged: UserPermissionService.canModifyField('sales', 'orderStatus', isEdit: true)
+                          ? (val) {
+                              if (val != null) {
+                                cartVM.setEditingOrderStatus(val);
+                              }
+                            }
+                          : null,
                     ),
                   ),
                 ],
@@ -2128,17 +2094,27 @@ class _SalesViewState extends State<SalesView> {
 
                         // Invoice Items List
                         ...items.map((item) {
+                          final String titleText = (item.itemDescription != null &&
+                                  item.itemDescription!.trim().isNotEmpty)
+                              ? item.itemDescription!
+                              : (item.serviceName ?? 'Line Item');
+                          final bool hasNotes = item.notes != null &&
+                              item.notes!.trim().isNotEmpty &&
+                              item.notes!.trim().toLowerCase() !=
+                                  titleText.trim().toLowerCase();
+
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.01),
+                              color: Colors.white.withOpacity(0.015),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.04),
+                                color: Colors.white.withOpacity(0.05),
                               ),
                             ),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
@@ -2147,14 +2123,33 @@ class _SalesViewState extends State<SalesView> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        item.itemDescription ?? 'Line Item',
+                                        titleText,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 13,
                                           color: AppTheme.textPrimary,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      if (hasNotes) ...[
+                                        const SizedBox(height: 3),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primary.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            item.notes!,
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: AppTheme.primaryLight,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 4),
                                       Text(
                                         'Qty: ${item.quantity} x ₹${item.activePrice.toStringAsFixed(0)}',
                                         style: const TextStyle(
@@ -2165,6 +2160,7 @@ class _SalesViewState extends State<SalesView> {
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 12),
                                 Text(
                                   '₹${item.totalAmount.toStringAsFixed(2)}',
                                   style: const TextStyle(
@@ -2326,14 +2322,55 @@ class _SalesViewState extends State<SalesView> {
                         final canDelete =
                             UserPermissionService.canPerformModuleAction(
                                 'sales', 'canDelete');
-                        final isCompact = constraints.maxWidth < 460;
+                        final isCompact = constraints.maxWidth < 520;
+
+                        final sendToDisplayBtn = ElevatedButton.icon(
+                          onPressed: () async {
+                            final activeUpiId = viewModel.getActiveUpiId() ?? 'computer.perfect@ybl';
+                            final upiRefName = viewModel.getUpiReferenceName(activeUpiId);
+
+                            final success = await KioskBroadcastService.instance.sendQrToKiosk(
+                              amount: sale.totalAmount,
+                              invoiceNo: '#${sale.invoiceNo}',
+                              customerName: sale.customerName,
+                              upiId: activeUpiId,
+                              upiName: upiRefName,
+                            );
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    success
+                                        ? 'Broadcasting ₹${sale.totalAmount.toStringAsFixed(0)} QR to Customer Display...'
+                                        : 'Failed to broadcast to display.',
+                                  ),
+                                  backgroundColor: const Color(0xFF0EA5E9),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.cast_rounded, size: 16),
+                          label: const Text('Send to QR Display'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                            foregroundColor: const Color(0xFF38BDF8),
+                            side: const BorderSide(color: Color(0xFF0284C7), width: 1.2),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
 
                         final editBtn = ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
                             _startEditingSaleInBillingDesk(context, sale);
                           },
-                          icon: const Icon(Icons.edit_note_rounded, size: 18),
+                          icon: const Icon(Icons.edit_note_rounded, size: 16),
                           label: const Text('Edit Sale'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primary,
@@ -2369,7 +2406,7 @@ class _SalesViewState extends State<SalesView> {
                               );
                             }
                           },
-                          icon: const Icon(Icons.print_rounded, size: 18),
+                          icon: const Icon(Icons.print_rounded, size: 16),
                           label: const Text('Print Receipt'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
@@ -2396,7 +2433,7 @@ class _SalesViewState extends State<SalesView> {
                           ),
                           icon: const Icon(
                             Icons.delete_forever_rounded,
-                            size: 18,
+                            size: 16,
                           ),
                           label: const Text('Delete'),
                           style: OutlinedButton.styleFrom(
@@ -2418,31 +2455,38 @@ class _SalesViewState extends State<SalesView> {
                             children: [
                               Row(
                                 children: [
+                                  Expanded(child: sendToDisplayBtn),
+                                  const SizedBox(width: 8),
                                   if (canEdit) ...[
                                     Expanded(child: editBtn),
-                                    const SizedBox(width: 8),
                                   ],
-                                  Expanded(child: printBtn),
                                 ],
                               ),
-                              if (canDelete) ...[
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                    width: double.infinity, child: deleteBtn),
-                              ],
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(child: printBtn),
+                                  if (canDelete) ...[
+                                    const SizedBox(width: 8),
+                                    Expanded(child: deleteBtn),
+                                  ],
+                                ],
+                              ),
                             ],
                           );
                         }
 
                         return Row(
                           children: [
+                            Expanded(child: sendToDisplayBtn),
+                            const SizedBox(width: 8),
                             if (canEdit) ...[
                               Expanded(child: editBtn),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                             ],
                             Expanded(child: printBtn),
                             if (canDelete) ...[
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               deleteBtn,
                             ],
                           ],
@@ -2811,6 +2855,44 @@ class _SalesViewState extends State<SalesView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final success = await KioskBroadcastService.instance.sendQrToKiosk(
+                            amount: totalAmount,
+                            invoiceNo: '#$invoiceNo',
+                            customerName: sale?.customerName,
+                            upiId: activeUpiId,
+                            upiName: upiRefName,
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  success
+                                      ? 'Broadcasting ₹${totalAmount.toStringAsFixed(0)} QR to Kiosk Display...'
+                                      : 'Failed to broadcast to Kiosk.',
+                                ),
+                                backgroundColor: success ? AppTheme.secondary : AppTheme.danger,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.cast_rounded, size: 18),
+                        label: const Text(
+                          'Send to QR Display',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.secondary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       if (sale != null)
                         ElevatedButton.icon(
                           onPressed: () async {

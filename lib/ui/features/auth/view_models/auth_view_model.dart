@@ -361,7 +361,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       // ── Mobile / macOS: Try native GoogleSignIn SDK first ─────────────────────
-      if (!kIsWeb) {
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
         try {
           final GoogleSignIn googleSignIn = GoogleSignIn(
             scopes: ['email', 'profile'],

@@ -150,6 +150,7 @@ class AppUser {
       'canPrint': 'Can Print A5 PDF Invoice',
       'canApplyDiscount': 'Can Apply Checkout Discount',
       'canVerifyStock': 'Can Verify & Deduct Stock',
+      'canOverridePrice': 'Can Override Item Unit Price',
     },
     'requests': {
       'canAdd': 'Can Add Customer Request',
@@ -226,7 +227,7 @@ class AppUser {
       'paymentMode': 'Payment Mode (Cash/UPI/Card)',
       'advance': 'Advance Paid',
       'discount': 'Applied Discount',
-      'orderStatus': 'Order Fulfillment Status',
+      'orderStatus': 'Order Status',
     },
     'requests': {
       'date': 'Pre-Order Date',
@@ -318,7 +319,9 @@ class AppUser {
       name: name,
       role: 'employee',
       isActive: true,
-      pageAccess: {for (var m in modules) m: true},
+      pageAccess: {
+        for (var m in modules) m: m != 'settings',
+      },
       actionAccess: {
         'canAdd': true,
         'canEdit': true,

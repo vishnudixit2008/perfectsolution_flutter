@@ -29,6 +29,9 @@ import '../../data/services/user_permission_service.dart';
 import '../../data/models/app_user.dart';
 import '../features/auth/view_models/auth_view_model.dart';
 
+import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
+import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
+
 class MainNavigationContainer extends StatefulWidget {
   const MainNavigationContainer({super.key});
 
@@ -40,19 +43,95 @@ class MainNavigationContainer extends StatefulWidget {
 class _MainNavigationContainerState extends State<MainNavigationContainer> {
   bool _isSyncing = false;
   Timer? _updateCheckTimer;
+  StreamSubscription<KioskBroadcastPayload>? _kioskShowSubscription;
+  StreamSubscription<void>? _kioskDismissSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateDialog.showIfNeeded(context);
+      _setupKioskBroadcastListener();
     });
-    // Check for app updates every 6 hours while the app is kept running
-    _updateCheckTimer = Timer.periodic(const Duration(hours: 6), (_) {
+    // Check for app updates every 1 hour while the app is kept running
+    _updateCheckTimer = Timer.periodic(const Duration(hours: 1), (_) {
       if (mounted) {
         UpdateDialog.showIfNeeded(context);
       }
     });
+  }
+
+  void _setupKioskBroadcastListener() {
+    KioskBroadcastService.instance.init();
+
+    _kioskShowSubscription = KioskBroadcastService.instance.onShowQr.listen((payload) {
+      if (!mounted) return;
+      if (!UiPreferencesService.isKioskMode()) return;
+
+      // Pop active dialog if already showing QR
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      final timeout = UiPreferencesService.getKioskTimeoutSeconds();
+      _openKioskQrModal(
+        amount: payload.amount,
+        invoiceNo: payload.invoiceNo,
+        customerName: payload.customerName,
+        autoCloseSeconds: timeout,
+      );
+    });
+
+    _kioskDismissSubscription = KioskBroadcastService.instance.onDismissQr.listen((_) {
+      if (!mounted) return;
+      if (!UiPreferencesService.isKioskMode()) return;
+
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  void _openKioskQrModal({
+    required double amount,
+    String? invoiceNo,
+    String? customerName,
+    int? autoCloseSeconds,
+  }) {
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      showDialog(
+        context: context,
+        useSafeArea: false,
+        builder: (_) => Dialog.fullscreen(
+          backgroundColor: const Color(0xFF080D1A),
+          child: UpiQrScreen(
+            initialAmount: amount,
+            invoiceNo: invoiceNo,
+            customerName: customerName,
+            autoCloseSeconds: autoCloseSeconds,
+          ),
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          backgroundColor: const Color(0xFF0F1524),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AppTheme.secondary.withValues(alpha: 0.25)),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+          child: UpiQrScreen(
+            initialAmount: amount,
+            invoiceNo: invoiceNo,
+            customerName: customerName,
+            autoCloseSeconds: autoCloseSeconds,
+          ),
+        ),
+      );
+    }
   }
 
   final List<Widget> _views = [
@@ -80,6 +159,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   @override
   void dispose() {
     _updateCheckTimer?.cancel();
+    _kioskShowSubscription?.cancel();
+    _kioskDismissSubscription?.cancel();
     super.dispose();
   }
 

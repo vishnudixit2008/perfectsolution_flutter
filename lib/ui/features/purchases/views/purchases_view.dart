@@ -16,12 +16,12 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 
 import '../../pricelist/view_models/pricelist_view_model.dart';
-import '../../pricelist/views/pricelist_view.dart';
 import '../view_models/purchases_view_model.dart';
 import '../../../../data/services/user_permission_service.dart';
 
@@ -846,32 +846,34 @@ class _PurchasesViewState extends State<PurchasesView> {
               spacing: 8 * scale,
               runSpacing: 8 * scale,
               children: [
-                if (pur.status == 'PENDING') ...[
-                  ScaledActionButton(
-                    icon: Icons.check_circle,
-                    label: 'Confirm Stock In',
-                    scaleFactor: scale,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      await viewModel.confirmPurchase(pur.id);
-                      if (context.mounted) {
-                        context.read<PricelistViewModel>().loadItems();
-                      }
-                    },
-                  ),
-                ] else ...[
-                  ScaledActionButton(
-                    icon: Icons.undo,
-                    label: 'Revert to Pending',
-                    scaleFactor: scale,
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      await viewModel.revertPurchaseToPending(pur.id);
-                      if (context.mounted) {
-                        context.read<PricelistViewModel>().loadItems();
-                      }
-                    },
-                  ),
+                if (UserPermissionService.canPerformModuleAction('purchases', 'canManageStatus')) ...[
+                  if (pur.status == 'PENDING') ...[
+                    ScaledActionButton(
+                      icon: Icons.check_circle,
+                      label: 'Confirm Stock In',
+                      scaleFactor: scale,
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await viewModel.confirmPurchase(pur.id);
+                        if (context.mounted) {
+                          context.read<PricelistViewModel>().loadItems();
+                        }
+                      },
+                    ),
+                  ] else ...[
+                    ScaledActionButton(
+                      icon: Icons.undo,
+                      label: 'Revert to Pending',
+                      scaleFactor: scale,
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await viewModel.revertPurchaseToPending(pur.id);
+                        if (context.mounted) {
+                          context.read<PricelistViewModel>().loadItems();
+                        }
+                      },
+                    ),
+                  ],
                 ],
                 ScaledActionButton(
                   icon: Icons.copy,
@@ -1269,6 +1271,89 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
     });
   }
 
+  void _editItemDialog(int index) {
+    final item = _items[index];
+    final editNameController = TextEditingController(
+      text: item.itemName ?? item.customItemName ?? '',
+    );
+    final editPriceController = TextEditingController(
+      text: item.unitPrice.toStringAsFixed(0),
+    );
+    final editQtyController = TextEditingController(
+      text: item.quantity.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF131A2E),
+          title: const Text('Edit Purchase Item', style: TextStyle(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: editNameController,
+                style: const TextStyle(color: AppTheme.textPrimary),
+                decoration: const InputDecoration(labelText: 'Item Name'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: editPriceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(labelText: 'Cost Price (₹)'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: editQtyController,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(labelText: 'Quantity'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newName = editNameController.text.trim();
+                final newPrice = double.tryParse(editPriceController.text.trim()) ?? item.unitPrice;
+                final newQty = int.tryParse(editQtyController.text.trim()) ?? item.quantity;
+
+                if (newName.isNotEmpty && newQty > 0) {
+                  setState(() {
+                    _items[index] = item.copyWith(
+                      itemName: newName,
+                      customItemName: newName,
+                      unitPrice: newPrice,
+                      quantity: newQty,
+                      amount: newQty * newPrice,
+                    );
+                  });
+                }
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primary),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
     if (_items.isEmpty) {
@@ -1380,10 +1465,11 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                               UserPermissionService.getAllowedSelectableStatuses(
                             'purchases',
                           );
-                          if (!list.contains(_status)) {
-                            list.add(_status);
+                          final List<String> selectableList = List.from(list);
+                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
+                            selectableList.insert(0, _status);
                           }
-                          return list;
+                          return selectableList;
                         })().map((st) {
                           return DropdownMenuItem(value: st, child: Text(st));
                         }).toList(),
@@ -1439,178 +1525,16 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
           ),
           const SizedBox(height: 12),
 
-          RawAutocomplete<PricelistItem>(
-            textEditingController: _searchItemController,
-            focusNode: FocusNode(),
-            optionsBuilder: (TextEditingValue textEditingValue) {
-              final query = textEditingValue.text.toLowerCase().trim();
-              if (query.isEmpty) {
-                return catalogItems;
-              }
-              final matches = catalogItems.where((item) {
-                final nameMatch = item.itemName.toLowerCase().contains(query);
-                final catMatch = item.category?.toLowerCase().contains(query) ?? false;
-                return nameMatch || catMatch;
-              }).toList();
-
-              if (matches.isEmpty) {
-                return [
-                  PricelistItem(
-                    id: -1,
-                    itemName: textEditingValue.text.trim(),
-                    category: '',
-                    price: 0,
-                    stockQty: 0,
-                    openingStock: 0,
-                  ),
-                ];
-              }
-
-              return matches;
-            },
-            displayStringForOption: (PricelistItem option) => option.itemName,
+          AppKeyboardAutocomplete(
+            controller: _searchItemController,
+            catalogItems: catalogItems,
+            hintText: 'Search or enter item name...',
             onSelected: (PricelistItem selection) {
               if (selection.id == -1) return;
               setState(() {
                 _selectedCatalogItem = selection;
                 _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
               });
-            },
-            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-              return TextField(
-                controller: controller,
-                focusNode: focusNode,
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Search or enter item name...',
-                  hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 18),
-                  suffixIcon: controller.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, color: AppTheme.textMuted, size: 18),
-                          onPressed: () {
-                            controller.clear();
-                            setState(() {
-                              _selectedCatalogItem = null;
-                            });
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.02),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
-              );
-            },
-            optionsViewBuilder: (context, onSelected, options) {
-              final query = _searchItemController.text.trim();
-              final realOptions = options.where((opt) => opt.id != -1).toList();
-              final hasExactMatch = realOptions.any(
-                (opt) => opt.itemName.toLowerCase() == query.toLowerCase(),
-              );
-
-              return Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  color: const Color(0xFF131A2E),
-                  elevation: 4.0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.8,
-                    constraints: const BoxConstraints(
-                      maxWidth: 450,
-                      maxHeight: 260,
-                    ),
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      children: [
-                        if (query.isNotEmpty && !hasExactMatch) ...[
-                          ListTile(
-                            dense: true,
-                            tileColor: AppTheme.primary.withValues(alpha: 0.15),
-                            leading: const Icon(
-                              Icons.add_circle_outline_rounded,
-                              color: AppTheme.primaryLight,
-                              size: 20,
-                            ),
-                            title: Text(
-                              'Add "$query" to Pricelist Catalog',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryLight,
-                                fontSize: 13,
-                              ),
-                            ),
-                            subtitle: const Text(
-                              'Open Add Product window and pre-fill details',
-                              style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
-                            ),
-                            onTap: () async {
-                              FocusScope.of(context).unfocus();
-                              final pricelistVM = context.read<PricelistViewModel>();
-                              final newItem = await showAddEditPricelistItemDialog(
-                                context,
-                                pricelistVM,
-                                initialName: query,
-                              );
-                              if (newItem != null) {
-                                setState(() {
-                                  _selectedCatalogItem = newItem;
-                                  _searchItemController.text = newItem.itemName;
-                                  _priceController.text = newItem.price > 0
-                                      ? newItem.price.toStringAsFixed(0)
-                                      : '';
-                                });
-                              }
-                            },
-                          ),
-                          const Divider(color: Colors.white10, height: 1),
-                        ],
-                        ...realOptions.map((PricelistItem option) {
-                          final bool isLowStock = option.stockQty <= option.openingStock;
-                          return ListTile(
-                            dense: true,
-                            title: Text(
-                              option.itemName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Category: ${option.category ?? "General"}  |  Stock: ${option.stockQty} left',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isLowStock ? AppTheme.danger : AppTheme.textMuted,
-                              ),
-                            ),
-                            trailing: Text(
-                              '₹${option.price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            onTap: () {
-                              onSelected(option);
-                            },
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-              );
             },
           ),
           const SizedBox(height: 12),
@@ -1701,6 +1625,15 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                           ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.edit_note_rounded,
+                            color: AppTheme.primaryLight,
+                            size: 18,
+                          ),
+                          tooltip: 'Edit item details',
+                          onPressed: () => _editItemDialog(index),
                         ),
                         IconButton(
                           icon: const Icon(

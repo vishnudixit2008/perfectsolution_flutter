@@ -3,6 +3,7 @@ import '../../../../data/models/pricelist_item.dart';
 import '../../../../data/models/sale.dart';
 import '../../../../data/models/sale_item.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/smart_search_utils.dart';
 
 class SalesViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -40,6 +41,7 @@ class SalesViewModel extends ChangeNotifier {
   bool get isSaving => _isSaving;
   String get searchQuery => _searchQuery;
   List<String> get savedServices => _savedServices;
+  List<PricelistItem> get catalogItems => _catalogItems;
 
   bool get isEditing => _editingInvoiceNo != null;
   int? get editingInvoiceNo => _editingInvoiceNo;
@@ -60,18 +62,10 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Get filtered items based on search query
+  // Get filtered items based on smart multi-token search query
   List<PricelistItem> get searchResults {
     if (_searchQuery.trim().isEmpty) return [];
-    return _catalogItems.where((item) {
-      final nameMatch = item.itemName.toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
-      final catMatch =
-          item.category?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
-          false;
-      return nameMatch || catMatch;
-    }).toList();
+    return SmartSearchUtils.filterPricelist(_catalogItems, _searchQuery);
   }
 
   void updateSearchQuery(String query) {
@@ -104,6 +98,7 @@ class SalesViewModel extends ChangeNotifier {
         quantity: 1,
         itemPrice: product.price,
         totalAmount: product.price,
+        notes: product.itemDescription,
       );
       _cartItems.add(newItem);
     }

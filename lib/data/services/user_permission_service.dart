@@ -476,6 +476,6 @@ class UserPermissionService {
         .where((s) => allowed.any((a) => a.trim().toLowerCase() == s.trim().toLowerCase()))
         .toList();
 
-    return filtered.isEmpty ? configured : filtered;
+    return filtered;
   }
 }

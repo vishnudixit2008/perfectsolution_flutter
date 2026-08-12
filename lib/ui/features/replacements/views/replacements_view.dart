@@ -1473,10 +1473,11 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                         UserPermissionService.getAllowedSelectableStatuses(
                       'replacements',
                     );
-                    if (!list.contains(_status)) {
-                      list.add(_status);
+                    final List<String> selectableList = List.from(list);
+                    if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
+                      selectableList.insert(0, _status);
                     }
-                    return list;
+                    return selectableList;
                   })().map((st) {
                     return DropdownMenuItem(value: st, child: Text(st));
                   }).toList(),

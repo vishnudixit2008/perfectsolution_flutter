@@ -9,6 +9,8 @@ import 'package:shop_management_flutter/ui/features/auth/view_models/auth_view_m
 import 'package:shop_management_flutter/ui/shared/components/app_page_header.dart';
 import 'package:shop_management_flutter/ui/shared/components/app_floating_action_button.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
+import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'user_management_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -290,6 +292,14 @@ class _SettingsViewState extends State<SettingsView> {
               const SizedBox(height: 16),
               const Divider(color: Colors.white10),
               const SizedBox(height: 12),
+
+              if (user.email.toLowerCase().trim() == 'sale.perfectsolutionnoida@gmail.com') ...[
+                // Kiosk Display Mode Toggle Card
+                _buildKioskModeCard(context),
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white10),
+                const SizedBox(height: 12),
+              ],
               
               // Device Look & Feel Controls
               const Text(
@@ -426,6 +436,163 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ],
       ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Customer QR Display Settings Card
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildKioskModeCard(BuildContext context) {
+    final bool isKiosk = UiPreferencesService.isKioskMode();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Customer QR Display Mode',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Turn on this mode on dedicated counter-facing tablet/PC screens to automatically display dynamic payment QR codes when staff billed from billing devices.',
+          style: TextStyle(
+            fontSize: 11,
+            color: AppTheme.textMuted,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isKiosk
+                ? AppTheme.secondary.withValues(alpha: 0.08)
+                : const Color(0xFF131826),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isKiosk
+                  ? AppTheme.secondary.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (isKiosk ? AppTheme.secondary : AppTheme.textMuted)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.desktop_windows_rounded,
+                      color: isKiosk ? AppTheme.secondary : AppTheme.textMuted,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Set QR Display Mode',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isKiosk ? AppTheme.textPrimary : AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          isKiosk
+                              ? 'Active — Ready to show payment QRs'
+                              : 'Disabled — Turn ON for counter display',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: isKiosk,
+                    activeColor: AppTheme.secondary,
+                    onChanged: (val) async {
+                      await UiPreferencesService.setKioskMode(val);
+                      if (val) {
+                        KioskBroadcastService.instance.init();
+                      }
+                      if (mounted) setState(() {});
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              val
+                                  ? 'QR Display Mode enabled! This device will now automatically show payment QRs.'
+                                  : 'QR Display Mode disabled.',
+                            ),
+                            backgroundColor: val ? AppTheme.secondary : AppTheme.warning,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              if (isKiosk) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppTheme.success.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.sensors_rounded,
+                        size: 12,
+                        color: AppTheme.success,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'LISTENING FOR QR BROADCASTS',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.success,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 

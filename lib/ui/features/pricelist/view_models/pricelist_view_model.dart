@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../data/models/pricelist_item.dart';
 import '../../../../data/models/product_history_record.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/smart_search_utils.dart';
 
 class PricelistViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -173,16 +174,9 @@ class PricelistViewModel extends ChangeNotifier {
   List<PricelistItem> get filteredItems {
     List<PricelistItem> list = [..._items];
 
-    // 1. Search Query Filter (Item Name or Category)
+    // 1. Search Query Filter (Multi-token smart search across Name, Category, Description)
     if (_searchQuery.isNotEmpty) {
-      list = list.where((item) {
-        final nameMatch = item.itemName.toLowerCase().contains(_searchQuery);
-        final descMatch =
-            item.itemDescription?.toLowerCase().contains(_searchQuery) ?? false;
-        final catMatch =
-            item.category?.toLowerCase().contains(_searchQuery) ?? false;
-        return nameMatch || descMatch || catMatch;
-      }).toList();
+      list = SmartSearchUtils.filterPricelist(list, _searchQuery);
     }
 
     // 2. Category Dropdown Filter

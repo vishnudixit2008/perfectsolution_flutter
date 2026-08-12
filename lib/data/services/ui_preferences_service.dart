@@ -41,6 +41,25 @@ class UiPreferencesService {
     await box.put(_columnWidthsKey, widths);
   }
 
+  static const String _isKioskModeKey = 'is_kiosk_mode';
+  static const String _kioskTimeoutSecondsKey = 'kiosk_timeout_seconds';
+
+  static bool isKioskMode() {
+    return _getBox().get(_isKioskModeKey, defaultValue: false) as bool;
+  }
+
+  static Future<void> setKioskMode(bool enabled) async {
+    await _getBox().put(_isKioskModeKey, enabled);
+  }
+
+  static int getKioskTimeoutSeconds() {
+    return _getBox().get(_kioskTimeoutSecondsKey, defaultValue: 180) as int;
+  }
+
+  static Future<void> setKioskTimeoutSeconds(int seconds) async {
+    await _getBox().put(_kioskTimeoutSecondsKey, seconds);
+  }
+
   static dynamic getValue(String key) {
     return _getBox().get(key);
   }

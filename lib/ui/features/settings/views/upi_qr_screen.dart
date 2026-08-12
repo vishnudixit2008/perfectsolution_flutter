@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +7,18 @@ import '../../../core/app_theme.dart';
 import '../../../../data/repositories/shop_repository.dart';
 
 class UpiQrScreen extends StatefulWidget {
-  const UpiQrScreen({super.key});
+  final double? initialAmount;
+  final String? invoiceNo;
+  final String? customerName;
+  final int? autoCloseSeconds;
+
+  const UpiQrScreen({
+    super.key,
+    this.initialAmount,
+    this.invoiceNo,
+    this.customerName,
+    this.autoCloseSeconds,
+  });
 
   @override
   State<UpiQrScreen> createState() => _UpiQrScreenState();
@@ -17,6 +29,8 @@ class _UpiQrScreenState extends State<UpiQrScreen>
   final TextEditingController _amountController = TextEditingController();
   late final AnimationController _animController;
   late final Animation<double> _scaleAnim;
+  Timer? _autoCloseTimer;
+  int _remainingSeconds = 0;
 
   String _amount = '';
 
@@ -32,10 +46,34 @@ class _UpiQrScreenState extends State<UpiQrScreen>
       curve: Curves.elasticOut,
     );
     _animController.forward();
+
+    if (widget.initialAmount != null && widget.initialAmount! > 0) {
+      _amount = widget.initialAmount!.toStringAsFixed(
+        widget.initialAmount! == widget.initialAmount!.roundToDouble() ? 0 : 2,
+      );
+      _amountController.text = _amount;
+    }
+
+    if (widget.autoCloseSeconds != null && widget.autoCloseSeconds! > 0) {
+      _remainingSeconds = widget.autoCloseSeconds!;
+      _autoCloseTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_remainingSeconds <= 1) {
+          timer.cancel();
+          if (mounted && Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        } else {
+          if (mounted) {
+            setState(() => _remainingSeconds--);
+          }
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    _autoCloseTimer?.cancel();
     _amountController.dispose();
     _animController.dispose();
     super.dispose();
@@ -173,22 +211,56 @@ class _UpiQrScreenState extends State<UpiQrScreen>
                         child: const Icon(Icons.qr_code_2_rounded, color: AppTheme.secondary, size: 18),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
-                        'UPI QR Pay',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'UPI QR Pay',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                          ),
+                          if (widget.invoiceNo != null && widget.invoiceNo!.isNotEmpty)
+                            Text(
+                              'Invoice: ${widget.invoiceNo}',
+                              style: const TextStyle(fontSize: 11, color: AppTheme.secondary, fontWeight: FontWeight.w600),
+                            ),
+                        ],
                       ),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(8),
+                  Row(
+                    children: [
+                      if (widget.autoCloseSeconds != null && widget.autoCloseSeconds! > 0)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warning.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.timer_outlined, size: 12, color: AppTheme.warning),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_remainingSeconds}s',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warning),
+                              ),
+                            ],
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.close_rounded, color: AppTheme.textMuted, size: 18),
+                        ),
                       ),
-                      child: const Icon(Icons.close_rounded, color: AppTheme.textMuted, size: 18),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -209,6 +281,19 @@ class _UpiQrScreenState extends State<UpiQrScreen>
                     if (refName.isNotEmpty) ...[
                       Text(refName,
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                      const SizedBox(height: 3),
+                    ],
+                    if (widget.customerName != null && widget.customerName!.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.person_rounded, size: 12, color: AppTheme.primaryLight),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Customer: ${widget.customerName!}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryLight),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 3),
                     ],
                     Row(
@@ -240,8 +325,10 @@ class _UpiQrScreenState extends State<UpiQrScreen>
               ),
               const SizedBox(height: 20),
 
-              // Amount input
+              // Amount Display (Read-Only when amount is set, editable if standalone)
               Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(12),
@@ -252,42 +339,74 @@ class _UpiQrScreenState extends State<UpiQrScreen>
                     width: 1.2,
                   ),
                 ),
-                child: TextField(
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
-                  onChanged: (val) => setState(() => _amount = val.trim()),
-                  style: TextStyle(
-                    fontSize: isMobile ? 22 : 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                  textAlign: TextAlign.center,
-                  decoration: InputDecoration(
-                    hintText: 'Enter amount (optional)',
-                    hintStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: AppTheme.textMuted.withValues(alpha: 0.6)),
-                    prefixIcon: _amount.isNotEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.only(left: 16, top: 14, bottom: 14),
-                            child: Text('₹', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.secondary)),
-                          )
-                        : null,
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0),
-                    suffixIcon: _amount.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, size: 18, color: AppTheme.textMuted),
-                            onPressed: () { _amountController.clear(); setState(() => _amount = ''); },
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _amount.isEmpty ? 'No amount — payer can enter their own' : 'QR updated for ₹$_amount',
-                style: TextStyle(fontSize: 11, color: _amount.isEmpty ? AppTheme.textMuted : AppTheme.secondary, fontWeight: FontWeight.w500),
+                child: widget.initialAmount != null && widget.initialAmount! > 0
+                    ? Column(
+                        children: [
+                          const Text(
+                            'AMOUNT TO PAY',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textMuted,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${widget.initialAmount!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: isMobile ? 24 : 28,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.secondary,
+                            ),
+                          ),
+                        ],
+                      )
+                    : TextField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                        onChanged: (val) => setState(() => _amount = val.trim()),
+                        style: TextStyle(
+                          fontSize: isMobile ? 22 : 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                        ),
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          hintText: 'Enter amount (optional)',
+                          hintStyle: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.normal,
+                            color: AppTheme.textMuted.withValues(alpha: 0.6),
+                          ),
+                          prefixIcon: _amount.isNotEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.only(left: 16, top: 14, bottom: 14),
+                                  child: Text(
+                                    '₹',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.secondary,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          prefixIconConstraints: const BoxConstraints(minWidth: 0),
+                          suffixIcon: _amount.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, size: 18, color: AppTheme.textMuted),
+                                  onPressed: () {
+                                    _amountController.clear();
+                                    setState(() => _amount = '');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                      ),
               ),
               const SizedBox(height: 20),
 
