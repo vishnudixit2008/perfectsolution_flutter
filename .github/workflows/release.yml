@@ -66,11 +66,6 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Prepare macOS Native Configs
-        if: matrix.target == 'macos'
-        run: |
-          flutter build macos --config-only
-
 
       - name: Build Target Artifact
         run: ${{ matrix.build_cmd }}
