@@ -28,6 +28,7 @@ class WindowsOAuthService {
         final uri = request.uri;
         final path = uri.path;
 
+        // Handle both root path '/' and '/auth/v1/callback' or '/callback_hash'
         // If request is for callback hash handler (access_token in hash fragment)
         if (path.contains('callback_hash')) {
           final queryParams = uri.query;
@@ -43,7 +44,7 @@ class WindowsOAuthService {
           return;
         }
 
-        // Standard callback HTML response
+        // Standard callback HTML response for '/', '/auth/v1/callback', etc.
         request.response
           ..statusCode = 200
           ..headers.contentType = ContentType.html
