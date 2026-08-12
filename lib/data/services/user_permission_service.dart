@@ -10,9 +10,22 @@ class UserPermissionService {
 
   static Future<void> init() async {
     if (!Hive.isBoxOpen(_boxName)) {
-      await Hive.openBox(_boxName);
+      try {
+        await Hive.openBox(_boxName);
+      } catch (_) {
+        try {
+          await Hive.deleteBoxFromDisk(_boxName);
+          await Hive.openBox(_boxName);
+        } catch (_) {
+          await Hive.openBox('${_boxName}_fallback');
+        }
+      }
     }
-    final box = Hive.box(_boxName);
+    final box = Hive.isBoxOpen(_boxName)
+        ? Hive.box(_boxName)
+        : (Hive.isBoxOpen('${_boxName}_fallback')
+            ? Hive.box('${_boxName}_fallback')
+            : await Hive.openBox(_boxName));
 
     // Seed permanent admins
     final pureAdmins = [

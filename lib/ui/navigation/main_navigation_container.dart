@@ -174,6 +174,12 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       if (context.mounted) {
         _reloadAllViewModels(context);
       }
+      // Always re-check for updates after a manual sync tap — forceCheck
+      // bypasses the within-session throttle so the popup shows every time
+      // the user taps the sync button, even if they skipped it before.
+      if (context.mounted) {
+        await UpdateDialog.showIfNeeded(context, forceCheck: true);
+      }
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }

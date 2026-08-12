@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/pricelist_item.dart';
 import '../models/sale.dart';
 import '../models/sale_item.dart';
@@ -42,22 +44,46 @@ class LocalDatabaseService {
   late Box _pendingSyncBox;
 
   Future<void> init() async {
-    await Hive.initFlutter();
+    try {
+      final appSupportDir = await getApplicationSupportDirectory();
+      final hiveDir = '${appSupportDir.path}/shop_management_hive';
+      await Hive.initFlutter(hiveDir);
+    } catch (_) {
+      await Hive.initFlutter();
+    }
 
-    _pricelistBox = await Hive.openBox(_pricelistBoxName);
-    _settingsBox = await Hive.openBox(_settingsBoxName);
-    _salesBox = await Hive.openBox(_salesBoxName);
-    _saleItemsBox = await Hive.openBox(_saleItemsBoxName);
-    _callsBox = await Hive.openBox(_callsBoxName);
-    _inwardBox = await Hive.openBox(_inwardBoxName);
-    _inwardItemsBox = await Hive.openBox(_inwardItemsBoxName);
-    _replacementBox = await Hive.openBox(_replacementBoxName);
-    _requestBox = await Hive.openBox(_requestBoxName);
-    _purchaseBox = await Hive.openBox(_purchaseBoxName);
-    _purchaseItemsBox = await Hive.openBox(_purchaseItemsBoxName);
-    _pendingSyncBox = await Hive.openBox(_pendingSyncBoxName);
+    _pricelistBox = await _openBoxSafely(_pricelistBoxName);
+    _settingsBox = await _openBoxSafely(_settingsBoxName);
+    _salesBox = await _openBoxSafely(_salesBoxName);
+    _saleItemsBox = await _openBoxSafely(_saleItemsBoxName);
+    _callsBox = await _openBoxSafely(_callsBoxName);
+    _inwardBox = await _openBoxSafely(_inwardBoxName);
+    _inwardItemsBox = await _openBoxSafely(_inwardItemsBoxName);
+    _replacementBox = await _openBoxSafely(_replacementBoxName);
+    _requestBox = await _openBoxSafely(_requestBoxName);
+    _purchaseBox = await _openBoxSafely(_purchaseBoxName);
+    _purchaseItemsBox = await _openBoxSafely(_purchaseItemsBoxName);
+    _pendingSyncBox = await _openBoxSafely(_pendingSyncBoxName);
 
     // Seed data is disabled since Supabase is now the source of truth
+  }
+
+  Future<Box> _openBoxSafely(String boxName) async {
+    if (Hive.isBoxOpen(boxName)) {
+      return Hive.box(boxName);
+    }
+    try {
+      return await Hive.openBox(boxName);
+    } catch (e) {
+      if (kDebugMode) print('Hive openBox lock/error for $boxName: $e. Recovering...');
+      try {
+        await Hive.deleteBoxFromDisk(boxName);
+        return await Hive.openBox(boxName);
+      } catch (err) {
+        if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
+        return await Hive.openBox('${boxName}_fallback');
+      }
+    }
   }
 
   Future<void> _seedPricelist() async {

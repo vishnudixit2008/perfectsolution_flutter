@@ -6,7 +6,16 @@ class UiPreferencesService {
 
   static Future<void> init() async {
     if (!Hive.isBoxOpen(_boxName)) {
-      await Hive.openBox(_boxName);
+      try {
+        await Hive.openBox(_boxName);
+      } catch (_) {
+        try {
+          await Hive.deleteBoxFromDisk(_boxName);
+          await Hive.openBox(_boxName);
+        } catch (_) {
+          await Hive.openBox('${_boxName}_fallback');
+        }
+      }
     }
   }
 
