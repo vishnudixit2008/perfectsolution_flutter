@@ -14,20 +14,21 @@ class WindowsOAuthService {
     _completer = Completer<Uri>();
 
     try {
-      // Use dedicated fixed loopback port 43211 (avoid 54321 which is used by local Supabase)
-      const int primaryPort = 43211;
-      try {
-        _server = await HttpServer.bind(InternetAddress.loopbackIPv4, primaryPort);
-      } catch (_) {
+      // Use standard whitelisted dev loopback ports (3000, 8080, 43211)
+      const List<int> preferredPorts = [3000, 8080, 43211, 43212];
+      for (final p in preferredPorts) {
         try {
-          _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 43212);
-        } catch (_) {
-          _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        }
+          _server = await HttpServer.bind(InternetAddress.loopbackIPv4, p);
+          break;
+        } catch (_) {}
       }
 
-      final port = _server?.port ?? primaryPort;
-      final redirectUrl = 'http://localhost:$port/auth/v1/callback';
+      _server ??= await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+
+
+      final port = _server!.port;
+      final redirectUrl = 'http://127.0.0.1:$port/auth/v1/callback';
+
 
       _server?.listen((HttpRequest request) async {
         final uri = request.uri;

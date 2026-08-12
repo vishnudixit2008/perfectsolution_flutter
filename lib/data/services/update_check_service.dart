@@ -54,8 +54,8 @@ class UpdateCheckService {
   }
 
   static const String _prefKeyLastCheck = 'app_update_last_check_timestamp';
-  static const Duration _checkInterval = Duration(hours: 1);
   static const Duration _skipSuppressDuration = Duration(hours: 1);
+
 
   static DateTime? _skippedTimestamp;
 
