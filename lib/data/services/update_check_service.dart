@@ -56,26 +56,33 @@ class UpdateCheckService {
   static const String _prefKeyLastCheck = 'app_update_last_check_timestamp';
   static const Duration _checkInterval = Duration(hours: 1);
 
+  // In-memory flag: true after the first successful check this session.
+  // Using an in-memory flag (not persistent storage) ensures every cold
+  // app launch always performs a fresh check regardless of the throttle window.
+  static bool _checkedThisSession = false;
+
   /// Queries Supabase app_versions table and compares against local PackageInfo.
-  /// Throttles network checks to at most once every 6 hours unless [forceCheck] is true.
+  /// Always checks on a cold launch (first call per session). Subsequent calls
+  /// within the same session are throttled to once per hour unless [forceCheck] is true.
   static Future<AppVersionStatus?> checkForUpdates({bool forceCheck = false}) async {
     try {
       final now = DateTime.now();
-      final lastCheckMillis = (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() ?? 0;
-      final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
 
-      final isFirstCheckInSession = (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() == null;
-
-      if (!forceCheck && !isFirstCheckInSession && now.difference(lastCheck) < _checkInterval) {
-        if (kDebugMode) {
-          final remainingMins = (_checkInterval - now.difference(lastCheck)).inMinutes;
-          print('UpdateCheckService: Skipped check. Next check in $remainingMins mins (0 Egress saved!).');
+      // On a cold launch (_checkedThisSession == false) always check,
+      // ignoring the persistent throttle timestamp entirely.
+      if (!forceCheck && _checkedThisSession) {
+        final lastCheckMillis =
+            (UiPreferencesService.getValue(_prefKeyLastCheck) as num?)?.toInt() ?? 0;
+        final lastCheck = DateTime.fromMillisecondsSinceEpoch(lastCheckMillis);
+        if (now.difference(lastCheck) < _checkInterval) {
+          if (kDebugMode) {
+            final remainingMins = (_checkInterval - now.difference(lastCheck)).inMinutes;
+            print('UpdateCheckService: Skipped (within-session throttle). '
+                'Next check in $remainingMins mins.');
+          }
+          return null;
         }
-        return null;
       }
-
-      // Record check timestamp
-      await UiPreferencesService.setValue(_prefKeyLastCheck, now.millisecondsSinceEpoch);
 
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVer = packageInfo.version.isNotEmpty ? packageInfo.version : '0.9.0';
@@ -87,6 +94,11 @@ class UpdateCheckService {
           .eq('platform', platform)
           .maybeSingle();
 
+      // Only save the timestamp AFTER a successful Supabase response so that
+      // a failed/offline check does not burn the throttle window.
+      _checkedThisSession = true;
+      await UiPreferencesService.setValue(_prefKeyLastCheck, now.millisecondsSinceEpoch);
+
       if (res != null) {
         final latestVer = (res['latest_version'] ?? currentVer).toString();
         final minVer = (res['min_required_version'] ?? currentVer).toString();
@@ -95,13 +107,20 @@ class UpdateCheckService {
         final isMandatoryDb = res['is_mandatory'] == true;
 
         final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
-        final latestBuild = int.tryParse(res['latest_build_number']?.toString() ?? '') ?? 0;
+        final latestBuild =
+            int.tryParse(res['latest_build_number']?.toString() ?? '') ?? 0;
 
         final bool versionIsOlder = _compareVersions(currentVer, latestVer) < 0;
-        final bool buildIsOlder = _compareVersions(currentVer, latestVer) == 0 && currentBuild < latestBuild;
+        final bool buildIsOlder =
+            _compareVersions(currentVer, latestVer) == 0 && currentBuild < latestBuild;
         final bool hasNewerVersion = versionIsOlder || buildIsOlder;
         final bool isBelowMinVersion = _compareVersions(currentVer, minVer) < 0;
         final bool isMandatory = isMandatoryDb || isBelowMinVersion || buildIsOlder;
+
+        if (kDebugMode) {
+          print('UpdateCheckService: current=$currentVer+$currentBuild '
+              'latest=$latestVer+$latestBuild hasUpdate=$hasNewerVersion');
+        }
 
         return AppVersionStatus(
           currentVersion: currentVer,
