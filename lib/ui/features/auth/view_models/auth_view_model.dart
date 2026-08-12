@@ -5,7 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/user_permission_service.dart';
-import '../../../../data/services/windows_oauth_service.dart';
+
 
 
 class AuthViewModel extends ChangeNotifier {
@@ -301,74 +301,28 @@ class AuthViewModel extends ChangeNotifier {
         return success;
       }
 
-      // ── Windows Desktop: use local loopback server ────────────────────────────
+      // ── Windows Desktop: Custom Scheme Protocol Redirect (Matching macOS) ──────
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-        try {
-          final redirectUrl = await WindowsOAuthService.startLocalServer();
+        const String redirectUrl = 'io.supabase.shopmanagement://login-callback';
 
-          final success = await Supabase.instance.client.auth.signInWithOAuth(
-            OAuthProvider.google,
-            redirectTo: redirectUrl,
-            authScreenLaunchMode: LaunchMode.externalApplication,
-          );
+        final success = await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirectUrl,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        );
 
-          if (!success) {
-            await WindowsOAuthService.stopLocalServer();
-            _errorMessage = 'Failed to launch Google authentication browser.';
+        Future.delayed(const Duration(seconds: 30), () {
+          if (_isLoading && !_isAuthenticated) {
             _isLoading = false;
-            notifyListeners();
-            return false;
-          }
-
-          final callbackUri = await WindowsOAuthService.waitForCallback(
-            timeout: const Duration(seconds: 45),
-          );
-
-          // Only attempt code exchange if user is not already signed in via listener or AppLinks
-          if (callbackUri != null && Supabase.instance.client.auth.currentSession == null) {
-            try {
-              await Supabase.instance.client.auth.getSessionFromUrl(callbackUri);
-            } catch (e) {
-              if (kDebugMode) print('getSessionFromUrl exception (safe handling): $e');
-              await Future.delayed(const Duration(milliseconds: 500));
-            }
-          }
-
-          // Check if session is now active (via loopback, deep link, or auth state listener)
-          final session = Supabase.instance.client.auth.currentSession;
-
-          if (session != null && session.user.email != null) {
-            final userEmail = session.user.email!.trim().toLowerCase();
-            final isAuth =
-                await UserPermissionService.isAuthorizedUserAsync(userEmail);
-            if (isAuth) {
-              await UserPermissionService.setCurrentUser(userEmail);
-              await _updateRememberMeSession(userEmail, rememberMe);
-              _isAuthenticated = true;
-              _isLoading = false;
-              _errorMessage = null;
-              notifyListeners();
-              return true;
-            } else {
-              await Supabase.instance.client.auth.signOut();
-              _errorMessage =
-                  'Access Denied: Your account ($userEmail) is not permitted to use this app.';
-              _isLoading = false;
-              notifyListeners();
-              return false;
-            }
-          } else {
             _errorMessage =
-                'Google Sign-In canceled or timed out. Please try again.';
-            _isLoading = false;
+                'Google Sign-In canceled or timed out. Please try again or sign in with Email.';
             notifyListeners();
-            return false;
           }
-        } catch (e) {
-          await WindowsOAuthService.stopLocalServer();
-          if (kDebugMode) print('Windows OAuth error: $e');
-        }
+        });
+
+        return success;
       }
+
 
 
 
