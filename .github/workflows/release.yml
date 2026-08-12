@@ -180,7 +180,7 @@ jobs:
           # [Setup]
           Set-Content  -Path $iss -Encoding UTF8 -Value "[Setup]"
           Add-Content  -Path $iss -Value "AppName=Perfect Solution"
-          Add-Content  -Path $iss -Value "AppVersion=1.1.7"
+          Add-Content  -Path $iss -Value "AppVersion=1.1.8"
           Add-Content  -Path $iss -Value "AppPublisher=Perfect Solution"
           Add-Content  -Path $iss -Value "AppPublisherURL=https://github.com/vishnudixit2008/perfectsolution_flutter"
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
