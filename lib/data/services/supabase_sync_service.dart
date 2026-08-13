@@ -140,15 +140,25 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Public method for manual sync triggered by user (pull only).
   Future<void> manualSync(LocalDatabaseService localDb) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      try {
+        final connected = await connectAndSubscribe(localDb);
+        if (!connected) return;
+      } catch (e) {
+        _setStatus(SyncStatus.error, 'Connection Error');
+        return;
+      }
+    }
     _setStatus(SyncStatus.syncing, 'Syncing...');
     try {
-      await syncAllTablesFromCloud(localDb, force: true);
-      await flushOfflineQueue(localDb);
+      await syncAllTablesFromCloud(localDb, force: true)
+          .timeout(const Duration(seconds: 15));
+      await flushOfflineQueue(localDb)
+          .timeout(const Duration(seconds: 10));
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
-      _setStatus(SyncStatus.error, 'Sync Failed');
+      _setStatus(SyncStatus.error, 'Sync Timeout / Failed');
     }
   }
 
@@ -389,13 +399,12 @@ class SupabaseSyncService extends ChangeNotifier {
       }
 
       // ── Step 0: Apply remote deletions (tombstones) ────────────────────────
-      // This ensures records deleted on any device are removed everywhere.
       try {
         var tombstoneQuery = client.from('deleted_records').select();
         if (isDelta) {
           tombstoneQuery = tombstoneQuery.gt('created_at', lastSyncIso);
         }
-        final deletions = await tombstoneQuery;
+        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 5));
         for (final d in deletions) {
           final tbl = d['table_name']?.toString() ?? '';
           final rid = d['record_id']?.toString();
@@ -426,8 +435,8 @@ class SupabaseSyncService extends ChangeNotifier {
         inwardQuery = inwardQuery.gt('updated_at', lastSyncIso);
         inwardItemsQuery = inwardItemsQuery.gt('updated_at', lastSyncIso);
       }
-      final inwardData = await inwardQuery;
-      final inwardItemsData = await inwardItemsQuery;
+      final inwardData = await inwardQuery.timeout(const Duration(seconds: 5));
+      final inwardItemsData = await inwardItemsQuery.timeout(const Duration(seconds: 5));
 
       final repairsMap = <int, Map<String, dynamic>>{};
       final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
@@ -461,7 +470,7 @@ class SupabaseSyncService extends ChangeNotifier {
       // ── Step 2: Replacements ───────────────────────────────────────────────
       var replacementQuery = client.from('replacements').select();
       if (isDelta) replacementQuery = replacementQuery.gt('updated_at', lastSyncIso);
-      final replacementData = await replacementQuery;
+      final replacementData = await replacementQuery.timeout(const Duration(seconds: 5));
       final replacementMap = <String, Map<String, dynamic>>{};
       for (final json in replacementData) {
         final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
@@ -472,7 +481,7 @@ class SupabaseSyncService extends ChangeNotifier {
       // ── Step 3: Requests ───────────────────────────────────────────────────
       var requestQuery = client.from('requests').select();
       if (isDelta) requestQuery = requestQuery.gt('updated_at', lastSyncIso);
-      final requestData = await requestQuery;
+      final requestData = await requestQuery.timeout(const Duration(seconds: 5));
       final requestMap = <String, Map<String, dynamic>>{};
       for (final json in requestData) {
         final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
@@ -483,7 +492,7 @@ class SupabaseSyncService extends ChangeNotifier {
       // ── Step 4: Calls ──────────────────────────────────────────────────────
       var callQuery = client.from('calls').select();
       if (isDelta) callQuery = callQuery.gt('updated_at', lastSyncIso);
-      final callData = await callQuery;
+      final callData = await callQuery.timeout(const Duration(seconds: 5));
       final callMap = <int, Map<String, dynamic>>{};
       final List<Map<String, dynamic>> callsToRepushWithPhoto = [];
       for (final json in callData) {
@@ -507,7 +516,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
       for (final callJson in callsToRepushWithPhoto) {
         try {
-          await client.from('calls').upsert(callJson);
+          await client.from('calls').upsert(callJson).timeout(const Duration(seconds: 5));
         } catch (e) {
           if (kDebugMode) print('Re-push call photo error (id=${callJson['id']}): $e');
         }
@@ -520,8 +529,8 @@ class SupabaseSyncService extends ChangeNotifier {
         salesQuery = salesQuery.gt('updated_at', lastSyncIso);
         salesItemsQuery = salesItemsQuery.gt('updated_at', lastSyncIso);
       }
-      final salesData = await salesQuery;
-      final salesItemsData = await salesItemsQuery;
+      final salesData = await salesQuery.timeout(const Duration(seconds: 5));
+      final salesItemsData = await salesItemsQuery.timeout(const Duration(seconds: 5));
       final salesMap = <int, Map<String, dynamic>>{};
       final salesItemsMap = <int, List<Map<String, dynamic>>>{};
 
@@ -557,8 +566,8 @@ class SupabaseSyncService extends ChangeNotifier {
         purchaseQuery = purchaseQuery.gt('updated_at', lastSyncIso);
         purchaseItemsQuery = purchaseItemsQuery.gt('updated_at', lastSyncIso);
       }
-      final purchaseData = await purchaseQuery;
-      final purchaseItemsData = await purchaseItemsQuery;
+      final purchaseData = await purchaseQuery.timeout(const Duration(seconds: 5));
+      final purchaseItemsData = await purchaseItemsQuery.timeout(const Duration(seconds: 5));
       final purchasesMap = <String, Map<String, dynamic>>{};
       final purchaseItemsMap = <String, List<Map<String, dynamic>>>{};
 
@@ -589,7 +598,7 @@ class SupabaseSyncService extends ChangeNotifier {
       // ── Step 7: Pricelist ──────────────────────────────────────────────────
       var pricelistQuery = client.from('pricelist').select();
       if (isDelta) pricelistQuery = pricelistQuery.gt('updated_at', lastSyncIso);
-      final pricelistData = await pricelistQuery;
+      final pricelistData = await pricelistQuery.timeout(const Duration(seconds: 5));
       final pricelistMap = <int, Map<String, dynamic>>{};
       for (final json in pricelistData) {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
@@ -602,9 +611,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
       // ── Step 9: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
       try {
-        var settingsQuery = client.from('shop_settings').select();
-        if (isDelta) settingsQuery = settingsQuery.gt('updated_at', lastSyncIso);
-        final settingsData = await settingsQuery;
+        final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
         final settingsMap = <String, dynamic>{};
         for (final item in settingsData) {
           final key = item['key']?.toString();

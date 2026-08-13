@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/app_theme.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/supabase_sync_service.dart';
 
 class UpiQrScreen extends StatefulWidget {
   final double? initialAmount;
@@ -89,31 +90,35 @@ class _UpiQrScreenState extends State<UpiQrScreen>
 
   @override
   Widget build(BuildContext context) {
-    final repo = context.read<ShopRepository>();
-    final activeUpiId = repo.getActiveUpiId();
-    final namesMap = repo.getUpiNamesMap();
-    final refName = (activeUpiId != null ? namesMap[activeUpiId] : null) ?? '';
-    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    return Consumer<SupabaseSyncService>(
+      builder: (context, syncService, child) {
+        final repo = context.read<ShopRepository>();
+        final activeUpiId = repo.getActiveUpiId();
+        final namesMap = repo.getUpiNamesMap();
+        final refName = (activeUpiId != null ? namesMap[activeUpiId] : null) ?? '';
+        final bool isMobile = MediaQuery.of(context).size.width < 600;
 
-    if (activeUpiId == null || activeUpiId.trim().isEmpty) {
-      return isMobile
-          ? Scaffold(
-              backgroundColor: const Color(0xFF080D1A),
-              body: SafeArea(child: _buildNoUpiWidget(context)),
-            )
-          : SizedBox(width: 440, child: _buildNoUpiWidget(context));
-    }
+        if (activeUpiId == null || activeUpiId.trim().isEmpty) {
+          return isMobile
+              ? Scaffold(
+                  backgroundColor: const Color(0xFF080D1A),
+                  body: SafeArea(child: _buildNoUpiWidget(context)),
+                )
+              : SizedBox(width: 440, child: _buildNoUpiWidget(context));
+        }
 
-    final upiUri = _buildUpiUri(activeUpiId, refName, _amount);
-    final content = _buildQrContent(context, activeUpiId, refName, upiUri, isMobile);
+        final upiUri = _buildUpiUri(activeUpiId, refName, _amount);
+        final content = _buildQrContent(context, activeUpiId, refName, upiUri, isMobile);
 
-    if (isMobile) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF080D1A),
-        body: SafeArea(child: content),
-      );
-    }
-    return SizedBox(width: 440, child: content);
+        if (isMobile) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF080D1A),
+            body: SafeArea(child: content),
+          );
+        }
+        return SizedBox(width: 440, child: content);
+      },
+    );
   }
 
   Widget _buildNoUpiWidget(BuildContext context) {
