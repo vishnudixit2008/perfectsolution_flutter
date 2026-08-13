@@ -135,6 +135,7 @@ class SupabaseSyncService extends ChangeNotifier {
       await flushOfflineQueue(localDb);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
+      _setStatus(SyncStatus.error, '$e');
     }
   }
 
@@ -145,7 +146,7 @@ class SupabaseSyncService extends ChangeNotifier {
         final connected = await connectAndSubscribe(localDb);
         if (!connected) return;
       } catch (e) {
-        _setStatus(SyncStatus.error, 'Connection Error');
+        _setStatus(SyncStatus.error, 'Connection Error: $e');
         return;
       }
     }
@@ -158,7 +159,7 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
-      _setStatus(SyncStatus.error, 'Sync Timeout / Failed');
+      _setStatus(SyncStatus.error, 'Sync Error: $e');
     }
   }
 
@@ -402,7 +403,7 @@ class SupabaseSyncService extends ChangeNotifier {
       try {
         var tombstoneQuery = client.from('deleted_records').select();
         if (isDelta) {
-          tombstoneQuery = tombstoneQuery.gt('created_at', lastSyncIso);
+          tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
         }
         final deletions = await tombstoneQuery.timeout(const Duration(seconds: 5));
         for (final d in deletions) {
@@ -443,7 +444,23 @@ class SupabaseSyncService extends ChangeNotifier {
 
       for (final json in inwardData) {
         final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
-        repairsMap[cloudRepair.jobNo] = cloudRepair.toJson();
+        Map<String, dynamic> repairJson = cloudRepair.toJson();
+
+        // If cloud record was updated and explicitly has null/empty photo string (e.g. photo deleted or omitted),
+        // check if existing local repair has a valid Google Drive URL to retain offline link when photo wasn't deleted
+        if (cloudRepair.photo == null || cloudRepair.photo!.isEmpty) {
+          // If updated_at is present in cloud JSON, it means user updated record.
+          // If photo was explicitly cleared/deleted by user, sync the deletion.
+          // Only preserve local photo if cloud didn't send photo field.
+          final hasPhotoKey = json.containsKey('photo');
+          if (!hasPhotoKey) {
+            final existingLocalRepair = localDb.getInwardRepairByJobNo(cloudRepair.jobNo);
+            if (existingLocalRepair != null && existingLocalRepair.photo != null && existingLocalRepair.photo!.isNotEmpty) {
+              repairJson['photo'] = existingLocalRepair.photo;
+            }
+          }
+        }
+        repairsMap[cloudRepair.jobNo] = repairJson;
 
         final itemsJson = inwardItemsData
             .where((i) => i['job_no']?.toString() == cloudRepair.jobNo.toString())
@@ -494,18 +511,19 @@ class SupabaseSyncService extends ChangeNotifier {
       if (isDelta) callQuery = callQuery.gt('updated_at', lastSyncIso);
       final callData = await callQuery.timeout(const Duration(seconds: 5));
       final callMap = <int, Map<String, dynamic>>{};
-      final List<Map<String, dynamic>> callsToRepushWithPhoto = [];
       for (final json in callData) {
         final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
         Map<String, dynamic> callJson = cloudCall.toJson();
 
         if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
-          final localRaw = localDb.getCallById(cloudCall.id);
-          if (localRaw != null) {
-            final localPhoto = localRaw['photo']?.toString();
-            if (localPhoto != null && localPhoto.isNotEmpty) {
-              callJson['photo'] = localPhoto;
-              callsToRepushWithPhoto.add(callJson);
+          final hasPhotoKey = json.containsKey('photo');
+          if (!hasPhotoKey) {
+            final localRaw = localDb.getCallById(cloudCall.id);
+            if (localRaw != null) {
+              final localPhoto = localRaw['photo']?.toString();
+              if (localPhoto != null && localPhoto.isNotEmpty) {
+                callJson['photo'] = localPhoto;
+              }
             }
           }
         }
@@ -513,14 +531,6 @@ class SupabaseSyncService extends ChangeNotifier {
         callMap[cloudCall.id] = callJson;
       }
       await localDb.saveAllCalls(callMap, clearOthers: !isDelta);
-
-      for (final callJson in callsToRepushWithPhoto) {
-        try {
-          await client.from('calls').upsert(callJson).timeout(const Duration(seconds: 5));
-        } catch (e) {
-          if (kDebugMode) print('Re-push call photo error (id=${callJson['id']}): $e');
-        }
-      }
 
       // ── Step 5: Sales ──────────────────────────────────────────────────────
       var salesQuery = client.from('sales').select();
@@ -671,6 +681,7 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.synced, 'All tables synchronized');
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');
+      _setStatus(SyncStatus.error, 'Sync from cloud error: $e');
     }
   }
 
@@ -771,7 +782,7 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save estimate items cloud error ($jobNo): $e');
-      _setStatus(SyncStatus.error, 'Sync Error');
+      _setStatus(SyncStatus.error, 'Sync Error (Estimate Items): $e');
     }
   }
 
@@ -797,7 +808,7 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save purchase items cloud error ($purchaseId): $e');
-      _setStatus(SyncStatus.error, 'Sync Error');
+      _setStatus(SyncStatus.error, 'Sync Error (Purchase Items): $e');
     }
   }
 
@@ -855,7 +866,7 @@ class SupabaseSyncService extends ChangeNotifier {
         });
         _setStatus(SyncStatus.offline, 'Saved Offline — will sync when connected');
       } else {
-        _setStatus(SyncStatus.error, 'Delete Error');
+        _setStatus(SyncStatus.error, 'Delete Error: $e');
       }
     }
   }

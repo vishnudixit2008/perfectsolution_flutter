@@ -135,7 +135,11 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filtered = viewModel.replacements.where((r) {
-          if (!UserPermissionService.isStatusVisible('replacements', r.status)) {
+          if (!UserPermissionService.isEntryVisible(
+            moduleKey: 'replacements',
+            status: r.status,
+            assignedTo: r.assignedTo,
+          )) {
             return false;
           }
           if (query.isEmpty) return true;
@@ -809,7 +813,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             ),
             ScaledInfoRow(
               label: 'Assigned To',
-              value: repl.assignedTo ?? 'N/A',
+              value: UserPermissionService.formatStaffName(repl.assignedTo),
               scaleFactor: scale,
             ),
             ScaledInfoRow(
@@ -1218,6 +1222,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   DateTime? _depositDate;
   DateTime? _receiveDate;
   String? _photoUrl;
+  bool _isPhotoUploading = false;
 
   @override
   void initState() {
@@ -1257,6 +1262,20 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
 
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Guard: wait for photo upload to complete before saving
+    if (_isPhotoUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final viewModel = context.read<ReplacementsViewModel>();
     final String jobNo =
@@ -1447,6 +1466,11 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Replacement Item Photo / Receipt (Google Drive Link)',
+            onUploadingChanged: (uploading) {
+              setState(() {
+                _isPhotoUploading = uploading;
+              });
+            },
             onPhotoChanged: (url) {
               _photoUrl = url;
             },

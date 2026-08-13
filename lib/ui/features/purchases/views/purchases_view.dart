@@ -1154,6 +1154,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
   late final TextEditingController _notesController;
   late String _status;
   String? _photoUrl;
+  bool _isPhotoUploading = false;
 
   List<PurchaseOrderItem> _items = [];
 
@@ -1356,6 +1357,19 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
 
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
+    // Guard: wait for photo upload to complete before saving
+    if (_isPhotoUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     if (_items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one item')),
@@ -1504,6 +1518,11 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Vendor Bill / Purchase Invoice Photo(s)',
+            onUploadingChanged: (uploading) {
+              setState(() {
+                _isPhotoUploading = uploading;
+              });
+            },
             onPhotoChanged: (urls) {
               _photoUrl = urls;
             },

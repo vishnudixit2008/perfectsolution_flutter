@@ -1220,6 +1220,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
   late final TextEditingController _estimateController;
   late String _status;
   String? _photoUrl;
+  bool _isPhotoUploading = false;
 
   @override
   void initState() {
@@ -1276,6 +1277,20 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
 
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Guard: wait for photo upload to complete before saving
+    if (_isPhotoUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final viewModel = context.read<RequestsViewModel>();
     final String id = widget.existingRequest?.id ?? viewModel.getNextId();
@@ -1497,6 +1512,11 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Sample / Requested Item Photo(s)',
+            onUploadingChanged: (uploading) {
+              setState(() {
+                _isPhotoUploading = uploading;
+              });
+            },
             onPhotoChanged: (urls) {
               _photoUrl = urls;
             },

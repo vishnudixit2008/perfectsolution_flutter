@@ -1306,6 +1306,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
     text: existingItem?.stockQty.toString() ?? '0',
   );
   String? photoUrl = existingItem?.photo;
+  bool isPhotoUploading = false;
 
   return showDialog<PricelistItem>(
     context: context,
@@ -1317,6 +1318,20 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
         builder: (context, setDialogState) {
           void saveItem() {
             if (formKey.currentState!.validate()) {
+              // Guard: wait for photo upload to complete before saving
+              if (isPhotoUploading) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+
               final item = PricelistItem(
                 id: itemId,
                 itemName: nameController.text.trim(),
@@ -1458,6 +1473,11 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 // Photo attachment widget
                 PhotoAttachmentWidget(
                   initialPhotoUrl: photoUrl,
+                  onUploadingChanged: (uploading) {
+                    setDialogState(() {
+                      isPhotoUploading = uploading;
+                    });
+                  },
                   onPhotoChanged: (url) {
                     setDialogState(() {
                       photoUrl = url;

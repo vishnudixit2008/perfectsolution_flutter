@@ -773,6 +773,13 @@ class LocalDatabaseService {
     return list;
   }
 
+  /// Returns raw InwardRepair for a specific jobNo by key (used for photo preservation during sync)
+  InwardRepair? getInwardRepairByJobNo(int jobNo) {
+    final raw = _inwardBox.get(jobNo) ?? _inwardBox.get(jobNo.toString());
+    if (raw == null) return null;
+    return InwardRepair.fromJson(Map<String, dynamic>.from(raw));
+  }
+
   List<InwardEstimateItem> getInwardEstimateItems(int jobNo) {
     dynamic rawList = _inwardItemsBox.get(jobNo);
     rawList ??= _inwardItemsBox.get(jobNo.toString());

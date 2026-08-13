@@ -3,13 +3,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../data/services/google_drive_upload_service.dart';
+import '../../data/services/supabase_photo_service.dart';
 import '../core/app_theme.dart';
 
 class PhotoAttachmentWidget extends StatefulWidget {
   final String? initialPhotoUrl;
   final List<String>? initialPhotoUrls;
   final ValueChanged<String?> onPhotoChanged;
+  final ValueChanged<bool>? onUploadingChanged;
   final String label;
 
   const PhotoAttachmentWidget({
@@ -17,6 +18,7 @@ class PhotoAttachmentWidget extends StatefulWidget {
     this.initialPhotoUrl,
     this.initialPhotoUrls,
     required this.onPhotoChanged,
+    this.onUploadingChanged,
     this.label = 'Device / Item Photos',
   });
 
@@ -247,35 +249,41 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         setState(() {
           _isUploading = true;
           _uploadStatusText =
-              'Uploading ${selectedFiles.length} photo(s) in background...';
+              'Uploading ${selectedFiles.length} photo(s) to Google Drive...';
           _photoUrls.addAll(localPaths);
         });
+        widget.onUploadingChanged?.call(true);
       }
       _notifyParent();
 
-      // 2. Read bytes and upload ALL photos in background concurrently to Google Drive!
+      // 2. Read bytes and upload ALL photos concurrently to Google Drive!
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uploadFutures = selectedFiles.asMap().entries.map((entry) async {
         final index = entry.key;
         final file = entry.value;
         final bytes = await file.readAsBytes();
         final fileName = 'photo_${timestamp}_${index + 1}.jpg';
-        return GoogleDriveUploadService.uploadPhotoBytes(
+        return SupabasePhotoService.uploadPhoto(
           bytes: bytes,
           fileName: fileName,
+          // Category matches the module name for organised storage paths
+          category: 'photos',
         );
       });
 
       final List<String?> cloudUrls = await Future.wait(uploadFutures);
 
-      // 3. Seamlessly replace local device paths with permanent Google Drive URLs for cross-user sync
+      // 3. Replace local device paths with permanent Google Drive URLs for cross-user sync.
+      // If an upload fails, remove the local path so local file paths NEVER get saved to database.
       for (int i = 0; i < localPaths.length; i++) {
         final localPath = localPaths[i];
         final cloudUrl = cloudUrls[i];
-        if (cloudUrl != null && cloudUrl.isNotEmpty) {
-          final idx = _photoUrls.indexOf(localPath);
-          if (idx != -1) {
+        final idx = _photoUrls.indexOf(localPath);
+        if (idx != -1) {
+          if (cloudUrl != null && cloudUrl.isNotEmpty) {
             _photoUrls[idx] = cloudUrl;
+          } else {
+            _photoUrls.removeAt(idx);
           }
         }
       }
@@ -285,6 +293,7 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
           _isUploading = false;
           _uploadStatusText = '';
         });
+        widget.onUploadingChanged?.call(false);
       }
       _notifyParent();
     } catch (e) {
@@ -293,6 +302,7 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
           _isUploading = false;
           _uploadStatusText = '';
         });
+        widget.onUploadingChanged?.call(false);
       }
     }
   }
@@ -700,7 +710,9 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
                               _photoUrls.removeAt(index);
                             });
                             _notifyParent();
-                            GoogleDriveUploadService.deletePhoto(removedUrl);
+                            // Delete from Supabase Storage (if it's a storage URL).
+                            // Legacy base64 and Google Drive URLs are silently ignored.
+                            SupabasePhotoService.deletePhoto(removedUrl);
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),

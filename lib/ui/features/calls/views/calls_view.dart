@@ -134,11 +134,17 @@ class _CallsViewState extends State<CallsView> {
 
         final double screenWidth = MediaQuery.of(context).size.width;
         final bool isDesktop = screenWidth >= 800;
+        final bool isOnlyAssignedRestricted =
+            UserPermissionService.isOnlyAssignedRestricted('calls');
 
         // Apply local filtering
         final query = _searchController.text.trim().toLowerCase();
         final filteredCalls = viewModel.calls.where((c) {
-          if (!UserPermissionService.isStatusVisible('calls', c.status)) {
+          if (!UserPermissionService.isEntryVisible(
+            moduleKey: 'calls',
+            status: c.status,
+            assignedTo: c.assignedTo,
+          )) {
             return false;
           }
           final matchesSearch =
@@ -146,7 +152,10 @@ class _CallsViewState extends State<CallsView> {
               (c.mobileNo?.toLowerCase().contains(query) ?? false) ||
               (c.query?.toLowerCase().contains(query) ?? false) ||
               (c.address?.toLowerCase().contains(query) ?? false) ||
-              (c.assignedTo.toLowerCase().contains(query));
+              (c.assignedTo.toLowerCase().contains(query)) ||
+              UserPermissionService.formatStaffName(c.assignedTo)
+                  .toLowerCase()
+                  .contains(query);
 
           bool matchesAssigned = true;
           if (_selectedAssigned == 'Unassigned') {
@@ -155,7 +164,10 @@ class _CallsViewState extends State<CallsView> {
           } else if (_selectedAssigned != 'All') {
             matchesAssigned =
                 c.assignedTo.trim().toLowerCase() ==
-                _selectedAssigned.trim().toLowerCase();
+                    _selectedAssigned.trim().toLowerCase() ||
+                UserPermissionService.formatStaffName(c.assignedTo)
+                        .toLowerCase() ==
+                    _selectedAssigned.trim().toLowerCase();
           }
 
           if (_selectedStatus == 'All') {
@@ -268,118 +280,195 @@ class _CallsViewState extends State<CallsView> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
+                    // Status Filter Button
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Status: ',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedStatus,
-                              dropdownColor: const Color(0xFF0F1524),
-                              style: const TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 13,
-                              ),
-                              items: _allStatuses.map((status) {
-                                return DropdownMenuItem<String>(
-                                  value: status,
-                                  child: Text(status),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedStatus = val;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: _selectedAssigned != 'All'
+                        color: _selectedStatus != 'All'
                             ? AppTheme.primary.withValues(alpha: 0.15)
                             : Colors.white.withValues(alpha: 0.02),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: _selectedAssigned != 'All'
+                          color: _selectedStatus != 'All'
                               ? AppTheme.primaryLight.withValues(alpha: 0.4)
                               : Colors.white.withValues(alpha: 0.06),
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person_search_rounded,
-                            size: 16,
-                            color: _selectedAssigned != 'All'
-                                ? AppTheme.primaryLight
-                                : AppTheme.textMuted,
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedStatus,
+                          isDense: true,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 12.5,
                           ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Assigned To: ',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          borderRadius: BorderRadius.circular(10),
+                          dropdownColor: const Color(0xFF131A2E),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppTheme.textMuted,
                           ),
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _selectedAssigned,
-                              dropdownColor: const Color(0xFF0F1524),
-                              style: TextStyle(
-                                color: _selectedAssigned != 'All'
-                                    ? AppTheme.primaryLight
-                                    : AppTheme.textPrimary,
-                                fontSize: 13,
-                                fontWeight: _selectedAssigned != 'All'
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
+                          selectedItemBuilder: (context) {
+                            return _allStatuses.map((status) {
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'Status: ',
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    status,
+                                    style: TextStyle(
+                                      color: status != 'All'
+                                          ? AppTheme.primaryLight
+                                          : AppTheme.textPrimary,
+                                      fontSize: 12,
+                                      fontWeight: status != 'All'
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList();
+                          },
+                          items: _allStatuses.map((status) {
+                            return DropdownMenuItem<String>(
+                              value: status,
+                              child: Text(
+                                status,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
-                              items: viewModel.availableAssignedPersons.map((a) {
-                                return DropdownMenuItem<String>(
-                                  value: a,
-                                  child: Text(a),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedAssigned = val;
-                                  });
-                                  viewModel.setSelectedAssigned(val);
-                                }
-                              },
-                            ),
-                          ),
-                        ],
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedStatus = val;
+                              });
+                            }
+                          },
+                        ),
                       ),
                     ),
+                    if (!isOnlyAssignedRestricted) ...[
+                      const SizedBox(width: 10),
+                      // Assigned Staff Filter Button
+                      Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: _selectedAssigned != 'All'
+                              ? AppTheme.primary.withValues(alpha: 0.15)
+                              : Colors.white.withValues(alpha: 0.02),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _selectedAssigned != 'All'
+                                ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                                : Colors.white.withValues(alpha: 0.06),
+                          ),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedAssigned,
+                            isDense: true,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 12.5,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            dropdownColor: const Color(0xFF131A2E),
+                            icon: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: _selectedAssigned != 'All'
+                                  ? AppTheme.primaryLight
+                                  : AppTheme.textMuted,
+                            ),
+                            selectedItemBuilder: (context) {
+                              return viewModel.availableAssignedPersons.map((a) {
+                                final displayName = a == 'All' || a == 'Unassigned'
+                                    ? a
+                                    : UserPermissionService.formatStaffName(a);
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.person_search_rounded,
+                                      size: 15,
+                                      color: _selectedAssigned != 'All'
+                                          ? AppTheme.primaryLight
+                                          : AppTheme.textMuted,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    const Text(
+                                      'Staff: ',
+                                      style: TextStyle(
+                                        color: AppTheme.textMuted,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 90),
+                                      child: Text(
+                                        displayName,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: _selectedAssigned != 'All'
+                                              ? AppTheme.primaryLight
+                                              : AppTheme.textPrimary,
+                                          fontSize: 12,
+                                          fontWeight: _selectedAssigned != 'All'
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList();
+                            },
+                            items: viewModel.availableAssignedPersons.map((a) {
+                              final displayName = a == 'All' || a == 'Unassigned'
+                                  ? a
+                                  : UserPermissionService.formatStaffName(a);
+                              return DropdownMenuItem<String>(
+                                value: a,
+                                child: Text(
+                                  displayName,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedAssigned = val;
+                                });
+                                viewModel.setSelectedAssigned(val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 )
               else
@@ -391,7 +480,7 @@ class _CallsViewState extends State<CallsView> {
                   hintText: 'Search calls, mobile, staff...',
                   activeFilterCount:
                       (_selectedStatus != 'All' ? 1 : 0) +
-                      (_selectedAssigned != 'All' ? 1 : 0),
+                      (!isOnlyAssignedRestricted && _selectedAssigned != 'All' ? 1 : 0),
                   filterOptions: Row(
                     children: [
                       Expanded(
@@ -444,60 +533,65 @@ class _CallsViewState extends State<CallsView> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Assigned',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedAssigned,
-                              isExpanded: true,
-                              dropdownColor: const Color(0xFF1B243B),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textPrimary,
-                              ),
-                              decoration: InputDecoration(
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
+                      if (!isOnlyAssignedRestricted) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Assigned',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.textMuted,
                                 ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedAssigned,
+                                isExpanded: true,
+                                dropdownColor: const Color(0xFF1B243B),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                      color: Colors.white.withValues(alpha: 0.1),
+                                    ),
                                   ),
                                 ),
+                                items: viewModel.availableAssignedPersons.map((
+                                  a,
+                                ) {
+                                  final displayName = a == 'All' || a == 'Unassigned'
+                                      ? a
+                                      : UserPermissionService.formatStaffName(a);
+                                  return DropdownMenuItem(
+                                    value: a,
+                                    child: Text(displayName),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedAssigned = val;
+                                    });
+                                    viewModel.setSelectedAssigned(val);
+                                  }
+                                },
                               ),
-                              items: viewModel.availableAssignedPersons.map((
-                                a,
-                              ) {
-                                return DropdownMenuItem(
-                                  value: a,
-                                  child: Text(a),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedAssigned = val;
-                                  });
-                                  viewModel.setSelectedAssigned(val);
-                                }
-                              },
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -660,6 +754,8 @@ class _CallsViewState extends State<CallsView> {
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final bool isOnlyAssignedRestricted =
+              UserPermissionService.isOnlyAssignedRestricted('calls');
           final double tableWidth = constraints.maxWidth > totalWidth
               ? constraints.maxWidth
               : totalWidth;
@@ -720,12 +816,14 @@ class _CallsViewState extends State<CallsView> {
                             'assigned',
                             (_assignedWidth + delta).clamp(120.0, 400.0),
                           ),
-                          onTapDown: (details) => _showAssignedFilterMenu(
-                            context,
-                            viewModel,
-                            details.globalPosition,
-                          ),
-                          isFilterActive: _selectedAssigned != 'All',
+                          onTapDown: !isOnlyAssignedRestricted
+                              ? (details) => _showAssignedFilterMenu(
+                                    context,
+                                    viewModel,
+                                    details.globalPosition,
+                                  )
+                              : null,
+                          isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
                         ),
                       ],
                     ),
@@ -807,7 +905,7 @@ class _CallsViewState extends State<CallsView> {
               width: _assignedWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                call.assignedTo.trim().isEmpty ? 'Unassigned' : call.assignedTo,
+                UserPermissionService.formatStaffName(call.assignedTo),
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 13,
@@ -1279,7 +1377,7 @@ class _CallsViewState extends State<CallsView> {
             ),
             ScaledInfoRow(
               label: 'Assigned To',
-              value: call.assignedTo,
+              value: UserPermissionService.formatStaffName(call.assignedTo),
               scaleFactor: scale,
             ),
             ScaledInfoRow(
@@ -1606,13 +1704,12 @@ class _CallFormDialogState extends State<_CallFormDialog> {
   late TextEditingController _notesController;
   late String _status;
   String? _photoUrl;
+  bool _isPhotoUploading = false;
 
-  final List<String> _staffOptions = [
-    'sale.perfectsolutionnoida@gmail.com',
-    'mohankumarmishra28@gmail.com',
-    'ashimkumar0006@gmail.com',
-    'Office',
-  ];
+  List<String> get _staffOptions {
+    final list = UserPermissionService.getStaffDisplayNames();
+    return list.isNotEmpty ? list : ['Office'];
+  }
 
   // ignore: unused_field
   static const List<String> _statusOptions = [
@@ -1763,9 +1860,18 @@ class _CallFormDialogState extends State<_CallFormDialog> {
           ],
           if (isAssignedVis) ...[
             DropdownButtonFormField<String>(
-              initialValue: _staffOptions.contains(_assignedController.text)
-                  ? _assignedController.text
-                  : _staffOptions.first,
+              initialValue: (() {
+                final current = _assignedController.text.trim();
+                if (current.isEmpty) return _staffOptions.first;
+                for (final opt in _staffOptions) {
+                  if (opt.toLowerCase() == current.toLowerCase() ||
+                      UserPermissionService.formatStaffName(current).toLowerCase() ==
+                          opt.toLowerCase()) {
+                    return opt;
+                  }
+                }
+                return _staffOptions.first;
+              })(),
               dropdownColor: const Color(0xFF131A2E),
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: _buildInputDecoration('Assigned To'),
@@ -1779,7 +1885,10 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                     }
                   : null,
               items: _staffOptions.map((staff) {
-                return DropdownMenuItem<String>(value: staff, child: Text(staff));
+                return DropdownMenuItem<String>(
+                  value: staff,
+                  child: Text(UserPermissionService.formatStaffName(staff)),
+                );
               }).toList(),
             ),
             const SizedBox(height: 16),
@@ -1849,6 +1958,11 @@ class _CallFormDialogState extends State<_CallFormDialog> {
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Enquiry / Product Screenshot or Photo(s)',
+            onUploadingChanged: (uploading) {
+              setState(() {
+                _isPhotoUploading = uploading;
+              });
+            },
             onPhotoChanged: (urls) {
               _photoUrl = urls;
             },
@@ -1963,6 +2077,20 @@ class _CallFormDialogState extends State<_CallFormDialog> {
 
   void _saveForm(BuildContext context) async {
     if (_formKey.currentState?.validate() ?? false) {
+      // Guard: wait for photo upload to complete before saving
+      if (_isPhotoUploading) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
       final viewModel = context.read<CallsViewModel>();
 
       final int callId = widget.existingCall?.id ?? viewModel.getNextCallId();

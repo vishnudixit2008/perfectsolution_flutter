@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/app_user.dart';
@@ -225,24 +226,41 @@ class UserPermissionService {
     if (box != null) {
       await box.put(user.email.toLowerCase().trim(), user.toJson());
     }
+
+    final cloudPayload = {
+      'email': user.email.toLowerCase().trim(),
+      'name': user.name,
+      'role': user.role,
+      'is_active': user.isActive,
+      'user_password': user.password,
+      'page_access': user.pageAccess,
+      'action_access': user.actionAccess,
+      'page_action_access': {
+        ...user.pageActionAccess,
+        '__only_assigned__': user.onlyAssignedAccess,
+      },
+      'field_access': user.fieldAccess.map(
+        (m, fields) => MapEntry(m, fields.map((f, p) => MapEntry(f, p.toJson()))),
+      ),
+      'status_visibility_access': user.statusVisibilityAccess,
+      'status_selectable_access': user.statusSelectableAccess,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
     try {
+      // First attempt: include dedicated only_assigned_access column if it exists in Postgres
       await Supabase.instance.client.from('app_users').upsert({
-        'email': user.email.toLowerCase().trim(),
-        'name': user.name,
-        'role': user.role,
-        'is_active': user.isActive,
-        'user_password': user.password,
-        'page_access': user.pageAccess,
-        'action_access': user.actionAccess,
-        'page_action_access': user.pageActionAccess,
-        'field_access': user.fieldAccess.map(
-          (m, fields) => MapEntry(m, fields.map((f, p) => MapEntry(f, p.toJson()))),
-        ),
-        'status_visibility_access': user.statusVisibilityAccess,
-        'status_selectable_access': user.statusSelectableAccess,
-        'updated_at': DateTime.now().toIso8601String(),
+        ...cloudPayload,
+        'only_assigned_access': user.onlyAssignedAccess,
       });
-    } catch (_) {}
+    } catch (_) {
+      // Fallback: upsert using base payload where only_assigned_access is embedded in page_action_access
+      try {
+        await Supabase.instance.client.from('app_users').upsert(cloudPayload);
+      } catch (e) {
+        if (kDebugMode) print('Error upserting user to cloud: $e');
+      }
+    }
   }
 
   static Future<void> deleteUser(String email) async {
@@ -468,6 +486,132 @@ class UserPermissionService {
     }
     final cleanStatus = status.trim().toLowerCase();
     return allowed.any((a) => a.trim().toLowerCase() == cleanStatus);
+  }
+
+  /// Formats any assignedTo value (email or name) into a user-friendly display name
+  static String formatStaffName(String? rawAssigned) {
+    if (rawAssigned == null || rawAssigned.trim().isEmpty || rawAssigned == 'N/A') {
+      return 'Unassigned';
+    }
+    final clean = rawAssigned.trim();
+    final lower = clean.toLowerCase();
+
+    // Check if we have a known user with matching email or name
+    final allUsers = getAllUsers();
+    for (final u in allUsers) {
+      if (u.email.toLowerCase().trim() == lower ||
+          u.name.toLowerCase().trim() == lower) {
+        if (u.name.trim().isNotEmpty) return u.name.trim();
+      }
+    }
+
+    // If it's an email without an exact user, format username part nicely
+    if (clean.contains('@')) {
+      final prefix = clean.split('@').first;
+      final parts = prefix.split(RegExp(r'[._]')).where((p) => p.isNotEmpty);
+      if (parts.isNotEmpty) {
+        return parts.map((p) => p[0].toUpperCase() + p.substring(1)).join(' ');
+      }
+    }
+    return clean;
+  }
+
+  /// Returns list of available staff display names for dropdowns
+  static List<String> getStaffDisplayNames() {
+    final names = <String>{};
+    final allUsers = getAllUsers();
+    for (final u in allUsers) {
+      if (u.isActive) {
+        final name = u.name.trim().isNotEmpty ? u.name.trim() : u.email;
+        names.add(name);
+      }
+    }
+    if (!names.contains('Office')) {
+      names.add('Office');
+    }
+    return names.toList();
+  }
+
+  /// Checks if an entry's assignedTo field matches the specified (or current) user
+  static bool isEntryAssignedToUser(String? assignedTo, [AppUser? user]) {
+    final currentUser = user ?? getCurrentUser();
+    if (AppUser.isPermanentAdmin(currentUser.email)) return true;
+    if (assignedTo == null || assignedTo.trim().isEmpty || assignedTo == 'N/A') {
+      return false;
+    }
+
+    final assigned = assignedTo.trim().toLowerCase();
+    final userEmail = currentUser.email.trim().toLowerCase();
+    final userName = currentUser.name.trim().toLowerCase();
+    final userEmailPrefix =
+        userEmail.contains('@') ? userEmail.split('@').first : userEmail;
+    final assignedPrefix =
+        assigned.contains('@') ? assigned.split('@').first : assigned;
+
+    // 1. Direct exact / prefix matches
+    if (assigned == userEmail ||
+        assigned == userEmailPrefix ||
+        assignedPrefix == userEmailPrefix ||
+        assignedPrefix == userEmail) {
+      return true;
+    }
+
+    // 2. Name matches
+    if (userName.isNotEmpty) {
+      if (assigned == userName || assignedPrefix == userName) {
+        return true;
+      }
+      if (assigned.contains(userName) || userName.contains(assigned)) {
+        return true;
+      }
+      final cleanName = userName.replaceAll(RegExp(r'\s+'), '');
+      final cleanAssigned = assigned.replaceAll(RegExp(r'\s+'), '');
+      if (cleanName.isNotEmpty &&
+          (cleanAssigned.contains(cleanName) || cleanName.contains(cleanAssigned))) {
+        return true;
+      }
+    }
+
+    // 3. Substring / email contains
+    if (userEmail.isNotEmpty && assigned.contains(userEmail)) {
+      return true;
+    }
+    if (userEmailPrefix.isNotEmpty &&
+        (assigned.contains(userEmailPrefix) || userEmailPrefix.contains(assigned))) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Returns whether the current user is restricted to only seeing entries assigned to them in [moduleKey]
+  static bool isOnlyAssignedRestricted(String moduleKey, [AppUser? user]) {
+    final currentUser = user ?? getCurrentUser();
+    if (AppUser.isPermanentAdmin(currentUser.email)) return false;
+    return currentUser.onlyAssignedAccess[moduleKey] ?? false;
+  }
+
+  /// Combined visibility checker: checks both assigned-to restriction (if enabled for this module)
+  /// AND status visibility permission.
+  static bool isEntryVisible({
+    required String moduleKey,
+    required String status,
+    String? assignedTo,
+  }) {
+    final user = getCurrentUser();
+    if (AppUser.isPermanentAdmin(user.email)) return true;
+    if (!user.isActive) return false;
+
+    // 1. Check if user is restricted to only assigned entries in this module
+    final bool onlyAssigned = user.onlyAssignedAccess[moduleKey] ?? false;
+    if (onlyAssigned) {
+      if (!isEntryAssignedToUser(assignedTo, user)) {
+        return false;
+      }
+    }
+
+    // 2. Check if status is visible
+    return isStatusVisible(moduleKey, status);
   }
 
   /// Returns the list of statuses the current user can select when editing/creating in [moduleKey]

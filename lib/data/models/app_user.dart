@@ -59,6 +59,7 @@ class AppUser {
   final Map<String, Map<String, FieldPermission>> fieldAccess;
   final Map<String, List<String>> statusVisibilityAccess;
   final Map<String, List<String>> statusSelectableAccess;
+  final Map<String, bool> onlyAssignedAccess;
 
   AppUser({
     required this.email,
@@ -72,12 +73,14 @@ class AppUser {
     Map<String, Map<String, FieldPermission>>? fieldAccess,
     Map<String, List<String>>? statusVisibilityAccess,
     Map<String, List<String>>? statusSelectableAccess,
+    Map<String, bool>? onlyAssignedAccess,
   })  : pageActionAccess = pageActionAccess ?? _defaultPageActionAccess(),
         fieldAccess = fieldAccess ?? _defaultFieldAccess(),
         statusVisibilityAccess =
             statusVisibilityAccess ?? _defaultStatusAccess(),
         statusSelectableAccess =
-            statusSelectableAccess ?? _defaultStatusAccess();
+            statusSelectableAccess ?? _defaultStatusAccess(),
+        onlyAssignedAccess = onlyAssignedAccess ?? _defaultOnlyAssignedAccess();
 
   static const List<String> permanentAdminEmails = [
     'perfectsolutionnoida@gmail.com',
@@ -284,6 +287,14 @@ class AppUser {
     return access;
   }
 
+  static Map<String, bool> _defaultOnlyAssignedAccess() {
+    final Map<String, bool> access = {};
+    for (var mod in modules) {
+      access[mod] = false;
+    }
+    return access;
+  }
+
   factory AppUser.defaultAdmin({
     String email = 'perfectsolutionnoida@gmail.com',
     String name = 'Perfect Solution Admin',
@@ -310,6 +321,7 @@ class AppUser {
       fieldAccess: _defaultFieldAccess(),
       statusVisibilityAccess: _defaultStatusAccess(),
       statusSelectableAccess: _defaultStatusAccess(),
+      onlyAssignedAccess: _defaultOnlyAssignedAccess(),
     );
   }
 
@@ -347,6 +359,7 @@ class AppUser {
       fieldAccess: _defaultFieldAccess(),
       statusVisibilityAccess: _defaultStatusAccess(),
       statusSelectableAccess: _defaultStatusAccess(),
+      onlyAssignedAccess: _defaultOnlyAssignedAccess(),
     );
   }
 
@@ -441,6 +454,22 @@ class AppUser {
       });
     }
 
+    // 6. Only Assigned Access
+    final rawOnlyAssigned = json['onlyAssignedAccess'] ??
+        json['only_assigned_access'] ??
+        parsedPageActions['__only_assigned__'] ??
+        (rawPageActions is Map ? rawPageActions['__only_assigned__'] : null);
+    Map<String, bool> parsedOnlyAssigned = {};
+    if (rawOnlyAssigned is Map) {
+      rawOnlyAssigned.forEach((k, v) {
+        if (v is bool) {
+          parsedOnlyAssigned[k.toString()] = v;
+        } else if (v is String) {
+          parsedOnlyAssigned[k.toString()] = v.toLowerCase() == 'true';
+        }
+      });
+    }
+
     return AppUser(
       email: email,
       name: json['name'] ?? '',
@@ -455,6 +484,8 @@ class AppUser {
           parsedStatusVis.isEmpty ? _defaultStatusAccess() : parsedStatusVis,
       statusSelectableAccess:
           parsedStatusSel.isEmpty ? _defaultStatusAccess() : parsedStatusSel,
+      onlyAssignedAccess:
+          parsedOnlyAssigned.isEmpty ? _defaultOnlyAssignedAccess() : parsedOnlyAssigned,
     );
   }
 
@@ -468,6 +499,15 @@ class AppUser {
       serializedFields[modKey] = fSerialized;
     });
 
+    // Embed onlyAssignedAccess into pageActionAccess for seamless cloud sync
+    final Map<String, dynamic> mergedPageActions = {};
+    pageActionAccess.forEach((k, v) {
+      if (k != '__only_assigned__') {
+        mergedPageActions[k] = Map<String, bool>.from(v);
+      }
+    });
+    mergedPageActions['__only_assigned__'] = onlyAssignedAccess;
+
     return {
       'email': email,
       'name': name,
@@ -476,10 +516,11 @@ class AppUser {
       'password': password,
       'pageAccess': pageAccess,
       'actionAccess': actionAccess,
-      'pageActionAccess': pageActionAccess,
+      'pageActionAccess': mergedPageActions,
       'fieldAccess': serializedFields,
       'statusVisibilityAccess': statusVisibilityAccess,
       'statusSelectableAccess': statusSelectableAccess,
+      'onlyAssignedAccess': onlyAssignedAccess,
     };
   }
 
@@ -495,6 +536,7 @@ class AppUser {
     Map<String, Map<String, FieldPermission>>? fieldAccess,
     Map<String, List<String>>? statusVisibilityAccess,
     Map<String, List<String>>? statusSelectableAccess,
+    Map<String, bool>? onlyAssignedAccess,
   }) {
     return AppUser(
       email: email ?? this.email,
@@ -510,6 +552,8 @@ class AppUser {
           statusVisibilityAccess ?? Map.from(this.statusVisibilityAccess),
       statusSelectableAccess:
           statusSelectableAccess ?? Map.from(this.statusSelectableAccess),
+      onlyAssignedAccess:
+          onlyAssignedAccess ?? Map.from(this.onlyAssignedAccess),
     );
   }
 }

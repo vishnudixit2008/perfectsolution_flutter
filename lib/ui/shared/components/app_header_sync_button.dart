@@ -20,20 +20,65 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
     if (_isManualSyncing) return;
     final syncService = SupabaseSyncService.instance;
 
-    // If currently in error state, tapping shows detailed error dialog/snackbar
-    if (syncService.status == SyncStatus.error && syncService.statusMessage.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sync Error: ${syncService.statusMessage}'),
-          backgroundColor: AppTheme.danger,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => _triggerSync(context),
+    // If currently in error state, tapping shows detailed error dialog
+    if (syncService.status == SyncStatus.error) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: AppTheme.danger),
+              SizedBox(width: 8),
+              Text('Cloud Sync Details'),
+            ],
           ),
-          duration: const Duration(seconds: 5),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Diagnostic details from the latest sync attempt:',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.maxFinite,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: SelectableText(
+                  syncService.statusMessage.isEmpty
+                      ? 'Unknown sync error occurred.'
+                      : syncService.statusMessage,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: AppTheme.danger,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _triggerSync(context);
+              },
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Retry Sync'),
+            ),
+          ],
         ),
       );
+      return;
     }
 
     setState(() => _isManualSyncing = true);

@@ -1593,6 +1593,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   late String _status;
   late DateTime? _completionDate;
   String? _photoUrl;
+  bool _isPhotoUploading = false;
 
   List<InwardEstimateItem> _estimates = [];
 
@@ -1732,6 +1733,20 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
   void _saveForm() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Guard: wait for photo upload to complete before saving
+    if (_isPhotoUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final pendingName =
         (_activeAutocompleteController?.text.trim().isNotEmpty ?? false)
@@ -1999,6 +2014,11 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
           PhotoAttachmentWidget(
             initialPhotoUrl: _photoUrl,
             label: 'Device Condition / Proof Photo(s)',
+            onUploadingChanged: (uploading) {
+              setState(() {
+                _isPhotoUploading = uploading;
+              });
+            },
             onPhotoChanged: (urls) {
               setState(() {
                 _photoUrl = urls;

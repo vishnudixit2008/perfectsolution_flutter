@@ -1421,6 +1421,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
   late Map<String, Map<String, FieldPermission>> fieldAccess;
   late Map<String, List<String>> statusVisibilityAccess;
   late Map<String, List<String>> statusSelectableAccess;
+  late Map<String, bool> onlyAssignedAccess;
 
   String expandedModuleKey = 'inward';
   final Map<String, String> activeSubTab = {};
@@ -1484,6 +1485,10 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
           }
         : {for (var m in AppUser.modules) m: ['*']};
 
+    onlyAssignedAccess = u != null
+        ? Map<String, bool>.from(u.onlyAssignedAccess)
+        : {for (var m in AppUser.modules) m: false};
+
     for (var m in AppUser.modules) {
       activeSubTab[m] = 'actions';
     }
@@ -1516,6 +1521,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
       fieldAccess: fieldAccess,
       statusVisibilityAccess: statusVisibilityAccess,
       statusSelectableAccess: statusSelectableAccess,
+      onlyAssignedAccess: onlyAssignedAccess,
     );
 
     await UserPermissionService.saveUser(user);
@@ -1937,9 +1943,117 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
     final bool isSelAll =
         currentSelectable.isEmpty || currentSelectable.contains('*');
 
+    final bool hasAssignedField =
+        AppUser.moduleFields[moduleKey]?.containsKey('assignedTo') ?? false;
+    final bool isOnlyAssigned = onlyAssignedAccess[moduleKey] ?? false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Section 0: Assigned-To Visibility Filter (if module supports assignment)
+        if (hasAssignedField) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isOnlyAssigned
+                  ? AppTheme.primary.withValues(alpha: 0.12)
+                  : const Color(0xFF0F1524),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isOnlyAssigned
+                    ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                    : Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isOnlyAssigned
+                        ? AppTheme.primary.withValues(alpha: 0.25)
+                        : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.assignment_ind_rounded,
+                    size: 20,
+                    color: isOnlyAssigned
+                        ? AppTheme.primaryLight
+                        : AppTheme.textMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Only Show Assigned Entries',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (isOnlyAssigned) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: AppTheme.primaryLight
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: const Text(
+                                'ASSIGNED ONLY',
+                                style: TextStyle(
+                                  color: AppTheme.primaryLight,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'This user will only see entries where Assigned Staff matches their name or email, filtered by the viewable statuses below.',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Switch.adaptive(
+                  value: isOnlyAssigned,
+                  activeTrackColor: AppTheme.primary,
+                  activeColor: AppTheme.primaryLight,
+                  onChanged: (val) {
+                    setState(() {
+                      onlyAssignedAccess[moduleKey] = val;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
         // Section 1: Visibility
         Container(
           padding: const EdgeInsets.all(12),

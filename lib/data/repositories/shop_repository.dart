@@ -11,7 +11,9 @@ import '../models/purchase_order_item.dart';
 import '../models/product_history_record.dart';
 import '../services/local_database_service.dart';
 import '../services/supabase_sync_service.dart';
+import '../services/supabase_photo_service.dart';
 import '../services/google_drive_upload_service.dart';
+import '../../ui/shared/photo_attachment_widget.dart';
 
 class ShopRepository {
   final LocalDatabaseService _localDb;
@@ -31,6 +33,13 @@ class ShopRepository {
   }
 
   Future<void> deletePricelistItem(int id) async {
+    final items = _localDb.getPricelist();
+    final match = items.where((i) => i.id == id).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deletePricelistItem(id);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'pricelist',
@@ -176,6 +185,13 @@ class ShopRepository {
   }
 
   Future<void> deleteCall(int id) async {
+    final calls = _localDb.getCalls();
+    final match = calls.where((c) => c.id == id).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deleteCall(id);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'calls',
@@ -210,6 +226,13 @@ class ShopRepository {
   }
 
   Future<void> deleteInwardRepair(int jobNo) async {
+    final repairs = _localDb.getInwardRepairs();
+    final match = repairs.where((r) => r.jobNo == jobNo).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deleteInwardRepair(jobNo);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'inward_repairs',
@@ -236,6 +259,13 @@ class ShopRepository {
   }
 
   Future<void> deleteReplacement(String jobNo) async {
+    final replacements = _localDb.getReplacements();
+    final match = replacements.where((r) => r.jobNo == jobNo).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deleteReplacement(jobNo);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'replacements',
@@ -258,6 +288,13 @@ class ShopRepository {
   }
 
   Future<void> deleteRequestOrder(String id) async {
+    final requests = _localDb.getRequestOrders();
+    final match = requests.where((r) => r.id == id).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deleteRequestOrder(id);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'requests',
@@ -299,6 +336,13 @@ class ShopRepository {
   }
 
   Future<void> deletePurchaseOrder(String purchaseId) async {
+    final purchases = _localDb.getPurchaseOrders();
+    final match = purchases.where((p) => p.id == purchaseId).firstOrNull;
+    if (match?.photo != null && match!.photo!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.photo)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     final updatedProducts = await _localDb.deletePurchaseOrder(purchaseId);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'purchases',
