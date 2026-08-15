@@ -12,6 +12,8 @@ class UpiQrScreen extends StatefulWidget {
   final String? invoiceNo;
   final String? customerName;
   final int? autoCloseSeconds;
+  final String? upiId;
+  final String? upiName;
 
   const UpiQrScreen({
     super.key,
@@ -19,6 +21,8 @@ class UpiQrScreen extends StatefulWidget {
     this.invoiceNo,
     this.customerName,
     this.autoCloseSeconds,
+    this.upiId,
+    this.upiName,
   });
 
   @override
@@ -93,9 +97,13 @@ class _UpiQrScreenState extends State<UpiQrScreen>
     return Consumer<SupabaseSyncService>(
       builder: (context, syncService, child) {
         final repo = context.read<ShopRepository>();
-        final activeUpiId = repo.getActiveUpiId();
+        final activeUpiId = (widget.upiId != null && widget.upiId!.trim().isNotEmpty)
+            ? widget.upiId!.trim()
+            : repo.getActiveUpiId();
         final namesMap = repo.getUpiNamesMap();
-        final refName = (activeUpiId != null ? namesMap[activeUpiId] : null) ?? '';
+        final refName = (widget.upiName != null && widget.upiName!.trim().isNotEmpty)
+            ? widget.upiName!.trim()
+            : ((activeUpiId != null ? namesMap[activeUpiId] : null) ?? '');
         final bool isMobile = MediaQuery.of(context).size.width < 600;
 
         if (activeUpiId == null || activeUpiId.trim().isEmpty) {

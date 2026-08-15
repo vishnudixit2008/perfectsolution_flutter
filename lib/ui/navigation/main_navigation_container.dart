@@ -31,6 +31,7 @@ import '../features/auth/view_models/auth_view_model.dart';
 
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
+import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
 
 class MainNavigationContainer extends StatefulWidget {
   const MainNavigationContainer({super.key});
@@ -62,12 +63,25 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     });
   }
 
+  StreamSubscription? _kioskUpiSubscription;
+
   void _setupKioskBroadcastListener() {
     KioskBroadcastService.instance.init();
 
     _kioskShowSubscription = KioskBroadcastService.instance.onShowQr.listen((payload) {
       if (!mounted) return;
       if (!UiPreferencesService.isKioskMode()) return;
+
+      // Bring Android app to front over other apps if minimized
+      KioskOverlayHelper.bringAppToFront();
+
+      // Update local repository active UPI for this display (syncToCloud: false prevents sync loop)
+      if (payload.upiId != null && payload.upiId!.trim().isNotEmpty) {
+        try {
+          final repo = context.read<ShopRepository>();
+          repo.setActiveUpiId(payload.upiId!.trim(), syncToCloud: false);
+        } catch (_) {}
+      }
 
       // Pop active dialog if already showing QR
       if (Navigator.canPop(context)) {
@@ -80,6 +94,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
         invoiceNo: payload.invoiceNo,
         customerName: payload.customerName,
         autoCloseSeconds: timeout,
+        upiId: payload.upiId,
+        upiName: payload.upiName,
       );
     });
 
@@ -91,6 +107,17 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
         Navigator.pop(context);
       }
     });
+
+    _kioskUpiSubscription = KioskBroadcastService.instance.onActiveUpiChanged.listen((map) {
+      if (!mounted) return;
+      final upiId = map['upiId']?.trim();
+      if (upiId != null && upiId.isNotEmpty) {
+        try {
+          final repo = context.read<ShopRepository>();
+          repo.setActiveUpiId(upiId, syncToCloud: false);
+        } catch (_) {}
+      }
+    });
   }
 
   void _openKioskQrModal({
@@ -98,6 +125,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     String? invoiceNo,
     String? customerName,
     int? autoCloseSeconds,
+    String? upiId,
+    String? upiName,
   }) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     if (isMobile) {
@@ -111,6 +140,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
             invoiceNo: invoiceNo,
             customerName: customerName,
             autoCloseSeconds: autoCloseSeconds,
+            upiId: upiId,
+            upiName: upiName,
           ),
         ),
       );
@@ -129,6 +160,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
             invoiceNo: invoiceNo,
             customerName: customerName,
             autoCloseSeconds: autoCloseSeconds,
+            upiId: upiId,
+            upiName: upiName,
           ),
         ),
       );
@@ -162,6 +195,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     _updateCheckTimer?.cancel();
     _kioskShowSubscription?.cancel();
     _kioskDismissSubscription?.cancel();
+    _kioskUpiSubscription?.cancel();
     super.dispose();
   }
 

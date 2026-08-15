@@ -60,6 +60,8 @@ class AppUser {
   final Map<String, List<String>> statusVisibilityAccess;
   final Map<String, List<String>> statusSelectableAccess;
   final Map<String, bool> onlyAssignedAccess;
+  final Map<String, List<String>> customStatusLists;
+  final Map<String, String> defaultStatuses;
 
   AppUser({
     required this.email,
@@ -74,13 +76,17 @@ class AppUser {
     Map<String, List<String>>? statusVisibilityAccess,
     Map<String, List<String>>? statusSelectableAccess,
     Map<String, bool>? onlyAssignedAccess,
+    Map<String, List<String>>? customStatusLists,
+    Map<String, String>? defaultStatuses,
   })  : pageActionAccess = pageActionAccess ?? _defaultPageActionAccess(),
         fieldAccess = fieldAccess ?? _defaultFieldAccess(),
         statusVisibilityAccess =
             statusVisibilityAccess ?? _defaultStatusAccess(),
         statusSelectableAccess =
             statusSelectableAccess ?? _defaultStatusAccess(),
-        onlyAssignedAccess = onlyAssignedAccess ?? _defaultOnlyAssignedAccess();
+        onlyAssignedAccess = onlyAssignedAccess ?? _defaultOnlyAssignedAccess(),
+        customStatusLists = customStatusLists ?? {},
+        defaultStatuses = defaultStatuses ?? {};
 
   static const List<String> permanentAdminEmails = [
     'perfectsolutionnoida@gmail.com',
@@ -470,6 +476,33 @@ class AppUser {
       });
     }
 
+    // 7. Custom Status Lists
+    final rawCustomLists = json['customStatusLists'] ??
+        json['custom_status_lists'] ??
+        parsedPageActions['__status_lists__'] ??
+        (rawPageActions is Map ? rawPageActions['__status_lists__'] : null);
+    Map<String, List<String>> parsedCustomLists = {};
+    if (rawCustomLists is Map) {
+      rawCustomLists.forEach((modKey, valList) {
+        if (valList is List) {
+          parsedCustomLists[modKey.toString()] =
+              valList.map((e) => e.toString()).toList();
+        }
+      });
+    }
+
+    // 8. Default Form Statuses
+    final rawDefaultStatuses = json['defaultStatuses'] ??
+        json['default_statuses'] ??
+        parsedPageActions['__default_statuses__'] ??
+        (rawPageActions is Map ? rawPageActions['__default_statuses__'] : null);
+    Map<String, String> parsedDefaultStatuses = {};
+    if (rawDefaultStatuses is Map) {
+      rawDefaultStatuses.forEach((modKey, val) {
+        parsedDefaultStatuses[modKey.toString()] = val.toString();
+      });
+    }
+
     return AppUser(
       email: email,
       name: json['name'] ?? '',
@@ -486,6 +519,8 @@ class AppUser {
           parsedStatusSel.isEmpty ? _defaultStatusAccess() : parsedStatusSel,
       onlyAssignedAccess:
           parsedOnlyAssigned.isEmpty ? _defaultOnlyAssignedAccess() : parsedOnlyAssigned,
+      customStatusLists: parsedCustomLists,
+      defaultStatuses: parsedDefaultStatuses,
     );
   }
 
@@ -499,14 +534,18 @@ class AppUser {
       serializedFields[modKey] = fSerialized;
     });
 
-    // Embed onlyAssignedAccess into pageActionAccess for seamless cloud sync
+    // Embed onlyAssignedAccess, customStatusLists, and defaultStatuses into pageActionAccess for seamless cloud sync
     final Map<String, dynamic> mergedPageActions = {};
     pageActionAccess.forEach((k, v) {
-      if (k != '__only_assigned__') {
+      if (k != '__only_assigned__' &&
+          k != '__status_lists__' &&
+          k != '__default_statuses__') {
         mergedPageActions[k] = Map<String, bool>.from(v);
       }
     });
     mergedPageActions['__only_assigned__'] = onlyAssignedAccess;
+    mergedPageActions['__status_lists__'] = customStatusLists;
+    mergedPageActions['__default_statuses__'] = defaultStatuses;
 
     return {
       'email': email,
@@ -521,6 +560,8 @@ class AppUser {
       'statusVisibilityAccess': statusVisibilityAccess,
       'statusSelectableAccess': statusSelectableAccess,
       'onlyAssignedAccess': onlyAssignedAccess,
+      'customStatusLists': customStatusLists,
+      'defaultStatuses': defaultStatuses,
     };
   }
 
@@ -537,6 +578,8 @@ class AppUser {
     Map<String, List<String>>? statusVisibilityAccess,
     Map<String, List<String>>? statusSelectableAccess,
     Map<String, bool>? onlyAssignedAccess,
+    Map<String, List<String>>? customStatusLists,
+    Map<String, String>? defaultStatuses,
   }) {
     return AppUser(
       email: email ?? this.email,
@@ -554,6 +597,10 @@ class AppUser {
           statusSelectableAccess ?? Map.from(this.statusSelectableAccess),
       onlyAssignedAccess:
           onlyAssignedAccess ?? Map.from(this.onlyAssignedAccess),
+      customStatusLists:
+          customStatusLists ?? Map.from(this.customStatusLists),
+      defaultStatuses:
+          defaultStatuses ?? Map.from(this.defaultStatuses),
     );
   }
 }

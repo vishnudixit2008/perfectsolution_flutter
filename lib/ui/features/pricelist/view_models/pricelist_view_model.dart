@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/pricelist_item.dart';
 import '../../../../data/models/product_history_record.dart';
@@ -6,9 +7,22 @@ import '../../../../data/services/smart_search_utils.dart';
 
 class PricelistViewModel extends ChangeNotifier {
   final ShopRepository _repository;
+  StreamSubscription? _dataSubscription;
 
   PricelistViewModel({required ShopRepository repository})
-    : _repository = repository;
+    : _repository = repository {
+    _dataSubscription = _repository.onTableDataChanged.listen((table) {
+      if (table == 'pricelist_items' || table == 'pricelist' || table == 'all') {
+        loadItems();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dataSubscription?.cancel();
+    super.dispose();
+  }
 
   List<PricelistItem> _items = [];
   String _searchQuery = '';

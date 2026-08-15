@@ -132,5 +132,26 @@ void main() {
       expect(parsed.statusVisibilityAccess['inward'], equals(['PENDING', 'APPROVED']));
       expect(parsed.statusSelectableAccess['inward'], equals(['PENDING']));
     });
+
+    test('Custom status ordering & default status serialization and cloud embedding', () {
+      final user = AppUser.defaultEmployee('statususer@shop.com', 'Status User').copyWith(
+        customStatusLists: {
+          'calls': ['Pending', 'CustomStatus1', 'Complete'],
+        },
+        defaultStatuses: {
+          'calls': 'CustomStatus1',
+        },
+      );
+
+      final json = user.toJson();
+      // Verify embedded into pageActionAccess for safe cloud transport without migration
+      final pageActionMap = json['pageActionAccess'] as Map;
+      expect(pageActionMap['__status_lists__']?['calls'], equals(['Pending', 'CustomStatus1', 'Complete']));
+      expect(pageActionMap['__default_statuses__']?['calls'], equals('CustomStatus1'));
+
+      final parsed = AppUser.fromJson(json);
+      expect(parsed.customStatusLists['calls'], equals(['Pending', 'CustomStatus1', 'Complete']));
+      expect(parsed.defaultStatuses['calls'], equals('CustomStatus1'));
+    });
   });
 }

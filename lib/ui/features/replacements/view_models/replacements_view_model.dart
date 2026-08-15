@@ -1,25 +1,24 @@
-import '../../../../data/services/supabase_sync_service.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/replacement.dart';
 import '../../../../data/repositories/shop_repository.dart';
 
 class ReplacementsViewModel extends ChangeNotifier {
   final ShopRepository _repository;
+  StreamSubscription? _dataSubscription;
 
   ReplacementsViewModel({required ShopRepository repository})
     : _repository = repository {
-    SupabaseSyncService.instance.addListener(_onSyncChanged);
-  }
-
-  void _onSyncChanged() {
-    if (SupabaseSyncService.instance.status == SyncStatus.synced) {
-      loadReplacements();
-    }
+    _dataSubscription = _repository.onTableDataChanged.listen((table) {
+      if (table == 'replacements' || table == 'all') {
+        loadReplacements();
+      }
+    });
   }
 
   @override
   void dispose() {
-    SupabaseSyncService.instance.removeListener(_onSyncChanged);
+    _dataSubscription?.cancel();
     super.dispose();
   }
 

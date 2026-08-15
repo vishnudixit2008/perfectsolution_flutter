@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../ui/core/app_theme.dart';
+import '../../data/services/user_permission_service.dart';
 
 class StatusManagementService {
   static const String _boxName = 'status_management_box';
   static const String _statusListKeyPrefix = 'status_list_';
+  static const String _defaultStatusPrefix = 'default_form_status_';
 
   // In-memory cache so compareStatuses() never hits the disk on every sort
   static final Map<String, List<String>> _cache = {};
@@ -29,20 +32,24 @@ class StatusManagementService {
     'sales': ['Pending', 'Complete'],
   };
 
-  static const String _defaultStatusPrefix = 'default_form_status_';
+  static String _getUserPrefix([String? email]) {
+    final userEmail = (email ?? UserPermissionService.getCurrentUserEmail()).toLowerCase().trim();
+    return userEmail.isNotEmpty ? '${userEmail}_' : 'default_';
+  }
 
   static Future<void> init() async {
     if (!Hive.isBoxOpen(_boxName)) {
       await Hive.openBox(_boxName);
     }
     final box = Hive.box(_boxName);
-    final List? inwardStored = box.get('${_statusListKeyPrefix}inward');
+    final prefix = _getUserPrefix();
+    final List? inwardStored = box.get('$prefix${_statusListKeyPrefix}inward') ?? box.get('${_statusListKeyPrefix}inward');
     if (inwardStored != null) {
       final List<String> list = List<String>.from(inwardStored);
       final int origLen = list.length;
       list.removeWhere((s) => s.trim().toLowerCase() == 'test');
       if (list.length != origLen) {
-        await box.put('${_statusListKeyPrefix}inward', list);
+        await box.put('$prefix${_statusListKeyPrefix}inward', list);
         _cache.remove('inward');
       }
     }
@@ -52,22 +59,75 @@ class StatusManagementService {
     return Hive.box(_boxName);
   }
 
+  /// Hydrate local storage and cache from an AppUser record (e.g. from cloud sync)
+  static Future<void> loadFromUser(dynamic user) async {
+    if (user == null) return;
+    final box = _getBox();
+    final prefix = _getUserPrefix(user.email);
+
+    if (user.customStatusLists != null && user.customStatusLists is Map) {
+      final customLists = user.customStatusLists as Map<String, List<String>>;
+      for (final entry in customLists.entries) {
+        if (entry.value.isNotEmpty) {
+          await box.put('$prefix$_statusListKeyPrefix${entry.key}', entry.value);
+          _cache[entry.key] = List<String>.from(entry.value);
+        }
+      }
+    }
+
+    if (user.defaultStatuses != null && user.defaultStatuses is Map) {
+      final defStatuses = user.defaultStatuses as Map<String, String>;
+      for (final entry in defStatuses.entries) {
+        if (entry.value.isNotEmpty) {
+          await box.put('$prefix$_defaultStatusPrefix${entry.key}', entry.value);
+        }
+      }
+    }
+  }
+
+  /// Invalidate/clear in-memory cache on user switch
+  static void clearCache() {
+    _cache.clear();
+  }
+
   /// Get default status for new forms in a module.
   static String getDefaultStatus(String moduleKey) {
     final box = _getBox();
-    final String? stored = box.get('$_defaultStatusPrefix$moduleKey') as String?;
+    final prefix = _getUserPrefix();
+    final String? stored = (box.get('$prefix$_defaultStatusPrefix$moduleKey') ??
+        box.get('$_defaultStatusPrefix$moduleKey')) as String?;
+
     final available = getStatuses(moduleKey);
     if (stored != null &&
         available.any((s) => s.toLowerCase() == stored.toLowerCase())) {
       return stored;
     }
+
+    // Check user record default if present
+    final currentUser = UserPermissionService.getCurrentUser();
+    final userDef = currentUser.defaultStatuses[moduleKey];
+    if (userDef != null &&
+        available.any((s) => s.toLowerCase() == userDef.toLowerCase())) {
+      return userDef;
+    }
+
     return available.isNotEmpty ? available.first : 'Pending';
   }
 
-  /// Set default status for new forms in a module.
+  /// Set default status for new forms in a module and sync to cloud.
   static Future<void> setDefaultStatus(String moduleKey, String status) async {
     final box = _getBox();
-    await box.put('$_defaultStatusPrefix$moduleKey', status);
+    final prefix = _getUserPrefix();
+    await box.put('$prefix$_defaultStatusPrefix$moduleKey', status);
+
+    // Sync to user profile in cloud
+    try {
+      final currentUser = UserPermissionService.getCurrentUser();
+      final updatedDefaults = Map<String, String>.from(currentUser.defaultStatuses);
+      updatedDefaults[moduleKey] = status;
+      final updatedUser = currentUser.copyWith(defaultStatuses: updatedDefaults);
+      await UserPermissionService.saveUser(updatedUser);
+    } catch (_) {}
   }
 
   /// Scan the database once and return unique statuses found in it.
@@ -128,21 +188,30 @@ class StatusManagementService {
 
   static List<String> _loadAndCache(String moduleKey) {
     final box = _getBox();
-    final List? stored = box.get('$_statusListKeyPrefix$moduleKey');
+    final prefix = _getUserPrefix();
+    final List? stored = box.get('$prefix$_statusListKeyPrefix$moduleKey') ??
+        box.get('$_statusListKeyPrefix$moduleKey');
     List<String> list;
     if (stored != null && stored.isNotEmpty) {
       list = List<String>.from(stored);
     } else {
-      list = List<String>.from(
-        _defaultStatuses[moduleKey] ?? ['Pending', 'Complete'],
-      );
+      // Check current user profile
+      final currentUser = UserPermissionService.getCurrentUser();
+      final userList = currentUser.customStatusLists[moduleKey];
+      if (userList != null && userList.isNotEmpty) {
+        list = List<String>.from(userList);
+      } else {
+        list = List<String>.from(
+          _defaultStatuses[moduleKey] ?? ['Pending', 'Complete'],
+        );
+      }
     }
 
     if (moduleKey == 'requests') {
       final int initialLen = list.length;
       list.removeWhere((s) => s.trim().toLowerCase() == 'office');
       if (list.length != initialLen) {
-        box.put('$_statusListKeyPrefix$moduleKey', list);
+        box.put('$prefix$_statusListKeyPrefix$moduleKey', list);
       }
     }
 
@@ -150,7 +219,7 @@ class StatusManagementService {
       final int initialLen = list.length;
       list.removeWhere((s) => s.trim().toLowerCase() == 'test');
       if (list.length != initialLen) {
-        box.put('$_statusListKeyPrefix$moduleKey', list);
+        box.put('$prefix$_statusListKeyPrefix$moduleKey', list);
       }
     }
 
@@ -177,9 +246,19 @@ class StatusManagementService {
     List<String> statuses,
   ) async {
     final box = _getBox();
-    await box.put('$_statusListKeyPrefix$moduleKey', statuses);
+    final prefix = _getUserPrefix();
+    await box.put('$prefix$_statusListKeyPrefix$moduleKey', statuses);
     // Update cache immediately
     _cache[moduleKey] = List<String>.from(statuses);
+
+    // Sync to user profile in cloud
+    try {
+      final currentUser = UserPermissionService.getCurrentUser();
+      final updatedLists = Map<String, List<String>>.from(currentUser.customStatusLists);
+      updatedLists[moduleKey] = List<String>.from(statuses);
+      final updatedUser = currentUser.copyWith(customStatusLists: updatedLists);
+      await UserPermissionService.saveUser(updatedUser);
+    } catch (_) {}
   }
 
   /// Invalidate the cache for a module (call after external data changes)

@@ -11,6 +11,7 @@ import 'package:shop_management_flutter/ui/shared/components/app_floating_action
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
+import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
 import 'user_management_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -534,8 +535,18 @@ class _SettingsViewState extends State<SettingsView> {
                       await UiPreferencesService.setKioskMode(val);
                       if (val) {
                         KioskBroadcastService.instance.init();
+                        await KioskOverlayHelper.startKioskForegroundService();
+                        if (mounted) setState(() {});
+                        // Check overlay & battery permissions on Android
+                        final hasOverlay = await KioskOverlayHelper.isOverlayPermissionGranted();
+                        final isBatteryIgnored = await KioskOverlayHelper.isBatteryOptimizationIgnored();
+                        if ((!hasOverlay || !isBatteryIgnored) && context.mounted) {
+                          _showKioskAndroidSetupDialog(context);
+                        }
+                      } else {
+                        await KioskOverlayHelper.stopKioskForegroundService();
+                        if (mounted) setState(() {});
                       }
-                      if (mounted) setState(() {});
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -554,45 +565,413 @@ class _SettingsViewState extends State<SettingsView> {
                 ],
               ),
               if (isKiosk) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.success.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: AppTheme.success.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.sensors_rounded,
-                        size: 12,
-                        color: AppTheme.success,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      SizedBox(width: 6),
-                      Text(
-                        'LISTENING FOR QR BROADCASTS',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.success,
-                          letterSpacing: 0.5,
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: AppTheme.success.withValues(alpha: 0.3),
                         ),
                       ),
-                    ],
-                  ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.sensors_rounded,
+                            size: 12,
+                            color: AppTheme.success,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'LISTENING FOR QR BROADCASTS',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.success,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    FutureBuilder<bool>(
+                      future: KioskOverlayHelper.isOverlayPermissionGranted(),
+                      builder: (context, snapshot) {
+                        final hasPermission = snapshot.data ?? true;
+                        if (hasPermission) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFF0EA5E9).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.layers_rounded,
+                                  size: 12,
+                                  color: Color(0xFF0EA5E9),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'OVERLAY ACTIVE (MINIMIZED POPUP)',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0EA5E9),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return InkWell(
+                          onTap: () async {
+                            await KioskOverlayHelper.requestOverlayPermission();
+                            if (mounted) setState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppTheme.warning.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 12,
+                                  color: AppTheme.warning,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'GRANT OVERLAY (FOR POPUP)',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.warning,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    FutureBuilder<bool>(
+                      future: KioskOverlayHelper.isBatteryOptimizationIgnored(),
+                      builder: (context, snapshot) {
+                        final isIgnored = snapshot.data ?? true;
+                        if (isIgnored) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.teal.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.battery_charging_full_rounded,
+                                  size: 12,
+                                  color: Colors.tealAccent,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'UNRESTRICTED 24/7 BACKGROUND',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.tealAccent,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return InkWell(
+                          onTap: () async {
+                            await KioskOverlayHelper.requestIgnoreBatteryOptimization();
+                            if (mounted) setState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: AppTheme.warning.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.battery_alert_rounded,
+                                  size: 12,
+                                  color: AppTheme.warning,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'DISABLE BATTERY SLEEP RESTRICTIONS',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.warning,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showKioskAndroidSetupDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1524),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppTheme.secondary.withValues(alpha: 0.3)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.phonelink_setup_rounded, color: AppTheme.secondary, size: 24),
+            SizedBox(width: 10),
+            Text(
+              'Kiosk Android Permissions',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'For your phone to reliably wake up and pop up payment QR codes even when minimized or when the screen is locked, enable these 2 Android settings:',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '1. Display over other apps',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Allows QR to pop up over home screen & other apps',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0EA5E9),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      await KioskOverlayHelper.requestOverlayPermission();
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('Open Setting'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '2. Unrestricted Battery',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Prevents Android from putting app to sleep when screen is off',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      await KioskOverlayHelper.requestIgnoreBatteryOptimization();
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('Allow 24/7'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '3. Autostart & Background Pop-up',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'For Xiaomi / Vivo / Oppo / Samsung: Enable Autostart & "Display pop-up windows in background"',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () async {
+                      await KioskOverlayHelper.openAppDetailsSettings();
+                    },
+                    child: const Text('App Info'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.secondary,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
   }
 

@@ -11,6 +11,7 @@ import 'data/services/supabase_sync_service.dart';
 import 'data/services/local_database_service.dart';
 import 'data/services/ui_preferences_service.dart';
 import 'data/services/user_permission_service.dart';
+import 'data/services/kiosk_overlay_helper.dart';
 import 'ui/shared/status_management_dialog.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/icon_registry.dart';
@@ -46,6 +47,11 @@ void main(List<String> args) async {
   await GoogleDriveUploadService.init();
   // This also calls Supabase.initialize() internally
   await SupabaseSyncService.instance.init(localDb);
+
+  // If Kiosk Mode is active on Android, keep WebSocket alive with foreground service
+  if (UiPreferencesService.isKioskMode()) {
+    KioskOverlayHelper.startKioskForegroundService();
+  }
 
   // Check if launched with command-line deep link argument on Windows/Desktop
   if (args.isNotEmpty && args.first.contains('://')) {

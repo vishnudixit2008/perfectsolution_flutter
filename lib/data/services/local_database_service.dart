@@ -15,6 +15,7 @@ import '../models/request_order.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
 import 'supabase_sync_service.dart';
+import 'kiosk_broadcast_service.dart';
 
 class LocalDatabaseService {
   static const String _pricelistBoxName = 'pricelist_box';
@@ -342,6 +343,8 @@ class LocalDatabaseService {
   }
 
   Future<void> setActiveUpiId(String upiId, {bool syncToCloud = true}) async {
+    final current = _settingsBox.get('active_upi_id');
+    if (current == upiId && !syncToCloud) return;
     await _settingsBox.put('active_upi_id', upiId);
     if (syncToCloud) {
       unawaited(SupabaseSyncService.instance.pushRecordToCloud(
@@ -353,6 +356,16 @@ class LocalDatabaseService {
         },
         localDb: this,
       ));
+
+      // Broadcast active UPI change in real-time to all connected devices
+      try {
+        final namesMap = getUpiNamesMap();
+        final refName = namesMap[upiId] ?? '';
+        unawaited(KioskBroadcastService.instance.broadcastActiveUpiChanged(
+          upiId: upiId,
+          upiName: refName,
+        ));
+      } catch (_) {}
     }
   }
 

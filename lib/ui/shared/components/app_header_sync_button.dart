@@ -25,11 +25,19 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF0F1524),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.3)),
+          ),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: AppTheme.danger),
               SizedBox(width: 8),
-              Text('Cloud Sync Details'),
+              Text(
+                'Cloud Sync Details',
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+              ),
             ],
           ),
           content: Column(
@@ -38,7 +46,11 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
             children: [
               const Text(
                 'Diagnostic details from the latest sync attempt:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                ),
               ),
               const SizedBox(height: 10),
               Container(
@@ -65,12 +77,16 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: const Text('Close', style: TextStyle(color: AppTheme.textMuted)),
             ),
             ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 Navigator.pop(ctx);
-                _triggerSync(context);
+                _performManualSync(context);
               },
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry Sync'),
@@ -81,17 +97,26 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
       return;
     }
 
+    await _performManualSync(context, forceFullDownload: false);
+  }
+
+  Future<void> _performManualSync(BuildContext context, {bool forceFullDownload = false}) async {
+    if (_isManualSyncing) return;
+    final syncService = SupabaseSyncService.instance;
+
     setState(() => _isManualSyncing = true);
     try {
       final localDb = context.read<ShopRepository>().localDb;
-      await syncService.manualSync(localDb);
+      await syncService.manualSync(localDb, forceFullDownload: forceFullDownload);
       if (mounted) {
         if (syncService.status == SyncStatus.synced) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Cloud sync completed successfully!'),
+            SnackBar(
+              content: Text(forceFullDownload
+                  ? 'Full database re-synced successfully!'
+                  : 'Fast sync & UI refreshed successfully!'),
               backgroundColor: AppTheme.success,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         } else if (syncService.status == SyncStatus.error) {
@@ -117,8 +142,68 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isManualSyncing = false);
+      if (mounted) {
+        setState(() => _isManualSyncing = false);
+      }
     }
+  }
+
+  void _showSyncOptionsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1524),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.sync_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text('Cloud Sync Options', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose sync mode:',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.bolt_rounded, color: AppTheme.success),
+              title: const Text('Quick Delta Sync', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Fetches only new changes + refreshes screen (0 cloud bandwidth)', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _performManualSync(context, forceFullDownload: false);
+              },
+            ),
+            const Divider(color: Colors.white12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_download_rounded, color: Colors.orange),
+              title: const Text('Force Full Database Re-Sync', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Downloads 100% of all tables from cloud from scratch', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _performManualSync(context, forceFullDownload: true);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -164,6 +249,7 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
           message: tooltipMessage,
           child: InkWell(
             onTap: () => _triggerSync(context),
+            onLongPress: () => _showSyncOptionsDialog(context),
             borderRadius: BorderRadius.circular(20),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),

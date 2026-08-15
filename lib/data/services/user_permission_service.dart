@@ -94,11 +94,14 @@ class UserPermissionService {
   static Future<void> setCurrentUser(String email) async {
     final cleanEmail = email.toLowerCase().trim();
     _cachedCurrentUser = null;
+    StatusManagementService.clearCache();
     final box = _getBox();
     if (box != null) {
       await box.put(_currentEmailKey, cleanEmail);
     }
     await syncSingleUserFromCloud(cleanEmail);
+    final user = getCurrentUser();
+    await StatusManagementService.loadFromUser(user);
   }
 
   static Future<void> syncSingleUserFromCloud(String email) async {
@@ -120,6 +123,7 @@ class UserPermissionService {
           await box.put(cleanEmail, cloudUser.toJson());
         }
         _cachedCurrentUser = null;
+        await StatusManagementService.loadFromUser(cloudUser);
       }
     } catch (_) {}
   }
@@ -139,19 +143,25 @@ class UserPermissionService {
       }
 
       final box = _getBox();
-      if (box != null) {
-        final raw = box.get(email);
-        if (raw != null && raw is Map) {
-          _cachedCurrentUser = AppUser.fromJson(Map<String, dynamic>.from(raw));
-          return _cachedCurrentUser!;
-        }
+      if (box == null) {
+        _cachedCurrentUser = AppUser.defaultEmployee(email, email);
+        return _cachedCurrentUser!;
       }
-    } catch (_) {}
 
-    // Fallback for non-permanent admins: default employee role (restricted), NEVER default admin!
-    final currentEmail = getCurrentUserEmail();
-    _cachedCurrentUser = AppUser.defaultEmployee(currentEmail, 'User');
-    return _cachedCurrentUser!;
+      final userData = box.get(email);
+      if (userData != null && userData is Map) {
+        _cachedCurrentUser = AppUser.fromJson(Map<String, dynamic>.from(userData));
+        return _cachedCurrentUser!;
+      }
+
+      // Default fallback for unrecognized non-admin user
+      _cachedCurrentUser = AppUser.defaultEmployee(email, email);
+      return _cachedCurrentUser!;
+    } catch (e) {
+      final email = getCurrentUserEmail().toLowerCase().trim();
+      _cachedCurrentUser = AppUser.defaultEmployee(email, email);
+      return _cachedCurrentUser!;
+    }
   }
 
   static List<AppUser> getAllUsers() {
@@ -202,6 +212,9 @@ class UserPermissionService {
           cloudEmails.add(email);
           final user = AppUser.fromJson(map);
           await box.put(email, user.toJson());
+          if (email == getCurrentUserEmail().toLowerCase().trim()) {
+            await StatusManagementService.loadFromUser(user);
+          }
         }
       }
 
@@ -238,6 +251,8 @@ class UserPermissionService {
       'page_action_access': {
         ...user.pageActionAccess,
         '__only_assigned__': user.onlyAssignedAccess,
+        '__status_lists__': user.customStatusLists,
+        '__default_statuses__': user.defaultStatuses,
       },
       'field_access': user.fieldAccess.map(
         (m, fields) => MapEntry(m, fields.map((f, p) => MapEntry(f, p.toJson()))),
@@ -248,17 +263,17 @@ class UserPermissionService {
     };
 
     try {
-      // First attempt: include dedicated only_assigned_access column if it exists in Postgres
+      // First attempt: include dedicated columns if they exist in Postgres
       await Supabase.instance.client.from('app_users').upsert({
         ...cloudPayload,
         'only_assigned_access': user.onlyAssignedAccess,
       });
     } catch (_) {
-      // Fallback: upsert using base payload where only_assigned_access is embedded in page_action_access
+      // Fallback: upsert using base payload where nested configs are embedded in page_action_access
       try {
         await Supabase.instance.client.from('app_users').upsert(cloudPayload);
       } catch (e) {
-        if (kDebugMode) print('Error upserting user to cloud: $e');
+        debugPrint('Cloud save user fallback failed: $e');
       }
     }
   }

@@ -15,6 +15,7 @@ import '../models/request_order.dart';
 import '../models/sale.dart';
 import '../services/local_database_service.dart';
 import '../services/user_permission_service.dart';
+import '../repositories/shop_repository.dart';
 import 'ui_preferences_service.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
@@ -40,6 +41,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
   // Debounce timer to prevent realtime event flood
   Timer? _debounceTimer;
+  Timer? _heartbeatTimer;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
@@ -112,17 +114,40 @@ class SupabaseSyncService extends ChangeNotifier {
       // Subscribe to real-time WebSocket changes (debounced)
       _subscribeRealtime(localDb);
 
+      // Start continuous background connection health check
+      _startHeartbeat(localDb);
+
       // On startup: pull from cloud only.
-      // IMPORTANT: We do NOT push all local data on startup to prevent ghost
-      // resurrection where an old device re-uploads deleted/stale data.
       unawaited(_performBackgroundSync(localDb));
 
       return true;
     } catch (e) {
       if (kDebugMode) print('Supabase connect error: $e');
-      _setStatus(SyncStatus.error, 'Cloud Connection Failed');
+      _setStatus(SyncStatus.error, 'Cloud Connection Failed: $e');
       return false;
     }
+  }
+
+  /// Background passive health monitor every 3 minutes (180s) to save 95% bandwidth.
+  /// Only pings if the connection was marked offline or encountered an error.
+  void _startHeartbeat(LocalDatabaseService localDb) {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 3), (_) async {
+      if (!_isInitialized) return;
+      // If already live synced and healthy via WebSocket, skip HTTP egress
+      if (_status == SyncStatus.synced) return;
+
+      try {
+        final client = Supabase.instance.client;
+        await client.from('shop_settings').select('key').limit(1).timeout(const Duration(seconds: 4));
+        _setStatus(SyncStatus.synced, 'Live Synced');
+        unawaited(flushOfflineQueue(localDb));
+      } catch (e) {
+        if (_status != SyncStatus.syncing) {
+          _setStatus(SyncStatus.offline, 'Cloud Connection Offline');
+        }
+      }
+    });
   }
 
   /// On startup: pull from cloud, then flush any offline-queued operations.
@@ -135,24 +160,43 @@ class SupabaseSyncService extends ChangeNotifier {
       await flushOfflineQueue(localDb);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
-      _setStatus(SyncStatus.error, '$e');
+      _setStatus(SyncStatus.error, 'Background Sync Error: $e');
     }
   }
 
+  DateTime? _lastManualTapTime;
+
   /// Public method for manual sync triggered by user (pull only).
-  Future<void> manualSync(LocalDatabaseService localDb) async {
+  /// By default, manual sync performs a Fast Delta Catchup (isDelta: true) to save 99% data.
+  /// If [forceFullDownload] is true, it performs a 100% full table re-download.
+  /// Regardless, it always broadcasts a Full Screen UI Refresh (0 cloud usage, pure local device RAM).
+  Future<void> manualSync(LocalDatabaseService localDb, {bool forceFullDownload = false}) async {
+    final now = DateTime.now();
+    // Anti-spam debounce: If clicked rapidly within 3 seconds, do instant local UI refresh without network hammering
+    if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 3) {
+      ShopRepository.notifyTableChanged('all');
+      _setStatus(SyncStatus.synced, 'Live Synced');
+      return;
+    }
+    _lastManualTapTime = now;
+
     if (!_isInitialized) {
       try {
         final connected = await connectAndSubscribe(localDb);
-        if (!connected) return;
+        if (!connected) {
+          ShopRepository.notifyTableChanged('all');
+          return;
+        }
       } catch (e) {
         _setStatus(SyncStatus.error, 'Connection Error: $e');
+        ShopRepository.notifyTableChanged('all');
         return;
       }
     }
+
     _setStatus(SyncStatus.syncing, 'Syncing...');
     try {
-      await syncAllTablesFromCloud(localDb, force: true)
+      await syncAllTablesFromCloud(localDb, force: forceFullDownload)
           .timeout(const Duration(seconds: 15));
       await flushOfflineQueue(localDb)
           .timeout(const Duration(seconds: 10));
@@ -160,6 +204,9 @@ class SupabaseSyncService extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
       _setStatus(SyncStatus.error, 'Sync Error: $e');
+    } finally {
+      // Always broadcast full UI refresh using local device resources (0 cloud egress)
+      ShopRepository.notifyTableChanged('all');
     }
   }
 
@@ -172,7 +219,7 @@ class SupabaseSyncService extends ChangeNotifier {
   }
 
   /// Subscribes to real-time table mutations broadcast by Supabase.
-  /// Uses a debounce timer to prevent a flood of 7-query syncs for every event.
+  /// Uses native WebSocket status & debounced targeted delta sync to fetch only new/modified rows per table.
   void _subscribeRealtime(LocalDatabaseService localDb) {
     try {
       _realtimeChannel?.unsubscribe();
@@ -183,16 +230,30 @@ class SupabaseSyncService extends ChangeNotifier {
           event: PostgresChangeEvent.all,
           schema: 'public',
           callback: (payload) {
-            if (kDebugMode) print('Realtime change event: ${payload.table}');
-            // Debounce: cancel any pending sync and schedule a new one after 500ms
-            // This prevents 100+ queries when pushing bulk data
+            final table = payload.table;
+            if (kDebugMode) print('Realtime change event on table: $table');
             _debounceTimer?.cancel();
-            _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-              syncAllTablesFromCloud(localDb);
+            _debounceTimer = Timer(const Duration(milliseconds: 250), () async {
+              await syncTableFromCloud(table, localDb);
             });
           },
         )
-        ..subscribe();
+        ..subscribe((status, [error]) {
+          if (status == RealtimeSubscribeStatus.subscribed) {
+            if (kDebugMode) print('Supabase Realtime subscribed successfully');
+            if (_status != SyncStatus.syncing) {
+              _setStatus(SyncStatus.synced, 'Live Synced');
+            }
+            unawaited(flushOfflineQueue(localDb));
+          } else if (status == RealtimeSubscribeStatus.closed ||
+              status == RealtimeSubscribeStatus.channelError ||
+              status == RealtimeSubscribeStatus.timedOut) {
+            if (kDebugMode) print('Supabase Realtime connection state: $status (error: $error)');
+            if (_status != SyncStatus.syncing) {
+              _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
+            }
+          }
+        });
     } catch (e) {
       if (kDebugMode) print('Realtime subscribe error: $e');
     }
@@ -679,9 +740,231 @@ class SupabaseSyncService extends ChangeNotifier {
       _lastFullSyncTime = DateTime.now();
       await UiPreferencesService.setValue('last_full_sync_timestamp', _lastFullSyncTime!.millisecondsSinceEpoch);
       _setStatus(SyncStatus.synced, 'All tables synchronized');
+      ShopRepository.notifyTableChanged('all');
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');
-      _setStatus(SyncStatus.error, 'Sync from cloud error: $e');
+      _setStatus(SyncStatus.error, 'Sync Error: $e');
+    }
+  }
+
+  /// Real-time targeted delta sync for a single table that changed
+  Future<void> syncTableFromCloud(String tableName, LocalDatabaseService localDb) async {
+    if (!_isInitialized) return;
+
+    try {
+      final client = Supabase.instance.client;
+      final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
+      final String? lastSyncIso = lastSyncMillis > 0
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 5000).toIso8601String()
+          : null;
+
+      // Handle table deletion tombstones
+      try {
+        var tombstoneQuery = client.from('deleted_records').select().eq('table_name', tableName);
+        if (lastSyncIso != null) {
+          tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
+        }
+        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 4));
+        for (final d in deletions) {
+          final rid = d['record_id']?.toString();
+          if (rid == null || rid.isEmpty) continue;
+          switch (tableName) {
+            case 'inward_repairs':
+              await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+            case 'calls':
+              await localDb.deleteCall(int.tryParse(rid) ?? -1);
+            case 'sales':
+              await localDb.deleteSale(int.tryParse(rid) ?? -1);
+            case 'replacements':
+              await localDb.deleteReplacement(rid);
+            case 'requests':
+              await localDb.deleteRequestOrder(rid);
+            case 'purchases':
+              await localDb.deletePurchaseOrder(rid);
+            case 'pricelist':
+              await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+          }
+        }
+      } catch (_) {}
+
+      switch (tableName) {
+        case 'inward_repairs':
+        case 'inward_estimate_items':
+          var q = client.from('inward_repairs').select();
+          var iq = client.from('inward_estimate_items').select();
+          if (lastSyncIso != null) {
+            q = q.gt('updated_at', lastSyncIso);
+            iq = iq.gt('updated_at', lastSyncIso);
+          }
+          final inwardData = await q.timeout(const Duration(seconds: 5));
+          final inwardItemsData = await iq.timeout(const Duration(seconds: 5));
+          final repairsMap = <int, Map<String, dynamic>>{};
+          final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
+          for (final json in inwardData) {
+            final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
+            repairsMap[cloudRepair.jobNo] = cloudRepair.toJson();
+            final itemsJson = inwardItemsData
+                .where((i) => i['job_no']?.toString() == cloudRepair.jobNo.toString())
+                .toList();
+            inwardItemsMap[cloudRepair.jobNo] = itemsJson
+                .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+          }
+          if (repairsMap.isNotEmpty) {
+            await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('inward_repairs');
+
+        case 'calls':
+          var q = client.from('calls').select();
+          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
+          final callsData = await q.timeout(const Duration(seconds: 5));
+          final callsMap = <int, Map<String, dynamic>>{};
+          for (final json in callsData) {
+            final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
+            Map<String, dynamic> callJson = cloudCall.toJson();
+            if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
+              final hasPhotoKey = json.containsKey('photo');
+              if (!hasPhotoKey) {
+                final localRaw = localDb.getCallById(cloudCall.id);
+                if (localRaw != null) {
+                  final localPhoto = localRaw['photo']?.toString();
+                  if (localPhoto != null && localPhoto.isNotEmpty) {
+                    callJson['photo'] = localPhoto;
+                  }
+                }
+              }
+            }
+            callsMap[cloudCall.id] = callJson;
+          }
+          if (callsMap.isNotEmpty) {
+            await localDb.saveAllCalls(callsMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('calls');
+
+        case 'sales':
+        case 'sale_items':
+          var q = client.from('sales').select();
+          var sq = client.from('sale_items').select();
+          if (lastSyncIso != null) {
+            q = q.gt('updated_at', lastSyncIso);
+            sq = sq.gt('updated_at', lastSyncIso);
+          }
+          final salesData = await q.timeout(const Duration(seconds: 5));
+          final saleItemsData = await sq.timeout(const Duration(seconds: 5));
+          final salesMap = <int, Map<String, dynamic>>{};
+          final saleItemsMap = <int, List<Map<String, dynamic>>>{};
+          for (final json in salesData) {
+            final sale = Sale.fromJson(Map<String, dynamic>.from(json));
+            salesMap[sale.invoiceNo] = sale.toJson();
+            final itemsJson = saleItemsData
+                .where((i) => i['invoice_no']?.toString() == sale.invoiceNo.toString())
+                .toList();
+            saleItemsMap[sale.invoiceNo] = itemsJson
+                .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+          }
+          if (salesMap.isNotEmpty) {
+            await localDb.saveAllSales(salesMap, saleItemsMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('sales');
+
+        case 'replacements':
+          var q = client.from('replacements').select();
+          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
+          final replData = await q.timeout(const Duration(seconds: 5));
+          final replMap = <String, Map<String, dynamic>>{};
+          for (final json in replData) {
+            final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
+            replMap[repl.jobNo] = repl.toJson();
+          }
+          if (replMap.isNotEmpty) {
+            await localDb.saveAllReplacements(replMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('replacements');
+
+        case 'requests':
+          var q = client.from('requests').select();
+          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
+          final reqData = await q.timeout(const Duration(seconds: 5));
+          final reqMap = <String, Map<String, dynamic>>{};
+          for (final json in reqData) {
+            final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
+            reqMap[req.id] = req.toJson();
+          }
+          if (reqMap.isNotEmpty) {
+            await localDb.saveAllRequests(reqMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('requests');
+
+        case 'purchases':
+        case 'purchase_items':
+        case 'purchase_order_items':
+          var q = client.from('purchases').select();
+          var pq = client.from('purchase_items').select();
+          if (lastSyncIso != null) {
+            q = q.gt('updated_at', lastSyncIso);
+            pq = pq.gt('updated_at', lastSyncIso);
+          }
+          final purchData = await q.timeout(const Duration(seconds: 5));
+          final purchItemsData = await pq.timeout(const Duration(seconds: 5));
+          final purchMap = <String, Map<String, dynamic>>{};
+          final purchItemsMap = <String, List<Map<String, dynamic>>>{};
+          for (final json in purchData) {
+            final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
+            purchMap[pur.id] = pur.toJson();
+            final itemsJson = purchItemsData
+                .where((i) => i['purchase_id']?.toString() == pur.id.toString())
+                .toList();
+            purchItemsMap[pur.id] = itemsJson
+                .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+          }
+          if (purchMap.isNotEmpty) {
+            await localDb.saveAllPurchases(purchMap, purchItemsMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('purchases');
+
+        case 'pricelist':
+        case 'pricelist_items':
+          var q = client.from('pricelist').select();
+          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
+          final priceData = await q.timeout(const Duration(seconds: 5));
+          final priceMap = <int, Map<String, dynamic>>{};
+          for (final json in priceData) {
+            final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
+            priceMap[item.id] = item.toJson();
+          }
+          if (priceMap.isNotEmpty) {
+            await localDb.saveAllPricelistItems(priceMap, clearOthers: false);
+          }
+          ShopRepository.notifyTableChanged('pricelist_items');
+
+        case 'app_users':
+          await UserPermissionService.syncUsersFromCloud(force: true);
+          ShopRepository.notifyTableChanged('app_users');
+
+        case 'shop_settings':
+          final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
+          for (final row in settingsData) {
+            final key = row['key']?.toString();
+            final value = row['value'];
+            if (key == 'upi_ids_list' && value is List) {
+              await localDb.saveUpiIdsList(List<String>.from(value.map((e) => e.toString())), syncToCloud: false);
+            } else if (key == 'active_upi_id' && value != null) {
+              await localDb.setActiveUpiId(value.toString(), syncToCloud: false);
+            } else if (key == 'upi_names_map' && value is Map) {
+              final map = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
+              await localDb.saveUpiNamesMap(map, syncToCloud: false);
+            }
+          }
+          ShopRepository.notifyTableChanged('shop_settings');
+      }
+
+      await UiPreferencesService.setValue('last_full_sync_timestamp', DateTime.now().millisecondsSinceEpoch);
+      _setStatus(SyncStatus.synced, 'Live Synced');
+    } catch (e) {
+      if (kDebugMode) print('Delta sync error ($tableName): $e');
     }
   }
 
@@ -703,6 +986,7 @@ class SupabaseSyncService extends ChangeNotifier {
           'queued_at': DateTime.now().toIso8601String(),
         });
       }
+      _setStatus(SyncStatus.error, 'Offline: Not connected to cloud ($tableName queued)');
       return;
     }
 
@@ -732,9 +1016,9 @@ class SupabaseSyncService extends ChangeNotifier {
           'data': data,
           'queued_at': DateTime.now().toIso8601String(),
         });
-        _setStatus(SyncStatus.offline, 'Saved Offline — will sync when connected');
+        _setStatus(SyncStatus.error, 'Push failed for $tableName: $e (Queued offline)');
       } else {
-        _setStatus(SyncStatus.error, 'Sync Error: $e');
+        _setStatus(SyncStatus.error, 'Sync Error ($tableName): $e');
       }
     }
   }

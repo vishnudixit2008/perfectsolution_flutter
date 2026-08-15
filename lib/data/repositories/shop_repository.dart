@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../models/pricelist_item.dart';
 import '../models/sale.dart';
 import '../models/sale_item.dart';
@@ -17,6 +18,16 @@ import '../../ui/shared/photo_attachment_widget.dart';
 
 class ShopRepository {
   final LocalDatabaseService _localDb;
+
+  static final StreamController<String> _tableDataChangedController =
+      StreamController<String>.broadcast();
+
+  Stream<String> get onTableDataChanged => _tableDataChangedController.stream;
+  static Stream<String> get tableDataChangedStream => _tableDataChangedController.stream;
+
+  static void notifyTableChanged(String tableName) {
+    _tableDataChangedController.add(tableName);
+  }
 
   ShopRepository({required LocalDatabaseService localDb}) : _localDb = localDb;
 
@@ -54,8 +65,8 @@ class ShopRepository {
 
   // Settings
   String? getActiveUpiId() => _localDb.getActiveUpiId();
-  Future<void> setActiveUpiId(String upiId) async =>
-      await _localDb.setActiveUpiId(upiId);
+  Future<void> setActiveUpiId(String upiId, {bool syncToCloud = true}) async =>
+      await _localDb.setActiveUpiId(upiId, syncToCloud: syncToCloud);
   List<String> getUpiIdsList() => _localDb.getUpiIdsList();
   Future<void> saveUpiIdsList(List<String> upiIds) async =>
       await _localDb.saveUpiIdsList(upiIds);

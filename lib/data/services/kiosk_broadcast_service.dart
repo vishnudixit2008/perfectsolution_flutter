@@ -46,9 +46,13 @@ class KioskBroadcastService {
   RealtimeChannel? _channel;
   final StreamController<KioskBroadcastPayload> _showQrController = StreamController<KioskBroadcastPayload>.broadcast();
   final StreamController<void> _dismissQrController = StreamController<void>.broadcast();
+  final StreamController<Map<String, String>> _activeUpiChangedController =
+      StreamController<Map<String, String>>.broadcast();
 
   Stream<KioskBroadcastPayload> get onShowQr => _showQrController.stream;
   Stream<void> get onDismissQr => _dismissQrController.stream;
+  Stream<Map<String, String>> get onActiveUpiChanged =>
+      _activeUpiChangedController.stream;
 
   bool _isSubscribed = false;
 
@@ -81,6 +85,22 @@ class KioskBroadcastService {
         },
       );
 
+      _channel!.onBroadcast(
+        event: 'ACTIVE_UPI_CHANGED',
+        callback: (payload) {
+          debugPrint('KioskBroadcastService: Received ACTIVE_UPI_CHANGED -> $payload');
+          try {
+            final upiId = payload['upiId']?.toString() ?? '';
+            final upiName = payload['upiName']?.toString() ?? '';
+            if (upiId.isNotEmpty) {
+              _activeUpiChangedController.add({'upiId': upiId, 'upiName': upiName});
+            }
+          } catch (e) {
+            debugPrint('Error parsing ACTIVE_UPI_CHANGED: $e');
+          }
+        },
+      );
+
       _channel!.subscribe((status, [error]) {
         if (status == RealtimeSubscribeStatus.subscribed) {
           _isSubscribed = true;
@@ -91,6 +111,30 @@ class KioskBroadcastService {
       });
     } catch (e) {
       debugPrint('KioskBroadcastService init error (Supabase might not be initialized): $e');
+    }
+  }
+
+  /// Broadcast active UPI ID change in real time to all connected devices
+  Future<bool> broadcastActiveUpiChanged({
+    required String upiId,
+    String? upiName,
+  }) async {
+    init(); // Ensure subscribed
+    if (_channel == null) return false;
+
+    try {
+      await _channel!.sendBroadcastMessage(
+        event: 'ACTIVE_UPI_CHANGED',
+        payload: {
+          'upiId': upiId,
+          'upiName': upiName ?? '',
+        },
+      );
+      debugPrint('KioskBroadcastService: Sent ACTIVE_UPI_CHANGED -> $upiId');
+      return true;
+    } catch (e) {
+      debugPrint('KioskBroadcastService: Failed to broadcast ACTIVE_UPI_CHANGED: $e');
+      return false;
     }
   }
 
@@ -118,7 +162,7 @@ class KioskBroadcastService {
         event: 'SHOW_QR',
         payload: payload.toJson(),
       );
-      debugPrint('KioskBroadcastService: Sent SHOW_QR payload for amount ₹$amount');
+      debugPrint('KioskBroadcastService: Sent SHOW_QR payload for amount ₹$amount, upi: $upiId');
       return true;
     } catch (e) {
       debugPrint('KioskBroadcastService: Failed to broadcast SHOW_QR: $e');
