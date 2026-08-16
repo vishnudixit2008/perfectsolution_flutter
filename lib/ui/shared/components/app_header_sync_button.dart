@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../data/repositories/shop_repository.dart';
@@ -18,85 +19,6 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
 
   Future<void> _triggerSync(BuildContext context) async {
     if (_isManualSyncing) return;
-    final syncService = SupabaseSyncService.instance;
-
-    // If currently in error state, tapping shows detailed error dialog
-    if (syncService.status == SyncStatus.error) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF0F1524),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.3)),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: AppTheme.danger),
-              SizedBox(width: 8),
-              Text(
-                'Cloud Sync Details',
-                style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Diagnostic details from the latest sync attempt:',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.maxFinite,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                ),
-                child: SelectableText(
-                  syncService.statusMessage.isEmpty
-                      ? 'Unknown sync error occurred.'
-                      : syncService.statusMessage,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    color: AppTheme.danger,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close', style: TextStyle(color: AppTheme.textMuted)),
-            ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.pop(ctx);
-                _performManualSync(context);
-              },
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Retry Sync'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
     await _performManualSync(context, forceFullDownload: false);
   }
 
@@ -109,38 +31,12 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
       final localDb = context.read<ShopRepository>().localDb;
       await syncService.manualSync(localDb, forceFullDownload: forceFullDownload);
       if (mounted) {
-        if (syncService.status == SyncStatus.synced) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(forceFullDownload
-                  ? 'Full database re-synced successfully!'
-                  : 'Fast sync & UI refreshed successfully!'),
-              backgroundColor: AppTheme.success,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } else if (syncService.status == SyncStatus.error) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Sync Failed: ${syncService.statusMessage}'),
-              backgroundColor: AppTheme.danger,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        }
         if (widget.onSynced != null) {
           widget.onSynced!();
         }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sync Exception: $e'),
-            backgroundColor: AppTheme.danger,
-          ),
-        );
-      }
+    } catch (_) {
+      // Handled silently by SupabaseSyncService status updates
     } finally {
       if (mounted) {
         setState(() => _isManualSyncing = false);
@@ -149,6 +45,7 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
   }
 
   void _showSyncOptionsDialog(BuildContext context) {
+    final syncService = SupabaseSyncService.instance;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -168,6 +65,22 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (syncService.status == SyncStatus.error) ...[
+              Container(
+                width: double.maxFinite,
+                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: SelectableText(
+                  syncService.statusMessage.isEmpty ? 'Unknown error' : syncService.statusMessage,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppTheme.danger),
+                ),
+              ),
+            ],
             const Text(
               'Choose sync mode:',
               style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
@@ -199,7 +112,7 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+            child: const Text('Close', style: TextStyle(color: AppTheme.textMuted)),
           ),
         ],
       ),
@@ -237,20 +150,14 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
             ? Icons.cloud_off_rounded
             : Icons.cloud_sync_rounded;
 
-        final String tooltipMessage = isError
-            ? 'Cloud Sync Error: ${syncService.statusMessage}. Tap to retry.'
-            : isSynced
-            ? 'All changes synced to cloud. Tap to manual sync.'
-            : isSyncing
-            ? 'Syncing data with cloud...'
-            : 'Offline mode. Tap to trigger cloud sync.';
-
-        return Tooltip(
-          message: tooltipMessage,
+        return Material(
+          color: Colors.transparent,
           child: InkWell(
             onTap: () => _triggerSync(context),
+            onSecondaryTap: () => _showSyncOptionsDialog(context),
             onLongPress: () => _showSyncOptionsDialog(context),
             borderRadius: BorderRadius.circular(20),
+            mouseCursor: SystemMouseCursors.click,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

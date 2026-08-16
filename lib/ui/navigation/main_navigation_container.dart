@@ -19,6 +19,7 @@ import '../features/replacements/view_models/replacements_view_model.dart';
 import '../features/requests/view_models/requests_view_model.dart';
 import '../features/purchases/view_models/purchases_view_model.dart';
 import '../features/dashboard/view_models/recent_sales_view_model.dart';
+import '../features/sales/view_models/sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
 import '../shared/update_dialog.dart';
@@ -46,6 +47,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   Timer? _updateCheckTimer;
   StreamSubscription<KioskBroadcastPayload>? _kioskShowSubscription;
   StreamSubscription<void>? _kioskDismissSubscription;
+  StreamSubscription? _kioskUpiSubscription;
 
   @override
   void initState() {
@@ -62,8 +64,6 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       }
     });
   }
-
-  StreamSubscription? _kioskUpiSubscription;
 
   void _setupKioskBroadcastListener() {
     KioskBroadcastService.instance.init();
@@ -199,12 +199,13 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     super.dispose();
   }
 
-  Future<void> _triggerManualSync(BuildContext context) async {
+  Future<void> _triggerManualSync(BuildContext context, {bool forceFullDownload = false}) async {
     if (_isSyncing) return;
     setState(() => _isSyncing = true);
+    final syncService = SupabaseSyncService.instance;
     try {
       final localDb = context.read<ShopRepository>().localDb;
-      await SupabaseSyncService.instance.manualSync(localDb);
+      await syncService.manualSync(localDb, forceFullDownload: forceFullDownload);
       // After sync, reload all view models
       if (context.mounted) {
         _reloadAllViewModels(context);
@@ -213,10 +214,86 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       if (context.mounted) {
         await UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
-
+    } catch (_) {
+      // Handled silently by SupabaseSyncService status updates
     } finally {
       if (mounted) setState(() => _isSyncing = false);
     }
+  }
+
+  void _showSyncOptionsDialog(BuildContext context) {
+    final syncService = SupabaseSyncService.instance;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1524),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.sync_rounded, color: AppTheme.primary),
+            SizedBox(width: 8),
+            Text('Cloud Sync Options', style: TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (syncService.status == SyncStatus.error) ...[
+              Container(
+                width: double.maxFinite,
+                padding: const EdgeInsets.all(10),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: SelectableText(
+                  syncService.statusMessage.isEmpty ? 'Unknown error' : syncService.statusMessage,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppTheme.danger),
+                ),
+              ),
+            ],
+            const Text(
+              'Choose sync mode:',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.bolt_rounded, color: AppTheme.success),
+              title: const Text('Quick Delta Sync', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Fetches only new changes + refreshes screen (0 cloud bandwidth)', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _triggerManualSync(context, forceFullDownload: false);
+              },
+            ),
+            const Divider(color: Colors.white12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_download_rounded, color: Colors.orange),
+              title: const Text('Force Full Database Re-Sync', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+              subtitle: const Text('Downloads 100% of all tables from cloud from scratch', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _triggerManualSync(context, forceFullDownload: true);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close', style: TextStyle(color: AppTheme.textMuted)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _reloadAllViewModels(BuildContext context) {
@@ -238,6 +315,12 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     } catch (_) {}
     try {
       context.read<RecentSalesViewModel>().loadSales();
+    } catch (_) {}
+    try {
+      context.read<SalesViewModel>().loadCatalog();
+    } catch (_) {}
+    try {
+      context.read<PricelistViewModel>().loadItems();
     } catch (_) {}
   }
 
@@ -442,89 +525,95 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                     syncService.status == SyncStatus.syncing || _isSyncing;
                 final isError = syncService.status == SyncStatus.error;
 
-                return InkWell(
-                  onTap: () => _triggerManualSync(context),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSynced
-                          ? AppTheme.success.withValues(alpha: 0.1)
-                          : isSyncing
-                          ? AppTheme.primaryLight.withValues(alpha: 0.1)
-                          : isError
-                          ? AppTheme.danger.withValues(alpha: 0.1)
-                          : AppTheme.warning.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isSynced
-                            ? AppTheme.success.withValues(alpha: 0.25)
-                            : isSyncing
-                            ? AppTheme.primaryLight.withValues(alpha: 0.25)
-                            : isError
-                            ? AppTheme.danger.withValues(alpha: 0.25)
-                            : AppTheme.warning.withValues(alpha: 0.25),
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _triggerManualSync(context, forceFullDownload: false),
+                    onSecondaryTap: () => _showSyncOptionsDialog(context),
+                    onLongPress: () => _showSyncOptionsDialog(context),
+                    borderRadius: BorderRadius.circular(10),
+                    mouseCursor: SystemMouseCursors.click,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        isSyncing
-                            ? SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: AppTheme.primaryLight,
+                      decoration: BoxDecoration(
+                        color: isSynced
+                            ? AppTheme.success.withValues(alpha: 0.1)
+                            : isSyncing
+                            ? AppTheme.primaryLight.withValues(alpha: 0.1)
+                            : isError
+                            ? AppTheme.danger.withValues(alpha: 0.1)
+                            : AppTheme.warning.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSynced
+                              ? AppTheme.success.withValues(alpha: 0.25)
+                              : isSyncing
+                              ? AppTheme.primaryLight.withValues(alpha: 0.25)
+                              : isError
+                              ? AppTheme.danger.withValues(alpha: 0.25)
+                              : AppTheme.warning.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          isSyncing
+                              ? SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: AppTheme.primaryLight,
+                                  ),
+                                )
+                              : Icon(
+                                  isSynced
+                                      ? Icons.cloud_done_rounded
+                                      : isError
+                                      ? Icons.cloud_off_rounded
+                                      : Icons.cloud_sync_rounded,
+                                  size: 14,
+                                  color: isSynced
+                                      ? AppTheme.success
+                                      : isError
+                                      ? AppTheme.danger
+                                      : AppTheme.warning,
                                 ),
-                              )
-                            : Icon(
-                                isSynced
-                                    ? Icons.cloud_done_rounded
-                                    : isError
-                                    ? Icons.cloud_off_rounded
-                                    : Icons.cloud_sync_rounded,
-                                size: 14,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isSyncing
+                                  ? 'Syncing...'
+                                  : isSynced
+                                  ? 'Cloud Synced'
+                                  : isError
+                                  ? 'Sync Error — Click to Retry'
+                                  : 'Offline — Click to Sync',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
                                 color: isSynced
                                     ? AppTheme.success
+                                    : isSyncing
+                                    ? AppTheme.primaryLight
                                     : isError
                                     ? AppTheme.danger
                                     : AppTheme.warning,
                               ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            isSyncing
-                                ? 'Syncing...'
-                                : isSynced
-                                ? 'Cloud Synced'
-                                : isError
-                                ? 'Sync Error — Tap to Retry'
-                                : 'Offline — Tap to Sync',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: isSynced
-                                  ? AppTheme.success
-                                  : isSyncing
-                                  ? AppTheme.primaryLight
-                                  : isError
-                                  ? AppTheme.danger
-                                  : AppTheme.warning,
                             ),
                           ),
-                        ),
-                        Icon(
-                          Icons.refresh_rounded,
-                          size: 14,
-                          color: isSynced
-                              ? AppTheme.success.withValues(alpha: 0.5)
-                              : AppTheme.textMuted,
-                        ),
-                      ],
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 14,
+                            color: isSynced
+                                ? AppTheme.success.withValues(alpha: 0.5)
+                                : AppTheme.textMuted,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );

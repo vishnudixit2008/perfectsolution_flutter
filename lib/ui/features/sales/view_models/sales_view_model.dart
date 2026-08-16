@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/pricelist_item.dart';
 import '../../../../data/models/sale.dart';
@@ -7,9 +8,22 @@ import '../../../../data/services/smart_search_utils.dart';
 
 class SalesViewModel extends ChangeNotifier {
   final ShopRepository _repository;
+  StreamSubscription? _dataSubscription;
 
   SalesViewModel({required ShopRepository repository})
-    : _repository = repository;
+    : _repository = repository {
+    _dataSubscription = _repository.onTableDataChanged.listen((table) {
+      if (table == 'pricelist_items' || table == 'pricelist' || table == 'all') {
+        loadCatalog();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _dataSubscription?.cancel();
+    super.dispose();
+  }
 
   // Search catalog state
   List<PricelistItem> _catalogItems = [];

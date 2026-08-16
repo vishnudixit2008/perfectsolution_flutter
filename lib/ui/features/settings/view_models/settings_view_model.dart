@@ -1,13 +1,20 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 
 class SettingsViewModel extends ChangeNotifier {
   final ShopRepository _repository;
+  StreamSubscription? _dataSubscription;
 
   SettingsViewModel({required ShopRepository repository})
     : _repository = repository {
     SupabaseSyncService.instance.addListener(_onSyncChanged);
+    _dataSubscription = _repository.onTableDataChanged.listen((table) {
+      if (table == 'shop_settings' || table == 'all') {
+        refreshSettingsSilently();
+      }
+    });
   }
 
   void _onSyncChanged() {
@@ -24,6 +31,7 @@ class SettingsViewModel extends ChangeNotifier {
   @override
   void dispose() {
     SupabaseSyncService.instance.removeListener(_onSyncChanged);
+    _dataSubscription?.cancel();
     super.dispose();
   }
 
