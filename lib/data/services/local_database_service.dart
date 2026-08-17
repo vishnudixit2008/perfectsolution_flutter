@@ -73,17 +73,27 @@ class LocalDatabaseService {
     if (Hive.isBoxOpen(boxName)) {
       return Hive.box(boxName);
     }
+    // First attempt
     try {
       return await Hive.openBox(boxName);
     } catch (e) {
-      if (kDebugMode) print('Hive openBox lock/error for $boxName: $e. Recovering...');
-      try {
-        await Hive.deleteBoxFromDisk(boxName);
-        return await Hive.openBox(boxName);
-      } catch (err) {
-        if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
-        return await Hive.openBox('${boxName}_fallback');
-      }
+      if (kDebugMode) print('Hive openBox lock/error for $boxName: $e. Retrying after 400ms...');
+    }
+    // Retry after a short delay — the previous app instance may still be releasing the lock
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (Hive.isBoxOpen(boxName)) return Hive.box(boxName);
+    try {
+      return await Hive.openBox(boxName);
+    } catch (e) {
+      if (kDebugMode) print('Hive second retry for $boxName: $e. Recovering...');
+    }
+    // Last resort: delete the corrupted/locked box and open fresh
+    try {
+      await Hive.deleteBoxFromDisk(boxName);
+      return await Hive.openBox(boxName);
+    } catch (err) {
+      if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
+      return await Hive.openBox('${boxName}_fallback');
     }
   }
 
@@ -340,6 +350,29 @@ class LocalDatabaseService {
 
   String? getActiveUpiId() {
     return _settingsBox.get('active_upi_id');
+  }
+
+  /// Returns the selected Google Review business listing key ('perfect_solution' or 'laptop_repairing')
+  String getGoogleReviewListing() {
+    return (_settingsBox.get('google_review_listing') as String?) ?? 'perfect_solution';
+  }
+
+  /// Saves selected Google Review business listing and syncs to Supabase shop_settings
+  Future<void> setGoogleReviewListing(String listingKey, {bool syncToCloud = true}) async {
+    final current = _settingsBox.get('google_review_listing');
+    if (current == listingKey && !syncToCloud) return;
+    await _settingsBox.put('google_review_listing', listingKey);
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'google_review_listing',
+          'value': listingKey,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
+    }
   }
 
   Future<void> setActiveUpiId(String upiId, {bool syncToCloud = true}) async {

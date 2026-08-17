@@ -25,6 +25,7 @@ class SettingsViewModel extends ChangeNotifier {
     _upiIds = _repository.getUpiIdsList();
     _upiNames = _repository.getUpiNamesMap();
     _activeUpiId = _repository.getActiveUpiId();
+    _googleReviewListing = _repository.getGoogleReviewListing();
     notifyListeners();
   }
 
@@ -33,6 +34,16 @@ class SettingsViewModel extends ChangeNotifier {
     SupabaseSyncService.instance.removeListener(_onSyncChanged);
     _dataSubscription?.cancel();
     super.dispose();
+  }
+
+  // ── Google Review Listing ──────────────────────────────────────────────────
+  String _googleReviewListing = 'perfect_solution';
+  String get googleReviewListing => _googleReviewListing;
+
+  Future<void> setGoogleReviewListing(String listingKey) async {
+    _googleReviewListing = listingKey;
+    await _repository.saveGoogleReviewListing(listingKey);
+    notifyListeners();
   }
 
   // ── UPI ──────────────────────────────────────────────────────────────────
@@ -80,6 +91,8 @@ class SettingsViewModel extends ChangeNotifier {
         _activeUpiId = _upiIds.first;
         await _repository.setActiveUpiId(_activeUpiId!);
       }
+
+      _googleReviewListing = _repository.getGoogleReviewListing();
 
       // Invoice print settings
       _invoicePageSize = _repository.getInvoicePageSize();

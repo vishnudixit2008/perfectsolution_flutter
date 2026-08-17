@@ -1967,7 +1967,11 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
-                    decoration: const InputDecoration(labelText: 'Repair Status'),
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Repair Status',
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
                     dropdownColor: const Color(0xFF131A2E),
                     onChanged: isStatusMod
                         ? (val) {
@@ -1990,7 +1994,14 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                           }
                           return selectableList;
                         })().map((st) {
-                          return DropdownMenuItem(value: st, child: Text(st));
+                          return DropdownMenuItem(
+                            value: st,
+                            child: Text(
+                              st,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          );
                         }).toList(),
                   ),
                 ),

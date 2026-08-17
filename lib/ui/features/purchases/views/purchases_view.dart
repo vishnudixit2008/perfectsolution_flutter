@@ -1468,6 +1468,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Order Status'),
                     dropdownColor: const Color(0xFF131A2E),
                     onChanged: isStatusMod ? (val) {
@@ -1485,7 +1486,14 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                           }
                           return selectableList;
                         })().map((st) {
-                          return DropdownMenuItem(value: st, child: Text(st));
+                          return DropdownMenuItem(
+                            value: st,
+                            child: Text(
+                              st,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          );
                         }).toList(),
                   ),
                 ),

@@ -107,7 +107,6 @@ class UserPermissionService {
   static Future<void> syncSingleUserFromCloud(String email) async {
     final cleanEmail = email.toLowerCase().trim();
     if (cleanEmail.isEmpty) return;
-    if (AppUser.isPermanentAdmin(cleanEmail)) return;
 
     try {
       final res = await Supabase.instance.client
@@ -135,22 +134,31 @@ class UserPermissionService {
     try {
       final email = getCurrentUserEmail().toLowerCase().trim();
 
-      // Permanent Pure Admins override everything
+      final box = _getBox();
+      final userData = box?.get(email);
+      if (userData != null && userData is Map) {
+        final parsedUser = AppUser.fromJson(Map<String, dynamic>.from(userData));
+        if (AppUser.isPermanentAdmin(email)) {
+          final name = parsedUser.name.isNotEmpty
+              ? parsedUser.name
+              : (email.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin');
+          _cachedCurrentUser = AppUser.defaultAdmin(
+            email: email,
+            name: name,
+            password: parsedUser.password,
+            customStatusLists: parsedUser.customStatusLists,
+            defaultStatuses: parsedUser.defaultStatuses,
+          );
+        } else {
+          _cachedCurrentUser = parsedUser;
+        }
+        return _cachedCurrentUser!;
+      }
+
+      // Permanent Pure Admins fallback
       if (AppUser.isPermanentAdmin(email)) {
         final name = email.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin';
         _cachedCurrentUser = AppUser.defaultAdmin(email: email, name: name);
-        return _cachedCurrentUser!;
-      }
-
-      final box = _getBox();
-      if (box == null) {
-        _cachedCurrentUser = AppUser.defaultEmployee(email, email);
-        return _cachedCurrentUser!;
-      }
-
-      final userData = box.get(email);
-      if (userData != null && userData is Map) {
-        _cachedCurrentUser = AppUser.fromJson(Map<String, dynamic>.from(userData));
         return _cachedCurrentUser!;
       }
 
@@ -227,7 +235,9 @@ class UserPermissionService {
           await box.delete(key);
         }
       }
+      // Clear all caches so next read reflects freshly synced permissions/statuses
       _cachedCurrentUser = null;
+      StatusManagementService.clearCache();
     } catch (_) {
     } finally {
       _isSyncingUsers = false;
@@ -235,17 +245,32 @@ class UserPermissionService {
   }
 
   static Future<void> saveUser(AppUser user) async {
+    final cleanEmail = user.email.toLowerCase().trim();
     final box = _getBox();
-    if (box != null) {
-      await box.put(user.email.toLowerCase().trim(), user.toJson());
+
+    // Preserve existing local password if not provided in user model
+    String? finalPassword = user.password;
+    if ((finalPassword == null || finalPassword.trim().isEmpty) && box != null) {
+      final existingRaw = box.get(cleanEmail);
+      if (existingRaw is Map) {
+        final existingPass = (existingRaw['password'] ?? existingRaw['user_password'])?.toString();
+        if (existingPass != null && existingPass.trim().isNotEmpty) {
+          finalPassword = existingPass.trim();
+        }
+      }
     }
 
-    final cloudPayload = {
-      'email': user.email.toLowerCase().trim(),
+    final userToSave = user.copyWith(password: finalPassword);
+
+    if (box != null) {
+      await box.put(cleanEmail, userToSave.toJson());
+    }
+
+    final cloudPayload = <String, dynamic>{
+      'email': cleanEmail,
       'name': user.name,
       'role': user.role,
       'is_active': user.isActive,
-      'user_password': user.password,
       'page_access': user.pageAccess,
       'action_access': user.actionAccess,
       'page_action_access': {
@@ -261,6 +286,12 @@ class UserPermissionService {
       'status_selectable_access': user.statusSelectableAccess,
       'updated_at': DateTime.now().toIso8601String(),
     };
+
+    // CRITICAL: Only include user_password in cloud payload if it is non-empty
+    // NEVER overwrite an existing database password with null!
+    if (finalPassword != null && finalPassword.trim().isNotEmpty) {
+      cloudPayload['user_password'] = finalPassword.trim();
+    }
 
     try {
       // First attempt: include dedicated columns if they exist in Postgres
@@ -334,16 +365,29 @@ class UserPermissionService {
   static AppUser? getUser(String email) {
     final cleanEmail = email.toLowerCase().trim();
     if (cleanEmail.isEmpty) return null;
-    if (AppUser.isPermanentAdmin(cleanEmail)) {
-      final name = cleanEmail.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin';
-      return AppUser.defaultAdmin(email: cleanEmail, name: name);
-    }
     final box = _getBox();
     if (box != null) {
       final raw = box.get(cleanEmail);
       if (raw != null && raw is Map) {
-        return AppUser.fromJson(Map<String, dynamic>.from(raw));
+        final parsed = AppUser.fromJson(Map<String, dynamic>.from(raw));
+        if (AppUser.isPermanentAdmin(cleanEmail)) {
+          final name = parsed.name.isNotEmpty
+              ? parsed.name
+              : (cleanEmail.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin');
+          return AppUser.defaultAdmin(
+            email: cleanEmail,
+            name: name,
+            password: parsed.password,
+            customStatusLists: parsed.customStatusLists,
+            defaultStatuses: parsed.defaultStatuses,
+          );
+        }
+        return parsed;
       }
+    }
+    if (AppUser.isPermanentAdmin(cleanEmail)) {
+      final name = cleanEmail.contains('vishnu') ? 'Vishnu Dixit (Admin)' : 'Perfect Solution Admin';
+      return AppUser.defaultAdmin(email: cleanEmail, name: name);
     }
     return null;
   }

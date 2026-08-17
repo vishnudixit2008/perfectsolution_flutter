@@ -1910,6 +1910,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
+                    isExpanded: true,
                     dropdownColor: const Color(0xFF131A2E),
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: _buildInputDecoration('Status'),
@@ -1936,7 +1937,11 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                         })().map((st) {
                           return DropdownMenuItem<String>(
                             value: st,
-                            child: Text(st),
+                            child: Text(
+                              st,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           );
                         }).toList(),
                   ),

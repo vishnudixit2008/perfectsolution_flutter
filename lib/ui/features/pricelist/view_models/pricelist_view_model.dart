@@ -14,6 +14,8 @@ class PricelistViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'pricelist_items' || table == 'pricelist' || table == 'all') {
         loadItems();
+      } else if (table == 'app_users') {
+        loadItems();
       }
     });
   }

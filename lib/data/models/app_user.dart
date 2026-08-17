@@ -304,12 +304,16 @@ class AppUser {
   factory AppUser.defaultAdmin({
     String email = 'perfectsolutionnoida@gmail.com',
     String name = 'Perfect Solution Admin',
+    String? password,
+    Map<String, List<String>>? customStatusLists,
+    Map<String, String>? defaultStatuses,
   }) {
     return AppUser(
       email: email,
       name: name,
       role: 'admin',
       isActive: true,
+      password: password,
       pageAccess: {for (var m in modules) m: true},
       actionAccess: {
         'canAdd': true,
@@ -328,6 +332,8 @@ class AppUser {
       statusVisibilityAccess: _defaultStatusAccess(),
       statusSelectableAccess: _defaultStatusAccess(),
       onlyAssignedAccess: _defaultOnlyAssignedAccess(),
+      customStatusLists: customStatusLists ?? {},
+      defaultStatuses: defaultStatuses ?? {},
     );
   }
 

@@ -13,6 +13,8 @@ class RecentSalesViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'sales' || table == 'all') {
         loadSales();
+      } else if (table == 'app_users') {
+        loadSales();
       }
     });
   }

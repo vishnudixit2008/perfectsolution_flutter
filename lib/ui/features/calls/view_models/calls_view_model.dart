@@ -12,6 +12,8 @@ class CallsViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'calls' || table == 'all') {
         loadCalls();
+      } else if (table == 'app_users') {
+        loadCalls();
       }
     });
   }

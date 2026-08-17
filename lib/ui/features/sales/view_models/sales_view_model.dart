@@ -15,6 +15,8 @@ class SalesViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'pricelist_items' || table == 'pricelist' || table == 'all') {
         loadCatalog();
+      } else if (table == 'app_users') {
+        loadCatalog();
       }
     });
   }

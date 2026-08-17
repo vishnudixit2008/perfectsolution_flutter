@@ -67,6 +67,9 @@ class ShopRepository {
   String? getActiveUpiId() => _localDb.getActiveUpiId();
   Future<void> setActiveUpiId(String upiId, {bool syncToCloud = true}) async =>
       await _localDb.setActiveUpiId(upiId, syncToCloud: syncToCloud);
+  String getGoogleReviewListing() => _localDb.getGoogleReviewListing();
+  Future<void> saveGoogleReviewListing(String listingKey, {bool syncToCloud = true}) async =>
+      await _localDb.setGoogleReviewListing(listingKey, syncToCloud: syncToCloud);
   List<String> getUpiIdsList() => _localDb.getUpiIdsList();
   Future<void> saveUpiIdsList(List<String> upiIds) async =>
       await _localDb.saveUpiIdsList(upiIds);

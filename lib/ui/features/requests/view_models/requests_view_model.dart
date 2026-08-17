@@ -12,6 +12,8 @@ class RequestsViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'requests' || table == 'all') {
         loadRequests();
+      } else if (table == 'app_users') {
+        loadRequests();
       }
     });
   }

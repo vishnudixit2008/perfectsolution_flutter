@@ -13,6 +13,8 @@ class PurchasesViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'purchases' || table == 'all') {
         loadPurchases();
+      } else if (table == 'app_users') {
+        loadPurchases();
       }
     });
   }

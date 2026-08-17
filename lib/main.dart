@@ -34,7 +34,6 @@ void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) print('IconRegistry loaded: ${IconRegistry.icons.length}');
 
-
   // Register Windows URL Scheme Protocol under HKCU (No Admin elevation required)
   await _registerWindowsProtocolHandler();
 
@@ -117,16 +116,32 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Only wire up deep link listener on native platforms (not web)
     if (!kIsWeb) {
       _initDeepLinkHandling();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (kDebugMode) {
+        print('[Lifecycle] App resumed / screen unlocked — triggering quick delta catchup sync');
+      }
+      try {
+        final repo = Provider.of<ShopRepository>(context, listen: false);
+        SupabaseSyncService.instance.onAppResume(repo.localDb);
+      } catch (e) {
+        if (kDebugMode) print('[Lifecycle] Resume sync trigger error: $e');
+      }
     }
   }
 
@@ -173,6 +188,7 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSubscription?.cancel();
     super.dispose();
   }

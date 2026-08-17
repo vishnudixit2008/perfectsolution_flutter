@@ -1522,6 +1522,8 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
       statusVisibilityAccess: statusVisibilityAccess,
       statusSelectableAccess: statusSelectableAccess,
       onlyAssignedAccess: onlyAssignedAccess,
+      customStatusLists: existingUser?.customStatusLists ?? {},
+      defaultStatuses: existingUser?.defaultStatuses ?? {},
     );
 
     await UserPermissionService.saveUser(user);

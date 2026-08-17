@@ -12,6 +12,8 @@ class ReplacementsViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'replacements' || table == 'all') {
         loadReplacements();
+      } else if (table == 'app_users') {
+        loadReplacements();
       }
     });
   }

@@ -1473,6 +1473,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     initialValue: _status,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Status'),
                     dropdownColor: const Color(0xFF131A2E),
                     onChanged: isStatusMod
@@ -1492,7 +1493,14 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                           }
                           return selectableList;
                         })().map((st) {
-                          return DropdownMenuItem(value: st, child: Text(st));
+                          return DropdownMenuItem(
+                            value: st,
+                            child: Text(
+                              st,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          );
                         }).toList(),
                   ),
                 ),

@@ -16,6 +16,7 @@ import '../models/sale.dart';
 import '../services/local_database_service.dart';
 import '../services/user_permission_service.dart';
 import '../repositories/shop_repository.dart';
+import '../../ui/shared/status_management_dialog.dart';
 import 'ui_preferences_service.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
@@ -128,26 +129,54 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Background passive health monitor every 3 minutes (180s) to save 95% bandwidth.
-  /// Only pings if the connection was marked offline or encountered an error.
+  /// Background passive health monitor every 2 minutes.
+  /// Reconnects dropped WebSockets and performs an ultra-fast Delta Catch-up Sync (0 egress if no changes).
   void _startHeartbeat(LocalDatabaseService localDb) {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(minutes: 3), (_) async {
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
       if (!_isInitialized) return;
-      // If already live synced and healthy via WebSocket, skip HTTP egress
-      if (_status == SyncStatus.synced) return;
 
       try {
-        final client = Supabase.instance.client;
-        await client.from('shop_settings').select('key').limit(1).timeout(const Duration(seconds: 4));
-        _setStatus(SyncStatus.synced, 'Live Synced');
-        unawaited(flushOfflineQueue(localDb));
-      } catch (e) {
-        if (_status != SyncStatus.syncing) {
-          _setStatus(SyncStatus.offline, 'Cloud Connection Offline');
+        ensureRealtimeConnected(localDb);
+        // Fast delta catchup query: takes ~50ms and fetches 0 rows if nothing changed
+        await syncAllTablesFromCloud(localDb, forceDelta: true);
+        await flushOfflineQueue(localDb);
+        if (_status != SyncStatus.synced) {
+          _setStatus(SyncStatus.synced, 'Live Synced');
         }
+      } catch (e) {
+        if (kDebugMode) print('[SupabaseSync] Heartbeat delta sync check: $e');
       }
     });
+  }
+
+  /// Triggered on app resume from sleep / background.
+  /// Immediately verifies WebSocket connection and executes an instant catch-up delta sync.
+  Future<void> onAppResume(LocalDatabaseService localDb) async {
+    if (!_isInitialized) {
+      ShopRepository.notifyTableChanged('all');
+      return;
+    }
+
+    if (kDebugMode) print('[SupabaseSync] App resumed — running quick catch-up delta sync');
+    ensureRealtimeConnected(localDb);
+    try {
+      await syncAllTablesFromCloud(localDb, forceDelta: true);
+      await flushOfflineQueue(localDb);
+      _setStatus(SyncStatus.synced, 'Live Synced');
+    } catch (e) {
+      if (kDebugMode) print('[SupabaseSync] onAppResume sync error: $e');
+    } finally {
+      ShopRepository.notifyTableChanged('all');
+    }
+  }
+
+  /// Verifies Realtime WebSocket subscription is active, recreating channel if missing.
+  void ensureRealtimeConnected(LocalDatabaseService localDb) {
+    if (!_isInitialized) return;
+    if (_realtimeChannel == null) {
+      _subscribeRealtime(localDb);
+    }
   }
 
   /// On startup: pull from cloud, then flush any offline-queued operations.
@@ -232,6 +261,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Subscribes to real-time table mutations broadcast by Supabase.
   /// Uses native WebSocket status & debounced targeted delta sync to fetch only new/modified rows per table.
+  /// Auto-reconnects on channel drop (handles ngrok/proxy session timeouts).
   void _subscribeRealtime(LocalDatabaseService localDb) {
     try {
       _realtimeChannel?.unsubscribe();
@@ -267,10 +297,17 @@ class SupabaseSyncService extends ChangeNotifier {
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
-            if (kDebugMode) print('Supabase Realtime connection state: $status (error: $error)');
+            if (kDebugMode) print('Supabase Realtime connection dropped: $status (error: $error). Will reconnect in 5s...');
             if (_status != SyncStatus.syncing) {
               _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
             }
+            // Auto-reconnect after brief delay — handles ngrok session timeouts and transient drops
+            Future.delayed(const Duration(seconds: 5), () {
+              if (_isInitialized) {
+                if (kDebugMode) print('Supabase Realtime: attempting reconnect...');
+                _subscribeRealtime(localDb);
+              }
+            });
           }
         });
     } catch (e) {
@@ -453,12 +490,12 @@ class SupabaseSyncService extends ChangeNotifier {
   /// Fetches authoritative data from Supabase and mirrors into local Hive.
   /// Uses Delta Sync (updated_at filter) to download only changed rows,
   /// preserving 0ms local reads while reducing Egress by >90%.
-  Future<void> syncAllTablesFromCloud(LocalDatabaseService localDb, {bool force = false}) async {
+  Future<void> syncAllTablesFromCloud(LocalDatabaseService localDb, {bool force = false, bool forceDelta = false}) async {
     if (!_isInitialized) return;
 
-    // Throttling: If synced less than 30s ago and not forced, skip to save egress
+    // Throttling: If synced less than 15s ago and neither force nor forceDelta, skip to save egress
     final now = DateTime.now();
-    if (!force && _lastFullSyncTime != null && now.difference(_lastFullSyncTime!).inSeconds < 30) {
+    if (!force && !forceDelta && _lastFullSyncTime != null && now.difference(_lastFullSyncTime!).inSeconds < 15) {
       if (kDebugMode) print('Sync skipped: synced recently (${now.difference(_lastFullSyncTime!).inSeconds}s ago)');
       return;
     }
@@ -805,6 +842,17 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         }
 
+        if (settingsMap.containsKey('google_review_listing') && settingsMap['google_review_listing'] != null) {
+          await localDb.setGoogleReviewListing(settingsMap['google_review_listing'].toString(), syncToCloud: false);
+        } else if (!isDelta) {
+          final localReview = localDb.getGoogleReviewListing();
+          await client.from('shop_settings').upsert({
+            'key': 'google_review_listing',
+            'value': localReview,
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        }
+
         if (settingsMap.containsKey('upi_ids_list') && settingsMap['upi_ids_list'] is List) {
           final list = (settingsMap['upi_ids_list'] as List).map((e) => e.toString()).toList();
           await localDb.saveUpiIdsList(list, syncToCloud: false);
@@ -833,6 +881,13 @@ class SupabaseSyncService extends ChangeNotifier {
               'updated_at': DateTime.now().toIso8601String(),
             });
           }
+        }
+
+        if (settingsMap.containsKey('shop_custom_statuses') && settingsMap['shop_custom_statuses'] is Map) {
+          await StatusManagementService.loadFromCustomStatusesMap(settingsMap['shop_custom_statuses']);
+        }
+        if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] is Map) {
+          await StatusManagementService.loadFromDefaultStatusesMap(settingsMap['shop_default_statuses']);
         }
       } catch (e) {
         if (kDebugMode) print('Shop settings sync error: $e');
@@ -1138,7 +1193,10 @@ class SupabaseSyncService extends ChangeNotifier {
 
         case 'app_users':
           await UserPermissionService.syncUsersFromCloud(force: true);
+          // Broadcast 'all' so every view model re-reads fresh permission/status data
           ShopRepository.notifyTableChanged('app_users');
+          ShopRepository.notifyTableChanged('all');
+
 
         case 'shop_settings':
           final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
@@ -1149,15 +1207,21 @@ class SupabaseSyncService extends ChangeNotifier {
               await localDb.saveUpiIdsList(List<String>.from(value.map((e) => e.toString())), syncToCloud: false);
             } else if (key == 'active_upi_id' && value != null) {
               await localDb.setActiveUpiId(value.toString(), syncToCloud: false);
+            } else if (key == 'google_review_listing' && value != null) {
+              await localDb.setGoogleReviewListing(value.toString(), syncToCloud: false);
             } else if (key == 'upi_names_map' && value is Map) {
               final map = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
               await localDb.saveUpiNamesMap(map, syncToCloud: false);
+            } else if (key == 'shop_custom_statuses' && value is Map) {
+              await StatusManagementService.loadFromCustomStatusesMap(value);
+            } else if (key == 'shop_default_statuses' && value is Map) {
+              await StatusManagementService.loadFromDefaultStatusesMap(value);
             }
           }
           ShopRepository.notifyTableChanged('shop_settings');
+          ShopRepository.notifyTableChanged('all');
       }
 
-      await UiPreferencesService.setValue('last_full_sync_timestamp', DateTime.now().millisecondsSinceEpoch);
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Delta sync error ($tableName): $e');

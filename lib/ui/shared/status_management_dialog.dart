@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../ui/core/app_theme.dart';
 import '../../data/services/user_permission_service.dart';
+import '../../data/repositories/shop_repository.dart';
+import '../../data/services/supabase_sync_service.dart';
 
 class StatusManagementService {
   static const String _boxName = 'status_management_box';
@@ -65,24 +67,84 @@ class StatusManagementService {
     final box = _getBox();
     final prefix = _getUserPrefix(user.email);
 
+    // Wipe stale in-memory cache so any updated status lists are applied immediately
+    _cache.clear();
+
     if (user.customStatusLists != null && user.customStatusLists is Map) {
-      final customLists = user.customStatusLists as Map<String, List<String>>;
+      final Map customLists = user.customStatusLists as Map;
       for (final entry in customLists.entries) {
-        if (entry.value.isNotEmpty) {
-          await box.put('$prefix$_statusListKeyPrefix${entry.key}', entry.value);
-          _cache[entry.key] = List<String>.from(entry.value);
+        final modKey = entry.key.toString();
+        if (entry.value is List) {
+          final list = (entry.value as List).map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+          if (list.isNotEmpty) {
+            await box.put('$prefix$_statusListKeyPrefix$modKey', list);
+            await box.put('$_statusListKeyPrefix$modKey', list);
+            _cache[modKey] = List<String>.from(list);
+          }
         }
       }
     }
 
     if (user.defaultStatuses != null && user.defaultStatuses is Map) {
-      final defStatuses = user.defaultStatuses as Map<String, String>;
+      final Map defStatuses = user.defaultStatuses as Map;
       for (final entry in defStatuses.entries) {
-        if (entry.value.isNotEmpty) {
-          await box.put('$prefix$_defaultStatusPrefix${entry.key}', entry.value);
+        final modKey = entry.key.toString();
+        final defVal = entry.value?.toString().trim();
+        if (defVal != null && defVal.isNotEmpty) {
+          await box.put('$prefix$_defaultStatusPrefix$modKey', defVal);
+          await box.put('$_defaultStatusPrefix$modKey', defVal);
         }
       }
     }
+  }
+
+  /// Hydrate directly from shop_settings table
+  static Future<void> loadFromCustomStatusesMap(Map rawMap) async {
+    final box = _getBox();
+    final prefix = _getUserPrefix();
+    for (final entry in rawMap.entries) {
+      final modKey = entry.key.toString();
+      if (entry.value is List) {
+        final list = (entry.value as List).map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+        if (list.isNotEmpty) {
+          await box.put('$prefix$_statusListKeyPrefix$modKey', list);
+          await box.put('$_statusListKeyPrefix$modKey', list);
+          _cache[modKey] = List<String>.from(list);
+        }
+      }
+    }
+  }
+
+  /// Hydrate default statuses directly from shop_settings table
+  static Future<void> loadFromDefaultStatusesMap(Map rawMap) async {
+    final box = _getBox();
+    final prefix = _getUserPrefix();
+    for (final entry in rawMap.entries) {
+      final modKey = entry.key.toString();
+      final defVal = entry.value?.toString().trim();
+      if (defVal != null && defVal.isNotEmpty) {
+        await box.put('$prefix$_defaultStatusPrefix$modKey', defVal);
+        await box.put('$_defaultStatusPrefix$modKey', defVal);
+      }
+    }
+  }
+
+  /// Returns all custom status lists for shop
+  static Map<String, List<String>> getAllCustomStatusLists() {
+    final Map<String, List<String>> res = {};
+    for (final mod in ['inward', 'calls', 'replacements', 'requests', 'purchases', 'sales']) {
+      res[mod] = getStatuses(mod);
+    }
+    return res;
+  }
+
+  /// Returns all default statuses for shop
+  static Map<String, String> getAllDefaultStatuses() {
+    final Map<String, String> res = {};
+    for (final mod in ['inward', 'calls', 'replacements', 'requests', 'purchases', 'sales']) {
+      res[mod] = getDefaultStatus(mod);
+    }
+    return res;
   }
 
   /// Invalidate/clear in-memory cache on user switch
@@ -119,8 +181,9 @@ class StatusManagementService {
     final box = _getBox();
     final prefix = _getUserPrefix();
     await box.put('$prefix$_defaultStatusPrefix$moduleKey', status);
+    await box.put('$_defaultStatusPrefix$moduleKey', status);
 
-    // Sync to user profile in cloud
+    // 1. Sync to user profile in cloud
     try {
       final currentUser = UserPermissionService.getCurrentUser();
       final updatedDefaults = Map<String, String>.from(currentUser.defaultStatuses);
@@ -128,6 +191,22 @@ class StatusManagementService {
       final updatedUser = currentUser.copyWith(defaultStatuses: updatedDefaults);
       await UserPermissionService.saveUser(updatedUser);
     } catch (_) {}
+
+    // 2. Sync to shop_settings so all shop devices receive the status update immediately
+    try {
+      final allDefs = getAllDefaultStatuses();
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'shop_default_statuses',
+          'value': allDefs,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      ));
+    } catch (_) {}
+
+    ShopRepository.notifyTableChanged('app_users');
+    ShopRepository.notifyTableChanged('all');
   }
 
   /// Scan the database once and return unique statuses found in it.
@@ -248,10 +327,11 @@ class StatusManagementService {
     final box = _getBox();
     final prefix = _getUserPrefix();
     await box.put('$prefix$_statusListKeyPrefix$moduleKey', statuses);
+    await box.put('$_statusListKeyPrefix$moduleKey', statuses);
     // Update cache immediately
     _cache[moduleKey] = List<String>.from(statuses);
 
-    // Sync to user profile in cloud
+    // 1. Sync to user profile in cloud
     try {
       final currentUser = UserPermissionService.getCurrentUser();
       final updatedLists = Map<String, List<String>>.from(currentUser.customStatusLists);
@@ -259,6 +339,22 @@ class StatusManagementService {
       final updatedUser = currentUser.copyWith(customStatusLists: updatedLists);
       await UserPermissionService.saveUser(updatedUser);
     } catch (_) {}
+
+    // 2. Sync to shop_settings so all shop devices receive the status update immediately
+    try {
+      final allLists = getAllCustomStatusLists();
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'shop_custom_statuses',
+          'value': allLists,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+      ));
+    } catch (_) {}
+
+    ShopRepository.notifyTableChanged('app_users');
+    ShopRepository.notifyTableChanged('all');
   }
 
   /// Invalidate the cache for a module (call after external data changes)

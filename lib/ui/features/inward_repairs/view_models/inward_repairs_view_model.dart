@@ -13,6 +13,9 @@ class InwardRepairsViewModel extends ChangeNotifier {
     _dataSubscription = _repository.onTableDataChanged.listen((table) {
       if (table == 'inward_repairs' || table == 'all') {
         loadRepairs();
+      } else if (table == 'app_users') {
+        // Permissions/statuses changed — reload to re-apply updated access rules
+        loadRepairs();
       }
     });
   }

@@ -1480,6 +1480,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
           if (isStatusVis) ...[
             DropdownButtonFormField<String>(
               initialValue: _status,
+              isExpanded: true,
               decoration: const InputDecoration(labelText: 'Replacement Status'),
               dropdownColor: const Color(0xFF131A2E),
               onChanged: isStatusMod
@@ -1503,10 +1504,17 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                     }
                     return selectableList;
                   })().map((st) {
-                    return DropdownMenuItem(value: st, child: Text(st));
+                    return DropdownMenuItem(
+                      value: st,
+                      child: Text(
+                        st,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    );
                   }).toList(),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
           ],
 
           // Deposit Date Picker
