@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,48 +12,15 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-release:
-    name: Build & Release (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: android
-            os: ubuntu-latest
-            build_cmd: flutter build apk --release --no-tree-shake-icons
-            artifact_path: build/app/outputs/flutter-apk/app-release.apk
-            asset_name: ShopManagement-Android.apk
-
-          - target: windows
-            os: windows-latest
-            build_cmd: flutter build windows --release --no-tree-shake-icons
-            artifact_path: build/windows/x64/runner/Release/
-            asset_name: PerfectSolution-Setup.exe
-
-
-          - target: macos
-            os: macos-latest
-            build_cmd: flutter build macos --release
-            artifact_path: build/macos/Build/Products/Release/
-            asset_name: ShopManagement-macOS.dmg
-
-          - target: web
-            os: ubuntu-latest
-            build_cmd: flutter build web --release
-            artifact_path: build/web
-            asset_name: web-build
-
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Windows Release Build (EXE Installer with bundled MSVC Runtime & Flutter Assets)
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-windows:
+    name: Build & Release (Windows)
+    runs-on: windows-latest
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-
-      - name: Setup Java SDK
-        if: matrix.target == 'android'
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
 
       - name: Setup Flutter SDK
         uses: subosito/flutter-action@v2
@@ -60,22 +28,18 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Enable Desktop Support
+      - name: Enable Windows Desktop Support
         run: |
-          flutter config --enable-macos-desktop --enable-windows-desktop
-          flutter create --platforms=macos,windows .
-
+          flutter config --enable-windows-desktop
+          flutter create --platforms=windows .
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Target Artifact
-        run: |
-          ${{ matrix.build_cmd }} || (sleep 5 && ${{ matrix.build_cmd }})
-
+      - name: Build Windows Executable
+        run: flutter build windows --release --no-tree-shake-icons
 
       - name: Verify and Fix Release Folder Contents
-        if: matrix.target == 'windows'
         shell: powershell
         run: |
           $releaseDir = 'build\windows\x64\runner\Release'
@@ -127,10 +91,7 @@ jobs:
             Write-Host "Copied app.so to data folder"
           }
 
-          # 4. CRITICAL FIX FOR BAD IMAGE / MISSING CRT DLLs:
-          # Copy MSVC C++ Runtime DLLs (vcruntime140.dll, vcruntime140_1.dll, msvcp140.dll, etc.)
-          # directly into the release root folder so app_links_plugin.dll and executable
-          # find them locally on any Windows version without relying on system installs.
+          # 4. Copy MSVC C++ Runtime DLLs directly into release root folder
           Write-Host "=== Bundling MSVC C++ Runtime DLLs directly into Release folder ==="
           $vsRedistDir = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio\2022" -Recurse -Filter "Microsoft.VC*.CRT" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
           if ($vsRedistDir) {
@@ -153,10 +114,8 @@ jobs:
           Get-ChildItem $releaseDir | Select-Object Name
 
       - name: Download VC++ Redistributable Installer
-        if: matrix.target == 'windows'
         shell: powershell
         run: |
-          # Download official Microsoft VC++ 2015-2022 x64 Redistributable
           $url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
           $out = "vc_redist.x64.exe"
           Write-Host "Downloading VC++ Redistributable from $url ..."
@@ -168,18 +127,15 @@ jobs:
           }
 
       - name: Package Windows Installer
-        if: matrix.target == 'windows'
         shell: powershell
         run: |
           choco install innosetup --yes --no-progress
 
           $iss = "installer.iss"
 
-          # [Setup]
           Set-Content  -Path $iss -Encoding UTF8 -Value "[Setup]"
           Add-Content  -Path $iss -Value "AppName=Perfect Solution"
-          Add-Content  -Path $iss -Value "AppVersion=1.1.9"
-
+          Add-Content  -Path $iss -Value "AppVersion=1.2.3"
           Add-Content  -Path $iss -Value "AppPublisher=Perfect Solution"
           Add-Content  -Path $iss -Value "AppPublisherURL=https://github.com/vishnudixit2008/perfectsolution_flutter"
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
@@ -197,30 +153,25 @@ jobs:
           Add-Content  -Path $iss -Value "RestartApplications=no"
           Add-Content  -Path $iss -Value ""
 
-          # [Files] - app files + bundled CRT DLLs + VC++ Redist installer
           Add-Content  -Path $iss -Value "[Files]"
           Add-Content  -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
           Add-Content  -Path $iss -Value 'Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall'
           Add-Content  -Path $iss -Value ""
 
-          # [Icons]
           Add-Content  -Path $iss -Value "[Icons]"
           Add-Content  -Path $iss -Value 'Name: "{autoprograms}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"'
           Add-Content  -Path $iss -Value 'Name: "{autodesktop}\Perfect Solution"; Filename: "{app}\shop_management_flutter.exe"; Tasks: desktopicon'
           Add-Content  -Path $iss -Value ""
 
-          # [Tasks]
           Add-Content  -Path $iss -Value "[Tasks]"
           Add-Content  -Path $iss -Value 'Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"'
           Add-Content  -Path $iss -Value ""
 
-          # [Run] - Install VC++ Redistributable after extraction to {tmp}, then launch app
           Add-Content  -Path $iss -Value "[Run]"
           Add-Content  -Path $iss -Value 'Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Installing Visual C++ Redistributable Prerequisites..."; Flags: waituntilterminated; Check: NeedsVCRedist'
           Add-Content  -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
           Add-Content  -Path $iss -Value ""
 
-          # [Code] - Check if VC++ Redistributable is installed on system
           Add-Content  -Path $iss -Value "[Code]"
           Add-Content  -Path $iss -Value "function NeedsVCRedist: Boolean;"
           Add-Content  -Path $iss -Value "var"
@@ -234,8 +185,76 @@ jobs:
 
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
+      - name: Upload Windows Setup to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PerfectSolution-Setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Android Release Build (APK)
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-android:
+    name: Build & Release (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java SDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Android APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload Android APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # macOS Release Build (DMG)
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-macos:
+    name: Build & Release (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Enable macOS Desktop Support
+        run: |
+          flutter config --enable-macos-desktop
+          flutter create --platforms=macos .
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build macOS App
+        run: flutter build macos --release
+
       - name: Package macOS DMG
-        if: matrix.target == 'macos'
         run: |
           mkdir -p dist_macos
           cp -R "build/macos/Build/Products/Release/Perfect Solution.app" dist_macos/ || cp -R build/macos/Build/Products/Release/*.app dist_macos/
@@ -251,19 +270,36 @@ jobs:
             "PerfectSolution-macOS.dmg" \
             "dist_macos/" || hdiutil create -volname "Perfect Solution" -srcfolder "dist_macos/" -ov -format UDZO PerfectSolution-macOS.dmg
 
-      - name: Upload Artifacts to GitHub Release
-        if: matrix.target != 'web'
+      - name: Upload macOS DMG to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ${{ matrix.target == 'android' && 'build/app/outputs/flutter-apk/app-release.apk' || '' }}
-            ${{ matrix.target == 'windows' && 'PerfectSolution-Setup.exe' || '' }}
-            ${{ matrix.target == 'macos' && 'PerfectSolution-macOS.dmg' || '' }}
+          files: PerfectSolution-macOS.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Web Release Build (GitHub Pages)
+  # ─────────────────────────────────────────────────────────────────────────────
+  release-web:
+    name: Build & Deploy (Web)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Web Application
+        run: flutter build web --release
+
       - name: Deploy Web to GitHub Pages
-        if: matrix.target == 'web'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

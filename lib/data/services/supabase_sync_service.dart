@@ -43,6 +43,8 @@ class SupabaseSyncService extends ChangeNotifier {
   // Debounce timer to prevent realtime event flood
   Timer? _debounceTimer;
   Timer? _heartbeatTimer;
+  Timer? _offlineDebounceTimer;
+  Timer? _reconnectTimer;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
@@ -289,6 +291,8 @@ class SupabaseSyncService extends ChangeNotifier {
         )
         ..subscribe((status, [error]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
+            _offlineDebounceTimer?.cancel();
+            _reconnectTimer?.cancel();
             if (kDebugMode) print('Supabase Realtime subscribed successfully');
             if (_status != SyncStatus.syncing) {
               _setStatus(SyncStatus.synced, 'Live Synced');
@@ -297,15 +301,22 @@ class SupabaseSyncService extends ChangeNotifier {
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
-            if (kDebugMode) print('Supabase Realtime connection dropped: $status (error: $error). Will reconnect in 5s...');
-            if (_status != SyncStatus.syncing) {
-              _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
-            }
-            // Auto-reconnect after brief delay — handles ngrok session timeouts and transient drops
-            Future.delayed(const Duration(seconds: 5), () {
+            if (kDebugMode) print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting...');
+
+            // Proactively attempt reconnect after brief 1.5s delay (handles channel refreshes & proxy drops)
+            _reconnectTimer?.cancel();
+            _reconnectTimer = Timer(const Duration(milliseconds: 1500), () {
               if (_isInitialized) {
-                if (kDebugMode) print('Supabase Realtime: attempting reconnect...');
+                if (kDebugMode) print('Supabase Realtime: attempting fast reconnect...');
                 _subscribeRealtime(localDb);
+              }
+            });
+
+            // Debounce the offline yellow badge by 4.5 seconds to prevent visual glitching on transient renewals
+            _offlineDebounceTimer?.cancel();
+            _offlineDebounceTimer = Timer(const Duration(milliseconds: 4500), () {
+              if (_isInitialized && _status != SyncStatus.syncing && _status != SyncStatus.synced) {
+                _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
               }
             });
           }
