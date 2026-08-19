@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
-import '../../../shared/date_time_picker_field.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../data/models/request_order.dart';
 import '../../../../data/repositories/shop_repository.dart';
-import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
+import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
 import '../../../../ui/core/app_theme.dart';
 import '../../../../ui/core/motion/motion.dart';
 import '../../../navigation/navigation_view_model.dart';
-import '../../../shared/components/app_page_header.dart';
-import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
+import '../../../shared/components/app_list_card.dart';
+import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/date_time_picker_field.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
-import '../../../../data/services/user_permission_service.dart';
 import '../view_models/requests_view_model.dart';
+import 'runner_tasks_view.dart';
 
 class RequestsView extends StatefulWidget {
   const RequestsView({super.key});
@@ -35,30 +36,20 @@ class _RequestsViewState extends State<RequestsView> {
   final TextEditingController _searchController = TextEditingController();
 
   // Table columns widths
-  // ignore: unused_field
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _nameWidth = 180.0;
   double _mobileWidth = 130.0;
   double _itemWidth = 200.0;
   double _amountWidth = 120.0;
-  // ignore: unused_field
-  double _statusWidth = 120.0;
 
   void _loadSavedColumnWidths() {
     _idWidth = UiPreferencesService.getColumnWidth('requests', 'id') ?? 120.0;
-    _dateWidth =
-        UiPreferencesService.getColumnWidth('requests', 'date') ?? 120.0;
-    _nameWidth =
-        UiPreferencesService.getColumnWidth('requests', 'name') ?? 180.0;
-    _mobileWidth =
-        UiPreferencesService.getColumnWidth('requests', 'mobile') ?? 130.0;
-    _itemWidth =
-        UiPreferencesService.getColumnWidth('requests', 'item') ?? 200.0;
-    _amountWidth =
-        UiPreferencesService.getColumnWidth('requests', 'amount') ?? 120.0;
-    _statusWidth =
-        UiPreferencesService.getColumnWidth('requests', 'status') ?? 120.0;
+    _dateWidth = UiPreferencesService.getColumnWidth('requests', 'date') ?? 120.0;
+    _nameWidth = UiPreferencesService.getColumnWidth('requests', 'name') ?? 180.0;
+    _mobileWidth = UiPreferencesService.getColumnWidth('requests', 'mobile') ?? 130.0;
+    _itemWidth = UiPreferencesService.getColumnWidth('requests', 'item') ?? 200.0;
+    _amountWidth = UiPreferencesService.getColumnWidth('requests', 'amount') ?? 120.0;
   }
 
   void _updateColumnWidth(String columnKey, double newWidth) {
@@ -81,9 +72,6 @@ class _RequestsViewState extends State<RequestsView> {
           break;
         case 'amount':
           _amountWidth = newWidth;
-          break;
-        case 'status':
-          _statusWidth = newWidth;
           break;
       }
     });
@@ -112,8 +100,7 @@ class _RequestsViewState extends State<RequestsView> {
   ) {
     navVM.clearPrefillData();
     final String name = prefill['customerName'] ?? prefill['name'] ?? '';
-    final String mobile =
-        prefill['mobileNo'] ?? prefill['customerNumber'] ?? '';
+    final String mobile = prefill['mobileNo'] ?? prefill['customerNumber'] ?? '';
     final String item = prefill['item'] ?? prefill['devices'] ?? '';
     final double amount = prefill['totalAmount'] ?? prefill['amount'] ?? 0.0;
 
@@ -136,6 +123,8 @@ class _RequestsViewState extends State<RequestsView> {
       _handlePrefillData(context, prefill, navVM);
     }
 
+    final canAccessRunnerMode = UserPermissionService.canPerformModuleAction('requests', 'canAccessRunnerMode');
+
     return Consumer<RequestsViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.requests.isEmpty) {
@@ -143,8 +132,6 @@ class _RequestsViewState extends State<RequestsView> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                ShimmerSkeleton.card(height: 80),
-                const SizedBox(height: 10),
                 ShimmerSkeleton.card(height: 80),
                 const SizedBox(height: 10),
                 ShimmerSkeleton.card(height: 80),
@@ -168,22 +155,15 @@ class _RequestsViewState extends State<RequestsView> {
           final idMatch = r.id.toLowerCase().contains(query);
           final nameMatch = r.customerName.toLowerCase().contains(query);
           final itemMatch = r.item.toLowerCase().contains(query);
-          final mobileMatch =
-              r.mobileNo?.toLowerCase().contains(query) ?? false;
+          final mobileMatch = r.mobileNo?.toLowerCase().contains(query) ?? false;
           final statusMatch = r.status.toLowerCase().contains(query);
-          final dealerMatch =
-              r.dealerName?.toLowerCase().contains(query) ?? false;
-          return idMatch ||
-              nameMatch ||
-              itemMatch ||
-              mobileMatch ||
-              statusMatch ||
-              dealerMatch;
+          final dealerMatch = r.dealerName?.toLowerCase().contains(query) ?? false;
+          final runnerMatch = r.assignedRunnerName?.toLowerCase().contains(query) ?? false;
+          final bldgMatch = r.targetBuilding?.toLowerCase().contains(query) ?? false;
+          return idMatch || nameMatch || itemMatch || mobileMatch || statusMatch || dealerMatch || runnerMatch || bldgMatch;
         }).toList();
 
-        // Sort by date descending (newest requests first)
         filtered.sort((a, b) => b.date.compareTo(a.date));
-
         final groupedRequests = _getGroupedRequests(filtered);
 
         return Scaffold(
@@ -198,9 +178,38 @@ class _RequestsViewState extends State<RequestsView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppPageHeader(
-                title: 'Requests',
-                subtitle: 'Special Parts & Customer Pre-orders',
+                title: 'Requests & Sourcing',
+                subtitle: 'Parts Procurement, Dealer Sourcing & Market Runner Dispatch',
                 actions: [
+                  if (canAccessRunnerMode)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                backgroundColor: const Color(0xFF0A0E1A),
+                                appBar: AppBar(
+                                  backgroundColor: const Color(0xFF0F1524),
+                                  title: const Text('Market Runner Mode'),
+                                ),
+                                body: const RunnerTasksView(),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.directions_walk_rounded, size: 18),
+                        label: const Text('Runner Mode'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                   if (isDesktop && UserPermissionService.canPerformModuleAction('requests', 'canAdd'))
                     AppHeaderActionButton(
                       label: 'New Request',
@@ -231,10 +240,7 @@ class _RequestsViewState extends State<RequestsView> {
                       size: 20,
                     ),
                     tooltip: 'Manage & Reorder Statuses',
-                    constraints: const BoxConstraints(
-                      minWidth: 36,
-                      minHeight: 36,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
                 ],
               ),
@@ -245,34 +251,25 @@ class _RequestsViewState extends State<RequestsView> {
                   controller: _searchController,
                   onChanged: (_) => setState(() {}),
                   onClear: () => setState(() {}),
-                  hintText: 'Search ID, customer, item, dealer, status...',
+                  hintText: 'Search request ID, customer, item, dealer, runner, building...',
                   margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
                   searchQuery: _searchController.text,
-                  onSearchChanged: (q) => setState(() {
-                    _searchController.text = q;
-                  }),
-                  hintText: 'Search request ID, customer, item...',
+                  onSearchChanged: (q) => setState(() => _searchController.text = q),
+                  hintText: 'Search request, customer, item, dealer...',
                 ),
+
               const SizedBox(height: 12),
 
-              // Table / Cards list grouped by status
+              // Table / Cards list grouped by 5-stage status
               Expanded(
                 child: filtered.isEmpty
                     ? _buildEmptyState()
                     : (isDesktop
-                        ? _buildDesktopTable(
-                            context,
-                            viewModel,
-                            groupedRequests,
-                          )
-                        : _buildMobileCardsList(
-                            context,
-                            viewModel,
-                            groupedRequests,
-                          )),
+                        ? _buildDesktopTable(context, viewModel, groupedRequests)
+                        : _buildMobileCardsList(context, viewModel, groupedRequests)),
               ),
             ],
           ),
@@ -281,15 +278,19 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  Map<String, List<RequestOrder>> _getGroupedRequests(
-    List<RequestOrder> requests,
-  ) {
-    final List<String> configuredStatuses =
-        StatusManagementService.getStatuses('requests');
+  Map<String, List<RequestOrder>> _getGroupedRequests(List<RequestOrder> requests) {
+    final List<String> configuredStatuses = StatusManagementService.getStatuses('requests');
     final Map<String, List<RequestOrder>> grouped = {};
 
-    for (final status in configuredStatuses) {
-      grouped[status] = [];
+    // Standard 5-stage order defaults
+    final defaultWorkflow = RequestOrder.allStatuses;
+    for (final s in defaultWorkflow) {
+      grouped[s] = [];
+    }
+    for (final s in configuredStatuses) {
+      if (!grouped.containsKey(s)) {
+        grouped[s] = [];
+      }
     }
 
     for (final req in requests) {
@@ -302,15 +303,23 @@ class _RequestsViewState extends State<RequestsView> {
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(req);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
-        }
-        grouped[statusName]!.add(req);
+        grouped.putIfAbsent(statusName, () => []).add(req);
       }
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
     return grouped;
+  }
+
+  Color _getStatusColor(String status) {
+    final s = status.toLowerCase().trim();
+    if (s.contains('inquiry')) return const Color(0xFFFBBF24); // Amber
+    if (s.contains('approved')) return const Color(0xFF38BDF8); // Sky Blue
+    if (s.contains('runner') || s.contains('assigned')) return const Color(0xFFA78BFA); // Indigo
+    if (s.contains('collected') || s.contains('received')) return const Color(0xFF34D399); // Emerald
+    if (s.contains('complete')) return const Color(0xFF94A3B8); // Slate
+    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
+    return const Color(0xFF818CF8);
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
@@ -372,25 +381,11 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
-  }
-
   Widget _buildEmptyState() {
     return AppEmptyState(
       icon: Icons.inventory_2_outlined,
       title: 'No Part Requests Found',
-      message: 'No order request records match your search criteria.',
+      message: 'No procurement records match your search criteria.',
       actionLabel: 'Add Order Request',
       onAction: () => _showAddEditDialog(context),
     );
@@ -410,64 +405,31 @@ class _RequestsViewState extends State<RequestsView> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Header Row (Status column removed - grouped under status headers)
+          // Header Row
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(100.0, 300.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 250.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Requested Item',
-                  _itemWidth,
-                  (delta) => _updateColumnWidth(
-                    'item',
-                    (_itemWidth + delta).clamp(120.0, 400.0),
-                  ),
-                ),
-                _buildResizableHeader(
-                  'Total Price',
-                  _amountWidth,
-                  (delta) => _updateColumnWidth(
-                    'amount',
-                    (_amountWidth + delta).clamp(80.0, 250.0),
-                  ),
-                ),
+                _buildResizableHeader('Req ID', _idWidth, (delta) => _updateColumnWidth('id', (_idWidth + delta).clamp(80.0, 200.0))),
+                _buildResizableHeader('Date', _dateWidth, (delta) => _updateColumnWidth('date', (_dateWidth + delta).clamp(80.0, 200.0))),
+                _buildResizableHeader('Customer Name', _nameWidth, (delta) => _updateColumnWidth('name', (_nameWidth + delta).clamp(100.0, 300.0))),
+                _buildResizableHeader('Mobile', _mobileWidth, (delta) => _updateColumnWidth('mobile', (_mobileWidth + delta).clamp(100.0, 250.0))),
+                _buildResizableHeader('Requested Item', _itemWidth, (delta) => _updateColumnWidth('item', (_itemWidth + delta).clamp(120.0, 400.0))),
+                _buildResizableHeader('Estimated Price', _amountWidth, (delta) => _updateColumnWidth('amount', (_amountWidth + delta).clamp(80.0, 250.0))),
               ],
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 24),
+              physics: const BouncingScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -494,26 +456,41 @@ class _RequestsViewState extends State<RequestsView> {
     final formattedDate = DateFormat('dd/MM/yy').format(req.date);
     return InkWell(
       onTap: () => _showDetailDialog(context, req, viewModel),
+      hoverColor: Colors.white.withValues(alpha: 0.03),
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
-            ),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
           children: [
             Container(
+              width: _idWidth,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Text(
+                '#${req.id}',
+                style: const TextStyle(color: AppTheme.primaryLight, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            Container(
               width: _dateWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
+              child: Text(
+                formattedDate,
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              ),
             ),
             Container(
               width: _nameWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 req.customerName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 13,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -521,25 +498,50 @@ class _RequestsViewState extends State<RequestsView> {
             Container(
               width: _mobileWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(req.mobileNo ?? '-'),
+              child: Text(
+                req.mobileNo ?? '—',
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             Container(
               width: _itemWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                req.item,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    req.item,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (req.assignedRunnerName != null)
+                    Text(
+                      'Runner: ${req.assignedRunnerName} • ${req.targetBuilding ?? 'Market'}',
+                      style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
               ),
             ),
             Container(
               width: _amountWidth,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                req.totalAmount > 0
-                    ? '₹${req.totalAmount.toStringAsFixed(0)}'
-                    : '-',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                '₹${req.totalAmount.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryLight,
+                  fontSize: 13,
+                ),
               ),
             ),
           ],
@@ -582,7 +584,7 @@ class _RequestsViewState extends State<RequestsView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -592,192 +594,120 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color chipColor = AppTheme.warning;
-    final lower = status.toLowerCase();
-    if (lower.contains('complete')) {
-      chipColor = AppTheme.success;
-    } else if (lower.contains('received')) {
-      chipColor = AppTheme.primaryLight;
-    } else if (lower.contains('pending')) {
-      chipColor = AppTheme.warning;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: chipColor.withOpacity(0.3), width: 1),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: chipColor,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
   Widget _buildMobileCardsList(
     BuildContext context,
     RequestsViewModel viewModel,
     Map<String, List<RequestOrder>> groupedRequests,
   ) {
-    return RefreshIndicator(
-      color: AppTheme.primaryLight,
-      backgroundColor: const Color(0xFF131A2E),
-      onRefresh: () async {
-        final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
-        if (context.mounted) viewModel.loadRequests();
-      },
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 80, top: 4),
+      physics: const BouncingScrollPhysics(),
+      itemCount: groupedRequests.entries.length,
+      itemBuilder: (context, sectionIndex) {
+        final entry = groupedRequests.entries.elementAt(sectionIndex);
+        final status = entry.key;
+        final requests = entry.value;
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final entry in groupedRequests.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final req in entry.value) ...[
-                _buildMobileRequestCard(context, viewModel, req),
-              ],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+            _buildStatusSectionHeader(status, requests.length),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              itemCount: requests.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (ctx, index) {
+                final req = requests[index];
+                final formattedDate = DateFormat('dd/MM/yy hh:mm a').format(req.date);
 
-  Widget _buildMobileRequestCard(
-    BuildContext context,
-    RequestsViewModel viewModel,
-    RequestOrder req,
-  ) {
-    final metadata = <Widget>[];
-
-    if (req.mobileNo != null &&
-        req.mobileNo!.trim().isNotEmpty &&
-        req.mobileNo != 'N/A') {
-      metadata.add(
-        Row(
-          children: [
-            const Icon(
-              Icons.phone_rounded,
-              size: 13,
-              color: AppTheme.textMuted,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              req.mobileNo!,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (req.item.isNotEmpty) {
-      if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
-      metadata.add(
-        Text(
-          'Item: ${req.item}',
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }
-
-    if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 6));
-    metadata.add(
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Advance: ₹${req.advance.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          Text(
-            'Total: ₹${req.totalAmount.toStringAsFixed(0)}',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryLight,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return AppListCard(
-      title: req.customerName,
-      statusBadge: _buildStatusChip(req.status),
-      metadataRows: metadata,
-      onTap: () => _showDetailDialog(context, req, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingRequest: req),
-      onDelete: () => _confirmDelete(context, req.id, viewModel),
-    );
-  }
-
-  void _confirmDelete(
-    BuildContext context,
-    String id,
-    RequestsViewModel viewModel,
-  ) {
-    if (!UserPermissionService.canPerformModuleAction('requests', 'canDelete')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Access Denied: You do not have permission to delete Customer Requests.'),
-          backgroundColor: AppTheme.danger,
-        ),
-      );
-      return;
-    }
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Special Request?'),
-          content: const Text(
-            'Are you sure you want to permanently delete this special request record? This action cannot be undone.',
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await viewModel.deleteRequest(id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Request deleted successfully.'),
-                      backgroundColor: AppTheme.success,
+                final List<Widget> metadata = [
+                  Row(
+                    children: [
+                      const Icon(Icons.inventory_2_outlined, size: 14, color: AppTheme.textMuted),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          req.item,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 14, color: AppTheme.textMuted),
+                      const SizedBox(width: 6),
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  if (req.assignedRunnerName != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.directions_walk_rounded, size: 14, color: Color(0xFFA78BFA)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Runner: ${req.assignedRunnerName} (${req.targetBuilding ?? 'Market'})',
+                          style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
-                  );
-                }
+                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Advance: ₹${req.advance.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                      ),
+                      Text(
+                        'Est: ₹${req.totalAmount.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primaryLight),
+                      ),
+                    ],
+                  ),
+                ];
+
+                return AppListCard(
+                  title: req.customerName,
+                  statusBadge: _buildStatusChip(req.status),
+                  metadataRows: metadata,
+                  onTap: () => _showDetailDialog(context, req, viewModel),
+                  onEdit: () => _showAddEditDialog(context, existingRequest: req),
+                  onDelete: () => _confirmDelete(context, req.id, viewModel),
+                );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
-              child: const Text('Delete'),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    final color = _getStatusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
@@ -789,113 +719,134 @@ class _RequestsViewState extends State<RequestsView> {
     final repo = context.read<ShopRepository>();
     final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(req.date);
 
+    final canApproveInquiry = UserPermissionService.canPerformModuleAction('requests', 'canApproveInquiry');
+    final canSendDealerBroadcast = UserPermissionService.canPerformModuleAction('requests', 'canSendDealerBroadcast');
+    final canAssignRunner = UserPermissionService.canPerformModuleAction('requests', 'canAssignRunner');
+    final canCheckInAndConvert = UserPermissionService.canPerformModuleAction('requests', 'canCheckInAndConvert');
+
     ResizableDetailPopup.show(
       context: context,
       repository: repo,
-      title: 'Request Details',
+      title: 'Procurement Request #${req.id}',
       subtitle: 'Logged on $formattedDate',
       contentBuilder: (ctx, scale) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Request ID',
-              value: req.id,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: req.customerName,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: req.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Requested Item',
-              value: req.item,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Advance Paid',
-              value: '₹${req.advance.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Total Estimated Price',
-              value: '₹${req.totalAmount.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Dealer Name / Vendor',
-              value: req.dealerName ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: req.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: req.estimate ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (req.photoList.isNotEmpty)
+            ScaledInfoRow(label: 'Customer Name', value: req.customerName, scaleFactor: scale),
+            ScaledInfoRow(label: 'Mobile Number', value: req.mobileNo ?? 'N/A', scaleFactor: scale),
+            ScaledInfoRow(label: 'Requested Item', value: req.item, scaleFactor: scale),
+            ScaledInfoRow(label: 'Status', value: req.status, scaleFactor: scale),
+            ScaledInfoRow(label: 'Advance Paid', value: '₹${req.advance.toStringAsFixed(2)}', scaleFactor: scale),
+            ScaledInfoRow(label: 'Total Estimate', value: '₹${req.totalAmount.toStringAsFixed(2)}', scaleFactor: scale),
+            if (req.dealerName != null && req.dealerName!.isNotEmpty)
+              ScaledInfoRow(label: 'Target Dealer', value: req.dealerName!, scaleFactor: scale),
+            if (req.targetBuilding != null && req.targetBuilding!.isNotEmpty)
+              ScaledInfoRow(
+                label: 'Building & Floor',
+                value: '${req.targetBuilding} ${req.targetShopNo != null ? '(${req.targetShopNo})' : ''}',
+                scaleFactor: scale,
+              ),
+            if (req.assignedRunnerName != null)
+              ScaledInfoRow(label: 'Assigned Runner', value: req.assignedRunnerName!, scaleFactor: scale),
+            if (req.actualPurchaseCost != null)
+              ScaledInfoRow(label: 'Actual Cost Paid', value: '₹${req.actualPurchaseCost!.toStringAsFixed(2)}', scaleFactor: scale),
+            if (req.estimate != null && req.estimate!.isNotEmpty)
+              ScaledInfoRow(label: 'Internal Notes', value: req.estimate!, scaleFactor: scale),
+
+            if (req.photoList.isNotEmpty) ...[
+              SizedBox(height: 10 * scale),
+              Text('Part Reference Photos', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12 * scale)),
+              const SizedBox(height: 6),
               PhotoGallerySection(photoUrls: req.photoList),
-            SizedBox(height: 12 * scale),
+            ],
+
+            if (req.billPhotoList.isNotEmpty) ...[
+              SizedBox(height: 10 * scale),
+              Text('Runner Market Bill Receipt', style: TextStyle(color: Color(0xFF34D399), fontSize: 12 * scale, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              PhotoGallerySection(photoUrls: req.billPhotoList),
+            ],
+
+            SizedBox(height: 14 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
+
+            // Action Pills Grid
             Wrap(
               spacing: 8 * scale,
               runSpacing: 8 * scale,
               children: [
+                if (canSendDealerBroadcast)
+                  ScaledActionButton(
+                    icon: Icons.campaign_rounded,
+                    label: 'Dealer Inquiries',
+                    color: const Color(0xFFF59E0B),
+                    scaleFactor: scale,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showBroadcastDialog(context, req);
+                    },
+                  ),
+                if (req.status == RequestOrder.statusInquirySent && canApproveInquiry)
+                  ScaledActionButton(
+                    icon: Icons.thumb_up_alt_rounded,
+                    label: 'Customer Approved',
+                    color: const Color(0xFF38BDF8),
+                    scaleFactor: scale,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await viewModel.updateStatus(req.id, RequestOrder.statusCustomerApproved);
+                    },
+                  ),
+                if (canAssignRunner)
+                  ScaledActionButton(
+                    icon: Icons.directions_walk_rounded,
+                    label: 'Assign Runner',
+                    color: const Color(0xFFA78BFA),
+                    scaleFactor: scale,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showAssignRunnerDialog(context, req, viewModel);
+                    },
+                  ),
+                if ((req.status == RequestOrder.statusCollected || req.status == RequestOrder.statusCompleted) && canCheckInAndConvert)
+                  ScaledActionButton(
+                    icon: Icons.shopping_bag_rounded,
+                    label: 'Convert to Purchase',
+                    color: const Color(0xFF10B981),
+                    scaleFactor: scale,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final purchase = await viewModel.convertToPurchase(req);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Converted to Purchase #${purchase.id}!'),
+                            backgroundColor: AppTheme.success,
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
+                  icon: Icons.phone_rounded,
+                  label: 'Call Customer',
+                  color: const Color(0xFF10B981),
                   scaleFactor: scale,
                   onTap: () => _launchPhone(req.mobileNo ?? ''),
                 ),
                 ScaledActionButton(
                   iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
+                  label: 'WhatsApp Customer',
                   scaleFactor: scale,
                   onTap: () => _launchWhatsApp(req),
                 ),
                 ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, req);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
+                  icon: Icons.point_of_sale_rounded,
+                  label: 'Convert to POS Sale',
                   scaleFactor: scale,
                   onTap: () => _convertToSale(ctx, req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Enter in Replacement',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'replacement', req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', req),
                 ),
               ],
             ),
@@ -917,12 +868,10 @@ class _RequestsViewState extends State<RequestsView> {
                     _showAddEditDialog(context, existingRequest: req);
                   },
                   icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                  label: Text('Edit Request', style: TextStyle(fontSize: 13 * scale)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.primaryLight,
-                    side: BorderSide(
-                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
-                    ),
+                    side: BorderSide(color: AppTheme.primaryLight.withValues(alpha: 0.3)),
                     padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
                 ),
@@ -939,9 +888,7 @@ class _RequestsViewState extends State<RequestsView> {
                   label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.danger,
-                    side: BorderSide(
-                      color: AppTheme.danger.withValues(alpha: 0.3),
-                    ),
+                    side: BorderSide(color: AppTheme.danger.withValues(alpha: 0.3)),
                     padding: EdgeInsets.symmetric(vertical: 10 * scale),
                   ),
                 ),
@@ -949,6 +896,249 @@ class _RequestsViewState extends State<RequestsView> {
           ],
         );
       },
+    );
+  }
+
+  void _showAssignRunnerDialog(
+    BuildContext context,
+    RequestOrder req,
+    RequestsViewModel viewModel,
+  ) {
+    final allUsers = UserPermissionService.getAllUsers();
+    final allDealers = context.read<ShopRepository>().getDealers();
+
+    String selectedRunnerEmail = allUsers.isNotEmpty ? allUsers.first.email : '';
+    String selectedRunnerName = allUsers.isNotEmpty ? allUsers.first.name : '';
+    String dealerName = req.dealerName ?? '';
+    String building = req.targetBuilding ?? 'Meghdoot Building';
+    String shopNo = req.targetShopNo ?? '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: const Color(0xFF0F1524),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
+          title: Row(
+            children: [
+              const Icon(Icons.directions_walk_rounded, color: Color(0xFFA78BFA)),
+              const SizedBox(width: 10),
+              const Text('Assign Task to Runner', style: TextStyle(color: AppTheme.textPrimary, fontSize: 17)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Item: ${req.item}', style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 14),
+
+                // Select Runner Staff
+                const Text('Select Runner Staff *', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
+                const SizedBox(height: 4),
+                DropdownButtonFormField<String>(
+                  value: selectedRunnerEmail,
+                  dropdownColor: const Color(0xFF131A2E),
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  items: allUsers.map((u) => DropdownMenuItem(value: u.email, child: Text('${u.name} (${u.role})'))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDlgState(() {
+                        selectedRunnerEmail = val;
+                        selectedRunnerName = allUsers.firstWhere((u) => u.email == val).name;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Target Dealer
+                Autocomplete<String>(
+                  initialValue: TextEditingValue(text: dealerName),
+                  optionsBuilder: (textVal) {
+                    if (textVal.text.isEmpty) return allDealers.map((d) => d.name);
+                    return allDealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
+                  },
+                  onSelected: (val) {
+                    final d = allDealers.where((e) => e.name == val).firstOrNull;
+                    setDlgState(() {
+                      dealerName = val;
+                      if (d?.buildingName != null) building = d!.buildingName!;
+                      if (d?.shopNo != null) shopNo = d!.shopNo!;
+                    });
+                  },
+                  fieldViewBuilder: (ctx, controller, focus, onSub) {
+                    controller.addListener(() => dealerName = controller.text);
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focus,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                      decoration: const InputDecoration(
+                        labelText: 'Shortlisted Dealer / Shop',
+                        hintText: 'e.g. Pro Lab, Caviar Technologies',
+                        prefixIcon: Icon(Icons.storefront_rounded, size: 18),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Building & Shop No
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        initialValue: building,
+                        onChanged: (v) => building = v,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Building Name',
+                          hintText: 'e.g. Siddharth Bldg',
+                          prefixIcon: Icon(Icons.location_city_rounded, size: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        initialValue: shopNo,
+                        onChanged: (v) => shopNo = v,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Shop / Floor',
+                          hintText: 'e.g. 204',
+                          prefixIcon: Icon(Icons.room_rounded, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await viewModel.assignRunner(
+                  requestId: req.id,
+                  runnerId: selectedRunnerEmail,
+                  runnerName: selectedRunnerName,
+                  dealerName: dealerName,
+                  building: building,
+                  shopNo: shopNo,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Assigned #${req.id} to $selectedRunnerName!'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA78BFA)),
+              child: const Text('Assign Task'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBroadcastDialog(BuildContext context, RequestOrder req) {
+    final dealers = context.read<ShopRepository>().getDealers();
+    final withMobile = dealers.where((d) => d.mobileNo != null && d.mobileNo!.trim().isNotEmpty).toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0F1524),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
+        title: Row(
+          children: [
+            const Icon(Icons.campaign_rounded, color: Color(0xFFF59E0B)),
+            const SizedBox(width: 10),
+            const Text('Dispatch Dealer Inquiries', style: TextStyle(color: AppTheme.textPrimary, fontSize: 17)),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Inquire stock & price for "${req.item}" across market vendors:', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12.5)),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 300,
+                child: ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: withMobile.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
+                  itemBuilder: (context, idx) {
+                    final d = withMobile[idx];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(d.name, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+                      subtitle: Text('${d.buildingName ?? 'Nehru Place'} • ${d.category ?? 'General'}', style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.send_rounded, color: Color(0xFF22D3EE), size: 18),
+                        tooltip: 'Send WhatsApp Inquiry',
+                        onPressed: () {
+                          String phone = d.mobileNo!.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (phone.length == 10) phone = '91$phone';
+                          final msg = Uri.encodeComponent(
+                            'Hi ${d.name}, Perfect Solution inquiry: Do you have "${req.item}" in stock? Please share availability and best price rate.',
+                          );
+                          launchUrl(Uri.parse('https://wa.me/$phone?text=$msg'), mode: LaunchMode.externalApplication);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, String id, RequestsViewModel viewModel) {
+    if (!UserPermissionService.canPerformModuleAction('requests', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Access Denied: You do not have permission to delete Requests.'), backgroundColor: AppTheme.danger),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Special Request?'),
+        content: const Text('Are you sure you want to permanently delete this special request record?'),
+        actions: [
+          OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await viewModel.deleteRequest(id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request deleted successfully.'), backgroundColor: AppTheme.success));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -965,11 +1155,7 @@ class _RequestsViewState extends State<RequestsView> {
     if (!UserPermissionService.canPerformModuleAction('requests', actionKey)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            isEdit
-                ? 'Access Denied: You do not have permission to edit Customer Requests.'
-                : 'Access Denied: You do not have permission to create new Customer Requests.',
-          ),
+          content: Text(isEdit ? 'Access Denied: You do not have permission to edit Requests.' : 'Access Denied: You do not have permission to create Requests.'),
           backgroundColor: AppTheme.danger,
         ),
       );
@@ -989,113 +1175,6 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  // ignore: unused_element
-  Widget _buildFloatingPaginationIsland({
-    required int currentPage,
-    required int totalPages,
-    required int itemsPerPage,
-    required ValueChanged<int> onItemsPerPageChanged,
-    required VoidCallback onPreviousPage,
-    required VoidCallback onNextPage,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xE60F1524),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PopupMenuButton<int>(
-            initialValue: itemsPerPage,
-            tooltip: 'Rows per page',
-            color: const Color(0xFF0F1524),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
-            ),
-            onSelected: onItemsPerPageChanged,
-            child: Row(
-              children: [
-                Text(
-                  '$itemsPerPage',
-                  style: const TextStyle(
-                    color: AppTheme.primaryLight,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_drop_down_rounded,
-                  color: AppTheme.textMuted,
-                  size: 14,
-                ),
-              ],
-            ),
-            itemBuilder: (context) => [20, 50, 100].map((val) {
-              return PopupMenuItem<int>(
-                value: val,
-                child: Text(
-                  '$val rows',
-                  style: TextStyle(
-                    color: val == itemsPerPage
-                        ? AppTheme.primaryLight
-                        : AppTheme.textPrimary,
-                    fontSize: 11,
-                    fontWeight: val == itemsPerPage
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.chevron_left_rounded),
-            onPressed: currentPage > 1 ? onPreviousPage : null,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            iconSize: 16,
-            color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3),
-            child: Text(
-              '$currentPage/$totalPages',
-              style: const TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: currentPage < totalPages ? onNextPage : null,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            iconSize: 16,
-            color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _launchPhone(String number) async {
     if (number.isEmpty) return;
     final uri = Uri(scheme: 'tel', path: number);
@@ -1105,25 +1184,8 @@ class _RequestsViewState extends State<RequestsView> {
   void _launchWhatsApp(RequestOrder r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
-    final message =
-        "Hello ${r.customerName}, We have updated your request item ${r.item} status to ${r.status}. Perfect Solution";
+    final message = "Hello ${r.customerName}, We have updated your request item ${r.item} status to ${r.status}. Perfect Solution";
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
-  }
-
-  void _duplicate(BuildContext context, RequestOrder r) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _RequestFormDialog(
-        prefillName: r.customerName,
-        prefillMobile: r.mobileNo,
-        prefillItem: r.item,
-        prefillAmount: r.totalAmount,
-        prefillDealer: r.dealerName,
-        prefillStatus: r.status,
-        prefillEstimate: r.estimate,
-      ),
-    );
   }
 
   void _convertToSale(BuildContext context, RequestOrder r) {
@@ -1138,41 +1200,14 @@ class _RequestsViewState extends State<RequestsView> {
       },
     );
   }
-
-  void _enterInModule(BuildContext context, String target, RequestOrder r) {
-    final navVM = context.read<NavigationViewModel>();
-    int index = target == 'inward'
-        ? NavigationViewModel.inward
-        : (target == 'replacement'
-              ? NavigationViewModel.replacement
-              : NavigationViewModel.purchase);
-    navVM.setIndex(
-      index,
-      prefillData: {
-        'target': target,
-        'name': r.customerName,
-        'customerName': r.customerName,
-        'purchasedFrom': r.dealerName ?? r.customerName,
-        'mobileNo': r.mobileNo,
-        'devices': r.item,
-        'item': 'Special Request item: ${r.item}',
-      },
-    );
-  }
 }
 
-// ==========================================================
-// ADD/EDIT FORM DIALOG IMPLEMENTATION
-// ==========================================================
 class _RequestFormDialog extends StatefulWidget {
   final RequestOrder? existingRequest;
   final String? prefillName;
   final String? prefillMobile;
   final String? prefillItem;
   final double? prefillAmount;
-  final String? prefillDealer;
-  final String? prefillStatus;
-  final String? prefillEstimate;
 
   const _RequestFormDialog({
     this.existingRequest,
@@ -1180,9 +1215,6 @@ class _RequestFormDialog extends StatefulWidget {
     this.prefillMobile,
     this.prefillItem,
     this.prefillAmount,
-    this.prefillDealer,
-    this.prefillStatus,
-    this.prefillEstimate,
   });
 
   @override
@@ -1202,47 +1234,23 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
   late final TextEditingController _estimateController;
   late String _status;
   String? _photoUrl;
-  bool _isPhotoUploading = false;
 
   @override
   void initState() {
     super.initState();
     final r = widget.existingRequest;
-
     _requestDate = r?.date ?? DateTime.now();
-
-    _nameController = TextEditingController(
-      text: r?.customerName ?? widget.prefillName ?? '',
-    );
-    _mobileController = TextEditingController(
-      text: r?.mobileNo ?? widget.prefillMobile ?? '',
-    );
-    _itemController = TextEditingController(
-      text: r?.item ?? widget.prefillItem ?? '',
-    );
-    _advanceController = TextEditingController(
-      text: (r != null && r.advance > 0)
-          ? r.advance.toStringAsFixed(0)
-          : '',
-    );
+    _nameController = TextEditingController(text: r?.customerName ?? widget.prefillName ?? '');
+    _mobileController = TextEditingController(text: r?.mobileNo ?? widget.prefillMobile ?? '');
+    _itemController = TextEditingController(text: r?.item ?? widget.prefillItem ?? '');
+    _advanceController = TextEditingController(text: (r != null && r.advance > 0) ? r.advance.toStringAsFixed(0) : '');
     _totalAmountController = TextEditingController(
-      text: (r != null && r.totalAmount > 0)
-          ? r.totalAmount.toStringAsFixed(0)
-          : ((widget.prefillAmount != null && widget.prefillAmount! > 0)
-              ? widget.prefillAmount!.toStringAsFixed(0)
-              : ''),
+      text: (r != null && r.totalAmount > 0) ? r.totalAmount.toStringAsFixed(0) : ((widget.prefillAmount != null && widget.prefillAmount! > 0) ? widget.prefillAmount!.toStringAsFixed(0) : ''),
     );
-    _dealerController = TextEditingController(
-      text: r?.dealerName ?? widget.prefillDealer ?? '',
-    );
-    _estimateController = TextEditingController(
-      text: r?.estimate ?? widget.prefillEstimate ?? '',
-    );
+    _dealerController = TextEditingController(text: r?.dealerName ?? '');
+    _estimateController = TextEditingController(text: r?.estimate ?? '');
     _photoUrl = r?.photo;
-    _status =
-        r?.status ??
-        widget.prefillStatus ??
-        StatusManagementService.getDefaultStatus('requests');
+    _status = r?.status ?? RequestOrder.statusInquirySent;
   }
 
   @override
@@ -1257,57 +1265,43 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     super.dispose();
   }
 
-  void _saveForm() async {
+  void _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Guard: wait for photo upload to complete before saving
-    if (_isPhotoUploading) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
-          ),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
     final viewModel = context.read<RequestsViewModel>();
-    final String id = widget.existingRequest?.id ?? viewModel.getNextId();
+    final isEdit = widget.existingRequest != null;
 
-    final r = RequestOrder(
-      id: id,
+    final advance = double.tryParse(_advanceController.text.trim()) ?? 0.0;
+    final total = double.tryParse(_totalAmountController.text.trim()) ?? 0.0;
+
+    final order = RequestOrder(
+      id: isEdit ? widget.existingRequest!.id : viewModel.getNextId(),
       date: _requestDate,
       customerName: _nameController.text.trim(),
-      mobileNo: _mobileController.text.trim().isEmpty
-          ? null
-          : _mobileController.text.trim(),
+      mobileNo: _mobileController.text.trim().isEmpty ? null : _mobileController.text.trim(),
       item: _itemController.text.trim(),
-      advance: double.tryParse(_advanceController.text.trim()) ?? 0.0,
-      totalAmount: double.tryParse(_totalAmountController.text.trim()) ?? 0.0,
-      dealerName: _dealerController.text.trim().isEmpty
-          ? null
-          : _dealerController.text.trim(),
+      advance: advance,
+      totalAmount: total,
+      dealerName: _dealerController.text.trim().isEmpty ? null : _dealerController.text.trim(),
       status: _status,
-      estimate: _estimateController.text.trim().isEmpty
-          ? null
-          : _estimateController.text.trim(),
+      estimate: _estimateController.text.trim().isEmpty ? null : _estimateController.text.trim(),
       photo: _photoUrl,
+      assignedRunnerId: widget.existingRequest?.assignedRunnerId,
+      assignedRunnerName: widget.existingRequest?.assignedRunnerName,
+      targetBuilding: widget.existingRequest?.targetBuilding,
+      targetShopNo: widget.existingRequest?.targetShopNo,
+      actualPurchaseCost: widget.existingRequest?.actualPurchaseCost,
+      billPhoto: widget.existingRequest?.billPhoto,
+      collectedAt: widget.existingRequest?.collectedAt,
     );
 
-    await viewModel.saveRequest(r);
+    await viewModel.saveRequest(order);
 
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            widget.existingRequest == null
-                ? 'Request created successfully'
-                : 'Request updated successfully',
-          ),
+          content: Text(isEdit ? 'Request updated successfully' : 'Request created successfully'),
           backgroundColor: AppTheme.success,
         ),
       );
@@ -1316,277 +1310,173 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isEdit = widget.existingRequest != null;
-    final bool isMobile = MediaQuery.of(context).size.width < 700;
+    final isEdit = widget.existingRequest != null;
+    final dealers = context.read<ShopRepository>().getDealers();
 
-    final bool isDateVis = UserPermissionService.isFieldVisible('requests', 'date');
-    final bool isDateMod = UserPermissionService.canModifyField('requests', 'date', isEdit: isEdit);
-
-    final bool isNameVis = UserPermissionService.isFieldVisible('requests', 'customerName');
-    final bool isNameMod = UserPermissionService.canModifyField('requests', 'customerName', isEdit: isEdit);
-
-    final bool isMobileVis = UserPermissionService.isFieldVisible('requests', 'mobileNo');
-    final bool isMobileMod = UserPermissionService.canModifyField('requests', 'mobileNo', isEdit: isEdit);
-
-    final bool isItemVis = UserPermissionService.isFieldVisible('requests', 'item');
-    final bool isItemMod = UserPermissionService.canModifyField('requests', 'item', isEdit: isEdit);
-
-    final bool isAdvanceVis = UserPermissionService.isFieldVisible('requests', 'advance');
-    final bool isAdvanceMod = UserPermissionService.canModifyField('requests', 'advance', isEdit: isEdit);
-
-    final bool isTotalVis = UserPermissionService.isFieldVisible('requests', 'totalAmount');
-    final bool isTotalMod = UserPermissionService.canModifyField('requests', 'totalAmount', isEdit: isEdit);
-
-    final bool isDealerVis = UserPermissionService.isFieldVisible('requests', 'dealerName');
-    final bool isDealerMod = UserPermissionService.canModifyField('requests', 'dealerName', isEdit: isEdit);
-
-    final bool isStatusVis = UserPermissionService.isFieldVisible('requests', 'status');
-    final bool isStatusMod = UserPermissionService.canModifyField('requests', 'status', isEdit: isEdit);
-
-    final Widget formContent = Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isDateVis) ...[
-            DateTimePickerField(
-              label: 'Pre-Order Date & Time',
-              selectedDateTime: _requestDate,
-              onDateTimeChanged: (dt) => setState(() => _requestDate = dt),
-              isVisible: isDateVis,
-              canEdit: isDateMod,
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (isNameVis) ...[
-            TextFormField(
-              controller: _nameController,
-              readOnly: !isNameMod,
-              enabled: isNameMod,
-              decoration: const InputDecoration(labelText: 'Customer Name *'),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'Please enter customer name'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          if (isMobileVis) ...[
-            TextFormField(
-              controller: _mobileController,
-              readOnly: !isMobileMod,
-              enabled: isMobileMod,
-              decoration: const InputDecoration(
-                labelText: 'Mobile Number',
-                hintText: '10 digits',
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          if (isItemVis) ...[
-            TextFormField(
-              controller: _itemController,
-              readOnly: !isItemMod,
-              enabled: isItemMod,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Requested Item *',
-                hintText: 'e.g. ASUS Zephyrus G14 Battery',
-              ),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'Please enter item name'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          Row(
-            children: [
-              if (isAdvanceVis)
-                Expanded(
-                  child: TextFormField(
-                    controller: _advanceController,
-                    readOnly: !isAdvanceMod,
-                    enabled: isAdvanceMod,
-                    decoration: const InputDecoration(
-                      labelText: 'Advance Paid (₹)',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
+    return Dialog(
+      backgroundColor: const Color(0xFF0F1524),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white10)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: AppTheme.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.inventory_2_rounded, color: AppTheme.primary, size: 22),
                 ),
-              if (isAdvanceVis && isTotalVis) const SizedBox(width: 12),
-              if (isTotalVis)
-                Expanded(
-                  child: TextFormField(
-                    controller: _totalAmountController,
-                    readOnly: !isTotalMod,
-                    enabled: isTotalMod,
-                    decoration: const InputDecoration(
-                      labelText: 'Total Estimate Price (₹)',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
+                const SizedBox(width: 12),
+                Text(
+                  isEdit ? 'Edit Part Request' : 'New Part Request',
+                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: Colors.white10),
+            const SizedBox(height: 16),
 
-          Row(
-            children: [
-              if (isDealerVis)
-                Expanded(
-                  child: TextFormField(
-                    controller: _dealerController,
-                    readOnly: !isDealerMod,
-                    enabled: isDealerMod,
-                    decoration: const InputDecoration(
-                      labelText: 'Dealer Name / Source Vendor',
-                    ),
-                  ),
-                ),
-              if (isDealerVis && isStatusVis) const SizedBox(width: 12),
-              if (isStatusVis)
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Status'),
-                    dropdownColor: const Color(0xFF131A2E),
-                    onChanged: isStatusMod
-                        ? (val) {
-                            if (val != null) setState(() => _status = val);
-                          }
-                        : null,
-                    items:
-                        (() {
-                          final list =
-                              UserPermissionService.getAllowedSelectableStatuses(
-                            'requests',
-                          );
-                          final List<String> selectableList = List.from(list);
-                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                            selectableList.insert(0, _status);
-                          }
-                          return selectableList;
-                        })().map((st) {
-                          return DropdownMenuItem(
-                            value: st,
-                            child: Text(
-                              st,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      DateTimePickerField(
+                        label: 'Request Date *',
+                        selectedDateTime: _requestDate,
+                        onDateTimeChanged: (d) => setState(() => _requestDate = d),
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextFormField(
+                        controller: _nameController,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Customer Name *', prefixIcon: Icon(Icons.person_outline_rounded, size: 20)),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Enter customer name' : null,
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextFormField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Mobile Number', prefixIcon: Icon(Icons.phone_android_rounded, size: 20)),
+                      ),
+                      const SizedBox(height: 14),
+
+                      TextFormField(
+                        controller: _itemController,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Requested Item / Part *', prefixIcon: Icon(Icons.laptop_chromebook_rounded, size: 20)),
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Enter requested item details' : null,
+                      ),
+                      const SizedBox(height: 14),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _advanceController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: AppTheme.textPrimary),
+                              decoration: const InputDecoration(labelText: 'Advance Paid (₹)', prefixIcon: Icon(Icons.payments_outlined, size: 20)),
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _totalAmountController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: AppTheme.textPrimary),
+                              decoration: const InputDecoration(labelText: 'Estimated Total (₹)', prefixIcon: Icon(Icons.receipt_outlined, size: 20)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Dealer Autocomplete
+                      Autocomplete<String>(
+                        initialValue: TextEditingValue(text: _dealerController.text),
+                        optionsBuilder: (textVal) {
+                          if (textVal.text.isEmpty) return dealers.map((d) => d.name);
+                          return dealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
+                        },
+                        onSelected: (val) => _dealerController.text = val,
+                        fieldViewBuilder: (ctx, controller, focus, onSub) {
+                          controller.addListener(() => _dealerController.text = controller.text);
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focus,
+                            style: const TextStyle(color: AppTheme.textPrimary),
+                            decoration: const InputDecoration(labelText: 'Dealer / Vendor Sourced', prefixIcon: Icon(Icons.storefront_rounded, size: 20)),
                           );
-                        }).toList(),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                        },
+                      ),
+                      const SizedBox(height: 14),
 
-          TextFormField(
-            controller: _estimateController,
-            decoration: const InputDecoration(
-              labelText: 'Estimate Details & Private Notes',
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 12),
+                      // Status Picker
+                      DropdownButtonFormField<String>(
+                        value: _status,
+                        dropdownColor: const Color(0xFF131A2E),
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Procurement Status', prefixIcon: Icon(Icons.flag_outlined, size: 20)),
+                        items: RequestOrder.allStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _status = val);
+                        },
+                      ),
+                      const SizedBox(height: 14),
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Sample / Requested Item Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
-        ],
-      ),
-    );
+                      PhotoAttachmentWidget(
+                        initialPhotoUrl: _photoUrl,
+                        onPhotoChanged: (url) => setState(() => _photoUrl = url),
+                        label: 'Attach Part Photos (Zoom / Comparison)',
+                      ),
+                      const SizedBox(height: 14),
 
-    if (isMobile) {
-      return Dialog.fullscreen(
-        backgroundColor: const Color(0xFF0F1322),
-        child: Scaffold(
-          backgroundColor: const Color(0xFF0F1322),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF131A2E),
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.close_rounded,
-                color: AppTheme.textPrimary,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              isEdit ? 'Edit Request' : 'Add New Request',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: _saveForm,
-                child: const Text(
-                  'Save Request',
-                  style: TextStyle(
-                    color: AppTheme.primaryLight,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                      TextFormField(
+                        controller: _estimateController,
+                        maxLines: 2,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(labelText: 'Internal Notes', prefixIcon: Icon(Icons.notes_rounded, size: 20)),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: formContent,
             ),
-          ),
-        ),
-      );
-    }
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF131A2E),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      title: Text(
-        isEdit ? 'Edit Request' : 'Add New Request',
-        style: const TextStyle(color: AppTheme.textPrimary),
-      ),
-      content: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: SingleChildScrollView(child: formContent),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _save,
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: Text(isEdit ? 'Save Changes' : 'Create Request'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        ElevatedButton(onPressed: _saveForm, child: const Text('Save Request')),
-      ],
+      ),
     );
   }
 }

@@ -300,6 +300,7 @@ class ShopRepository {
       order.toJson(),
       localDb: _localDb,
     );
+    notifyTableChanged('requests');
   }
 
   Future<void> deleteRequestOrder(String id) async {
@@ -310,6 +311,11 @@ class ShopRepository {
         await SupabasePhotoService.deletePhoto(url);
       }
     }
+    if (match?.billPhoto != null && match!.billPhoto!.isNotEmpty) {
+      for (final url in PhotoAttachmentWidget.parsePhotoUrls(match.billPhoto)) {
+        await SupabasePhotoService.deletePhoto(url);
+      }
+    }
     await _localDb.deleteRequestOrder(id);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'requests',
@@ -317,6 +323,103 @@ class ShopRepository {
       id,
       localDb: _localDb,
     );
+    notifyTableChanged('requests');
+  }
+
+  /// Get pending pickup tasks for runner staff
+  List<RequestOrder> getRunnerTasks({String? runnerId}) {
+    final list = _localDb.getRequestOrders().where((r) {
+      final s = r.status.trim();
+      final isRunnerActive = s == RequestOrder.statusRunnerAssigned || s == RequestOrder.statusCollected;
+      if (!isRunnerActive) return false;
+      if (runnerId != null && runnerId.isNotEmpty) {
+        return r.assignedRunnerId == runnerId;
+      }
+      return true;
+    }).toList();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+
+  /// Assign request to runner staff with target dealer & building
+  Future<void> assignRequestToRunner({
+    required String requestId,
+    required String runnerId,
+    required String runnerName,
+    String? dealerName,
+    String? building,
+    String? shopNo,
+  }) async {
+    final requests = _localDb.getRequestOrders();
+    final match = requests.where((r) => r.id == requestId).firstOrNull;
+    if (match == null) return;
+
+    final updated = match.copyWith(
+      status: RequestOrder.statusRunnerAssigned,
+      assignedRunnerId: runnerId,
+      assignedRunnerName: runnerName,
+      dealerName: dealerName ?? match.dealerName,
+      targetBuilding: building ?? match.targetBuilding,
+      targetShopNo: shopNo ?? match.targetShopNo,
+      updatedAt: DateTime.now(),
+    );
+    await saveRequestOrder(updated);
+  }
+
+  /// Mark request as collected by runner in market
+  Future<void> markRequestCollected({
+    required String requestId,
+    required double actualCost,
+    String? billPhoto,
+  }) async {
+    final requests = _localDb.getRequestOrders();
+    final match = requests.where((r) => r.id == requestId).firstOrNull;
+    if (match == null) return;
+
+    final updated = match.copyWith(
+      status: RequestOrder.statusCollected,
+      actualPurchaseCost: actualCost,
+      billPhoto: billPhoto ?? match.billPhoto,
+      collectedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+    await saveRequestOrder(updated);
+  }
+
+  /// 1-Click convert collected request into Purchases table entry
+  Future<PurchaseOrder> convertRequestToPurchase(RequestOrder request) async {
+    final purchaseId = getNextPurchaseOrderId();
+    final now = DateTime.now();
+    final cost = request.actualPurchaseCost ?? request.advance;
+
+    final purchase = PurchaseOrder(
+      id: purchaseId,
+      date: now,
+      purchasedFrom: request.dealerName ?? 'Market Vendor',
+      totalAmount: cost,
+      status: 'Confirmed',
+      notes: 'Auto-converted from Request #${request.id} (${request.customerName} - ${request.item})',
+    );
+
+    final purchaseItem = PurchaseOrderItem(
+      lineId: 'pitem_${DateTime.now().millisecondsSinceEpoch}',
+      purchaseId: purchaseId,
+      customItemName: request.item,
+      quantity: 1,
+      unitPrice: cost,
+      amount: cost,
+    );
+
+    await savePurchaseOrder(purchase, [purchaseItem]);
+
+    // Mark request as completed
+    final updatedRequest = request.copyWith(
+      status: RequestOrder.statusCompleted,
+      updatedAt: now,
+    );
+    await saveRequestOrder(updatedRequest);
+
+    return purchase;
   }
 
   // Purchase Orders
