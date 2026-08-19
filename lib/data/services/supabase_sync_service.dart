@@ -24,6 +24,14 @@ import 'ui_preferences_service.dart';
 enum SyncStatus { offline, syncing, synced, error }
 
 class SupabaseSyncService extends ChangeNotifier {
+  /// ─── OFFLINE SANDBOX / LOCAL TESTING TOGGLE ─────────────────────────────
+  /// When true:
+  /// 1. App runs 100% locally from Hive cache (0 cloud requests, 0 ngrok connections).
+  /// 2. Realtime WebSocket subscription is skipped.
+  /// 3. Push operations are NOT queued in the pending sync queue (sandbox isolation).
+  /// 4. When set back to false, the app reconnects to Supabase cleanly without pushing test records.
+  static const bool kOfflineDevMode = true;
+
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';
   static const String _keyKey = 'supabase_anon_key';
@@ -58,6 +66,12 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Load credentials from local storage and initialize Supabase
   Future<void> init(LocalDatabaseService localDb) async {
+    if (kOfflineDevMode) {
+      _isInitialized = false;
+      _setStatus(SyncStatus.offline, 'Offline Sandbox Mode (Local Hive DB)');
+      return;
+    }
+
     try {
       final box = await Hive.openBox(_boxName);
       // Force local settings box to use local Cloudflare Tunnel endpoint
@@ -97,6 +111,10 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Connects to Supabase and listens to realtime database events
   Future<bool> connectAndSubscribe(LocalDatabaseService localDb) async {
+    if (kOfflineDevMode) {
+      _setStatus(SyncStatus.offline, 'Offline Sandbox Mode');
+      return false;
+    }
     if (_supabaseUrl == null || _supabaseAnonKey == null) return false;
 
     try {
@@ -206,6 +224,12 @@ class SupabaseSyncService extends ChangeNotifier {
   /// If [forceFullDownload] is true, it performs a 100% full table re-download.
   /// Regardless, it always broadcasts a Full Screen UI Refresh (0 cloud usage, pure local device RAM).
   Future<void> manualSync(LocalDatabaseService localDb, {bool forceFullDownload = false}) async {
+    if (kOfflineDevMode) {
+      ShopRepository.notifyTableChanged('all');
+      _setStatus(SyncStatus.offline, 'Offline Sandbox Mode (Local DB Refreshed)');
+      return;
+    }
+
     final now = DateTime.now();
     // Anti-spam debounce: If clicked rapidly within 3 seconds, do instant local UI refresh without network hammering
     if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 3) {
@@ -1312,6 +1336,11 @@ class SupabaseSyncService extends ChangeNotifier {
     Map<String, dynamic> data, {
     LocalDatabaseService? localDb,
   }) async {
+    if (kOfflineDevMode) {
+      if (kDebugMode) print('[OfflineDevMode] Sandbox: record saved locally only ($tableName).');
+      return;
+    }
+
     final payload = Map<String, dynamic>.from(data);
     payload['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
@@ -1468,6 +1497,11 @@ class SupabaseSyncService extends ChangeNotifier {
     dynamic idValue, {
     LocalDatabaseService? localDb,
   }) async {
+    if (kOfflineDevMode) {
+      if (kDebugMode) print('[OfflineDevMode] Sandbox: delete performed locally only ($tableName).');
+      return;
+    }
+
     if (!_isInitialized) {
       // Offline: queue the delete
       if (localDb != null) {
