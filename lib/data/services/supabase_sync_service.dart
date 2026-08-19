@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -45,6 +46,8 @@ class SupabaseSyncService extends ChangeNotifier {
   Timer? _heartbeatTimer;
   Timer? _offlineDebounceTimer;
   Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  bool _isReconnecting = false;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
@@ -176,7 +179,7 @@ class SupabaseSyncService extends ChangeNotifier {
   /// Verifies Realtime WebSocket subscription is active, recreating channel if missing.
   void ensureRealtimeConnected(LocalDatabaseService localDb) {
     if (!_isInitialized) return;
-    if (_realtimeChannel == null) {
+    if (_realtimeChannel == null && !_isReconnecting) {
       _subscribeRealtime(localDb);
     }
   }
@@ -263,11 +266,18 @@ class SupabaseSyncService extends ChangeNotifier {
 
   /// Subscribes to real-time table mutations broadcast by Supabase.
   /// Uses native WebSocket status & debounced targeted delta sync to fetch only new/modified rows per table.
-  /// Auto-reconnects on channel drop (handles ngrok/proxy session timeouts).
+  /// Auto-reconnects with exponential backoff and jitter on channel drop to prevent connection storms.
   void _subscribeRealtime(LocalDatabaseService localDb) {
+    if (!_isInitialized) return;
     try {
-      _realtimeChannel?.unsubscribe();
       final client = Supabase.instance.client;
+      if (_realtimeChannel != null) {
+        try {
+          _realtimeChannel!.unsubscribe();
+          client.removeChannel(_realtimeChannel!);
+        } catch (_) {}
+        _realtimeChannel = null;
+      }
 
       final pendingTables = <String>{};
 
@@ -291,6 +301,8 @@ class SupabaseSyncService extends ChangeNotifier {
         )
         ..subscribe((status, [error]) {
           if (status == RealtimeSubscribeStatus.subscribed) {
+            _reconnectAttempts = 0;
+            _isReconnecting = false;
             _offlineDebounceTimer?.cancel();
             _reconnectTimer?.cancel();
             if (kDebugMode) print('Supabase Realtime subscribed successfully');
@@ -301,20 +313,33 @@ class SupabaseSyncService extends ChangeNotifier {
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
-            if (kDebugMode) print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting...');
+            if (kDebugMode) {
+              print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting with backoff...');
+            }
 
-            // Proactively attempt reconnect after brief 1.5s delay (handles channel refreshes & proxy drops)
+            if (_isReconnecting) return;
+            _isReconnecting = true;
+
+            // Exponential backoff with jitter: 2s -> 4s -> 8s -> 16s -> 30s max
+            _reconnectAttempts++;
+            final backoffSec = min(30, pow(2, min(_reconnectAttempts, 5)).toInt());
+            final jitterMs = Random().nextInt(1000);
+            final reconnectDelay = Duration(seconds: backoffSec, milliseconds: jitterMs);
+
             _reconnectTimer?.cancel();
-            _reconnectTimer = Timer(const Duration(milliseconds: 1500), () {
+            _reconnectTimer = Timer(reconnectDelay, () {
+              _isReconnecting = false;
               if (_isInitialized) {
-                if (kDebugMode) print('Supabase Realtime: attempting fast reconnect...');
+                if (kDebugMode) {
+                  print('Supabase Realtime: attempting reconnect (attempt #$_reconnectAttempts, delay: ${reconnectDelay.inSeconds}s)...');
+                }
                 _subscribeRealtime(localDb);
               }
             });
 
-            // Debounce the offline yellow badge by 4.5 seconds to prevent visual glitching on transient renewals
+            // Debounce the offline yellow badge by 6 seconds to prevent visual glitching on transient renewals
             _offlineDebounceTimer?.cancel();
-            _offlineDebounceTimer = Timer(const Duration(milliseconds: 4500), () {
+            _offlineDebounceTimer = Timer(const Duration(milliseconds: 6000), () {
               if (_isInitialized && _status != SyncStatus.syncing && _status != SyncStatus.synced) {
                 _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
               }
@@ -322,6 +347,7 @@ class SupabaseSyncService extends ChangeNotifier {
           }
         });
     } catch (e) {
+      _isReconnecting = false;
       if (kDebugMode) print('Realtime subscribe error: $e');
     }
   }
