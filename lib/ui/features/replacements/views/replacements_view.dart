@@ -9,6 +9,7 @@ import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../../ui/core/motion/motion.dart';
 import '../../../navigation/navigation_view_model.dart';
 import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
@@ -124,8 +125,19 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     return Consumer<ReplacementsViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.replacements.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+              ],
+            ),
           );
         }
 
@@ -220,42 +232,12 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
               // Search Bar
               if (isDesktop)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search job no, name, item, mobile, status...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.textMuted,
-                        size: 20,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search job no, name, item, mobile, status...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -962,7 +944,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       return;
     }
 
-    showDialog(
+    showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ReplacementFormDialog(

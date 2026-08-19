@@ -38,10 +38,6 @@ class UserPermissionService {
         email: 'vishnudixit2008@gmail.com',
         name: 'Vishnu Dixit (Admin)',
       ),
-      AppUser.defaultAdmin(
-        email: 'admin@perfectsolution.com',
-        name: 'System Administrator',
-      ),
     ];
 
     for (var admin in pureAdmins) {
@@ -50,20 +46,22 @@ class UserPermissionService {
       }
     }
 
-    // Explicitly purge vishnu2008dixit@gmail.com from local storage and remote database if present
-    const removedEmail = 'vishnu2008dixit@gmail.com';
-    if (box.containsKey(removedEmail)) {
-      await box.delete(removedEmail);
+    // Explicitly purge legacy dummy accounts from local storage and remote database if present
+    const purgeEmails = ['vishnu2008dixit@gmail.com', 'admin@perfectsolution.com'];
+    for (final remEmail in purgeEmails) {
+      if (box.containsKey(remEmail)) {
+        await box.delete(remEmail);
+      }
+      if (box.get(_currentEmailKey) == remEmail) {
+        await box.put(_currentEmailKey, 'perfectsolutionnoida@gmail.com');
+      }
+      try {
+        await Supabase.instance.client
+            .from('app_users')
+            .delete()
+            .eq('email', remEmail);
+      } catch (_) {}
     }
-    if (box.get(_currentEmailKey) == removedEmail) {
-      await box.put(_currentEmailKey, 'perfectsolutionnoida@gmail.com');
-    }
-    try {
-      await Supabase.instance.client
-          .from('app_users')
-          .delete()
-          .eq('email', removedEmail);
-    } catch (_) {}
 
     // Set active user default if empty
     final current = box.get(_currentEmailKey);
@@ -555,12 +553,19 @@ class UserPermissionService {
     final clean = rawAssigned.trim();
     final lower = clean.toLowerCase();
 
+    if (lower == 'office') {
+      return 'Office';
+    }
+
     // Check if we have a known user with matching email or name
     final allUsers = getAllUsers();
     for (final u in allUsers) {
       if (u.email.toLowerCase().trim() == lower ||
           u.name.toLowerCase().trim() == lower) {
-        if (u.name.trim().isNotEmpty) return u.name.trim();
+        if (u.name.trim().isNotEmpty) {
+          final n = u.name.trim();
+          return n.toLowerCase() == 'office' ? 'Office' : n;
+        }
       }
     }
 
@@ -577,18 +582,23 @@ class UserPermissionService {
 
   /// Returns list of available staff display names for dropdowns
   static List<String> getStaffDisplayNames() {
-    final names = <String>{};
+    final Map<String, String> uniqueNamesByLower = {};
     final allUsers = getAllUsers();
     for (final u in allUsers) {
       if (u.isActive) {
-        final name = u.name.trim().isNotEmpty ? u.name.trim() : u.email;
-        names.add(name);
+        final rawName = u.name.trim().isNotEmpty ? u.name.trim() : u.email.trim();
+        final displayName = formatStaffName(rawName);
+        if (displayName.isNotEmpty &&
+            displayName.toLowerCase() != 'unassigned' &&
+            !uniqueNamesByLower.containsKey(displayName.toLowerCase())) {
+          uniqueNamesByLower[displayName.toLowerCase()] = displayName;
+        }
       }
     }
-    if (!names.contains('Office')) {
-      names.add('Office');
+    if (!uniqueNamesByLower.containsKey('office')) {
+      uniqueNamesByLower['office'] = 'Office';
     }
-    return names.toList();
+    return uniqueNamesByLower.values.toList();
   }
 
   /// Checks if an entry's assignedTo field matches the specified (or current) user

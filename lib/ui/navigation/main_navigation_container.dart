@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../core/motion/motion.dart';
 import '../features/pricelist/views/pricelist_view.dart';
 import '../features/sales/views/sales_view.dart';
 import '../features/settings/views/settings_view.dart';
@@ -347,7 +348,39 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 12.0,
                   isDesktop ? 16.0 : 0.0,
                 ),
-                child: _buildActiveView(currentIndex),
+                child: AnimatedSwitcher(
+                  duration: AppleMotion.medium,
+                  switchInCurve: AppleMotion.easeOut,
+                  switchOutCurve: Curves.easeInQuad,
+                  transitionBuilder: (child, animation) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: AppleMotion.easeOut,
+                    );
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0.018, 0),
+                      end: Offset.zero,
+                    ).animate(curved);
+                    final scale = Tween<double>(
+                      begin: 0.985,
+                      end: 1.0,
+                    ).animate(curved);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: slide,
+                        child: ScaleTransition(
+                          scale: scale,
+                          child: child,
+                        ),
+                      ),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey<int>(currentIndex),
+                    child: _buildActiveView(currentIndex),
+                  ),
+                ),
               ),
             ),
           ),
@@ -525,95 +558,90 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                     syncService.status == SyncStatus.syncing || _isSyncing;
                 final isError = syncService.status == SyncStatus.error;
 
-                return Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => _triggerManualSync(context, forceFullDownload: false),
-                    onSecondaryTap: () => _showSyncOptionsDialog(context),
-                    onLongPress: () => _showSyncOptionsDialog(context),
-                    borderRadius: BorderRadius.circular(10),
-                    mouseCursor: SystemMouseCursors.click,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
+                return BouncyPressable(
+                  onTap: () => _triggerManualSync(context, forceFullDownload: false),
+                  onSecondaryTap: () => _showSyncOptionsDialog(context),
+                  onLongPress: () => _showSyncOptionsDialog(context),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSynced
+                          ? AppTheme.success.withValues(alpha: 0.1)
+                          : isSyncing
+                          ? AppTheme.primaryLight.withValues(alpha: 0.1)
+                          : isError
+                          ? AppTheme.danger.withValues(alpha: 0.1)
+                          : AppTheme.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
                         color: isSynced
-                            ? AppTheme.success.withValues(alpha: 0.1)
+                            ? AppTheme.success.withValues(alpha: 0.25)
                             : isSyncing
-                            ? AppTheme.primaryLight.withValues(alpha: 0.1)
+                            ? AppTheme.primaryLight.withValues(alpha: 0.25)
                             : isError
-                            ? AppTheme.danger.withValues(alpha: 0.1)
-                            : AppTheme.warning.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isSynced
-                              ? AppTheme.success.withValues(alpha: 0.25)
-                              : isSyncing
-                              ? AppTheme.primaryLight.withValues(alpha: 0.25)
-                              : isError
-                              ? AppTheme.danger.withValues(alpha: 0.25)
-                              : AppTheme.warning.withValues(alpha: 0.25),
-                        ),
+                            ? AppTheme.danger.withValues(alpha: 0.25)
+                            : AppTheme.warning.withValues(alpha: 0.25),
                       ),
-                      child: Row(
-                        children: [
-                          isSyncing
-                              ? SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.5,
-                                    color: AppTheme.primaryLight,
-                                  ),
-                                )
-                              : Icon(
-                                  isSynced
-                                      ? Icons.cloud_done_rounded
-                                      : isError
-                                      ? Icons.cloud_off_rounded
-                                      : Icons.cloud_sync_rounded,
-                                  size: 14,
-                                  color: isSynced
-                                      ? AppTheme.success
-                                      : isError
-                                      ? AppTheme.danger
-                                      : AppTheme.warning,
+                    ),
+                    child: Row(
+                      children: [
+                        isSyncing
+                            ? SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: AppTheme.primaryLight,
                                 ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              isSyncing
-                                  ? 'Syncing...'
-                                  : isSynced
-                                  ? 'Cloud Synced'
-                                  : isError
-                                  ? 'Sync Error — Click to Retry'
-                                  : 'Offline — Click to Sync',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
+                              )
+                            : Icon(
+                                isSynced
+                                    ? Icons.cloud_done_rounded
+                                    : isError
+                                    ? Icons.cloud_off_rounded
+                                    : Icons.cloud_sync_rounded,
+                                size: 14,
                                 color: isSynced
                                     ? AppTheme.success
-                                    : isSyncing
-                                    ? AppTheme.primaryLight
                                     : isError
                                     ? AppTheme.danger
                                     : AppTheme.warning,
                               ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isSyncing
+                                ? 'Syncing...'
+                                : isSynced
+                                ? 'Cloud Synced'
+                                : isError
+                                ? 'Sync Error — Click to Retry'
+                                : 'Offline — Click to Sync',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSynced
+                                  ? AppTheme.success
+                                  : isSyncing
+                                  ? AppTheme.primaryLight
+                                  : isError
+                                  ? AppTheme.danger
+                                  : AppTheme.warning,
                             ),
                           ),
-                          Icon(
-                            Icons.refresh_rounded,
-                            size: 14,
-                            color: isSynced
-                                ? AppTheme.success.withValues(alpha: 0.5)
-                                : AppTheme.textMuted,
-                          ),
-                        ],
-                      ),
+                        ),
+                        Icon(
+                          Icons.refresh_rounded,
+                          size: 14,
+                          color: isSynced
+                              ? AppTheme.success.withValues(alpha: 0.5)
+                              : AppTheme.textMuted,
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -626,9 +654,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
           // QR Pay Button (Desktop Sidebar)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-            child: InkWell(
+            child: BouncyPressable(
               onTap: () => _openUpiQrScreen(context),
-              borderRadius: BorderRadius.circular(10),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -694,7 +721,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                     horizontal: 12.0,
                     vertical: 2.0,
                   ),
-                  child: InkWell(
+                  child: BouncyPressable(
+                    scaleFactor: 0.94,
                     onTap: () {
                       if (navIndex == 3) {
                         try {
@@ -703,45 +731,64 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                       }
                       context.read<NavigationViewModel>().setIndex(navIndex);
                     },
-                    borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
+                      duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 11,
+                        horizontal: 14,
+                        vertical: 10,
                       ),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? AppTheme.primary.withValues(alpha: 0.12)
+                            ? AppTheme.primary.withValues(alpha: 0.14)
                             : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isActive
-                              ? AppTheme.primary.withValues(alpha: 0.25)
+                              ? AppTheme.primary.withValues(alpha: 0.28)
                               : Colors.transparent,
                           width: 1,
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(
-                            item['icon'],
-                            color: isActive
-                                ? AppTheme.primaryLight
-                                : AppTheme.textSecondary,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 14),
-                          Text(
-                            item['title'],
-                            style: TextStyle(
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 3.5,
+                            height: isActive ? 16 : 0,
+                            decoration: BoxDecoration(
                               color: isActive
-                                  ? AppTheme.textPrimary
+                                  ? AppTheme.primaryLight
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          SizedBox(width: isActive ? 10 : 4),
+                          AnimatedScale(
+                            scale: isActive ? 1.08 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            curve: AppleMotion.spring,
+                            child: Icon(
+                              item['icon'],
+                              color: isActive
+                                  ? AppTheme.primaryLight
                                   : AppTheme.textSecondary,
-                              fontWeight: isActive
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontSize: 13,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              item['title'],
+                              style: TextStyle(
+                                color: isActive
+                                    ? AppTheme.textPrimary
+                                    : AppTheme.textSecondary,
+                                fontWeight: isActive
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 13,
+                                letterSpacing: -0.1,
+                              ),
                             ),
                           ),
                         ],

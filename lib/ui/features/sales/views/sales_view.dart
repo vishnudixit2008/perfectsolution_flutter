@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
+import 'package:shop_management_flutter/ui/core/motion/motion.dart';
 import 'package:shop_management_flutter/data/models/pricelist_item.dart';
 import 'package:shop_management_flutter/data/models/sale.dart';
 import 'package:shop_management_flutter/data/models/sale_item.dart';
@@ -279,29 +280,12 @@ class _SalesViewState extends State<SalesView> {
 
           // Search Bar
           if (isDesktop)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-              ),
-              child: TextField(
-                controller: _ledgerSearchController,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Search invoice #, customer name, mobile...',
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    color: AppTheme.textMuted,
-                    size: 20,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
+            AppAnimatedSearchBar(
+              controller: _ledgerSearchController,
+              onChanged: (_) => setState(() {}),
+              onClear: () => setState(() {}),
+              hintText: 'Search invoice #, customer name, mobile...',
+              margin: const EdgeInsets.only(bottom: 10),
             )
           else
             AppSearchFilterBar(
@@ -1835,25 +1819,25 @@ class _SalesViewState extends State<SalesView> {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-                Text(
-                  '₹${cartVM.totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryLight,
-                  ),
+                RollingNumberTicker(
+                  value: cartVM.totalAmount,
+                  prefix: '₹',
+                  decimalDigits: 2,
+                  style: AppTypography.currencyLarge,
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
             // Confirm Checkout / Update Invoice
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: cartVM.cartItems.isEmpty
-                    ? null
-                    : () async {
+            BouncyPressable(
+              scaleFactor: 0.98,
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: cartVM.cartItems.isEmpty
+                      ? null
+                      : () async {
                         final isEditing = cartVM.isEditing;
                         final double checkoutAmount = cartVM.totalAmount;
                         final invoiceNo = await cartVM.checkout();
@@ -1921,11 +1905,12 @@ class _SalesViewState extends State<SalesView> {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showInvoiceDetailsSheet(
     BuildContext context,
@@ -2699,7 +2684,7 @@ class _SalesViewState extends State<SalesView> {
     final upiUri =
         'upi://pay?pa=$activeUpiId&pn=Perfect%20Solution&am=${totalAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20%23$invoiceNo';
 
-    showDialog(
+    showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -2722,7 +2707,7 @@ class _SalesViewState extends State<SalesView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Success Badge
+                  // Success Badge with spring pop
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -2738,18 +2723,15 @@ class _SalesViewState extends State<SalesView> {
                   const SizedBox(height: 10),
                   Text(
                     'Invoice #$invoiceNo Saved!',
-                    style: TextStyle(
-                      fontSize: isMobile ? 18 : 20,
-                      fontWeight: FontWeight.bold,
+                    style: AppTypography.title2.copyWith(
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Scan QR code to pay via UPI (GPay, PhonePe, Paytm)',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppTypography.footnote.copyWith(
                       color: AppTheme.textMuted,
                     ),
                   ),
@@ -2768,21 +2750,19 @@ class _SalesViewState extends State<SalesView> {
                     ),
                     child: Column(
                       children: [
-                        const Text(
+                        Text(
                           'AMOUNT TO PAY',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                          style: AppTypography.badge.copyWith(
                             color: AppTheme.textMuted,
-                            letterSpacing: 0.8,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '₹${totalAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
+                        RollingNumberTicker(
+                          value: totalAmount,
+                          prefix: '₹',
+                          decimalDigits: 2,
+                          style: AppTypography.currencyLarge.copyWith(
                             fontSize: isMobile ? 24 : 28,
-                            fontWeight: FontWeight.bold,
                             color: AppTheme.primaryLight,
                           ),
                         ),
@@ -2791,17 +2771,18 @@ class _SalesViewState extends State<SalesView> {
                   ),
                   const SizedBox(height: 16),
 
-                  // QR Code Box
+                  // QR Code Box with glowing halo
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.25),
-                          blurRadius: 20,
-                          spreadRadius: 2,
+                          color: AppTheme.primary.withValues(alpha: 0.35),
+                          blurRadius: 28,
+                          spreadRadius: 3,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -2810,6 +2791,8 @@ class _SalesViewState extends State<SalesView> {
                       version: QrVersions.auto,
                       size: isMobile ? 180 : 210,
                       backgroundColor: Colors.white,
+                      eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0B0F19)),
+                      dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0B0F19)),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -2838,8 +2821,7 @@ class _SalesViewState extends State<SalesView> {
                             upiRefName.isNotEmpty
                                 ? '$upiRefName • $activeUpiId'
                                 : activeUpiId,
-                            style: const TextStyle(
-                              fontSize: 11,
+                            style: AppTypography.subhead.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primaryLight,
                             ),
@@ -2855,67 +2837,38 @@ class _SalesViewState extends State<SalesView> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final success = await KioskBroadcastService.instance.sendQrToKiosk(
-                            amount: totalAmount,
-                            invoiceNo: '#$invoiceNo',
-                            customerName: sale?.customerName,
-                            upiId: activeUpiId,
-                            upiName: upiRefName,
-                          );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  success
-                                      ? 'Broadcasting ₹${totalAmount.toStringAsFixed(0)} QR to Kiosk Display...'
-                                      : 'Failed to broadcast to Kiosk.',
-                                ),
-                                backgroundColor: success ? AppTheme.secondary : AppTheme.danger,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.cast_rounded, size: 18),
-                        label: const Text(
-                          'Send to QR Display',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.secondary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      if (sale != null)
-                        ElevatedButton.icon(
+                      BouncyPressable(
+                        scaleFactor: 0.96,
+                        child: ElevatedButton.icon(
                           onPressed: () async {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Opening invoice in PDF viewer...'),
-                                backgroundColor: AppTheme.success,
-                                duration: Duration(seconds: 2),
-                              ),
+                            final success = await KioskBroadcastService.instance.sendQrToKiosk(
+                              amount: totalAmount,
+                              invoiceNo: '#$invoiceNo',
+                              customerName: sale?.customerName,
+                              upiId: activeUpiId,
+                              upiName: upiRefName,
                             );
-                            await PdfInvoiceHelper.printInvoice(
-                              sale: sale,
-                              items: items,
-                              activeUpiId: activeUpiId,
-                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    success
+                                        ? 'Broadcasting ₹${totalAmount.toStringAsFixed(0)} QR to Kiosk Display...'
+                                        : 'Failed to broadcast to Kiosk.',
+                                  ),
+                                  backgroundColor: success ? AppTheme.secondary : AppTheme.danger,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
                           },
-                          icon: const Icon(Icons.print_rounded, size: 18),
+                          icon: const Icon(Icons.cast_rounded, size: 18),
                           label: const Text(
-                            'Print Receipt',
+                            'Send to QR Display',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
+                            backgroundColor: AppTheme.secondary,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -2923,20 +2876,59 @@ class _SalesViewState extends State<SalesView> {
                             ),
                           ),
                         ),
+                      ),
                       const SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.check_rounded, size: 18),
-                        label: const Text(
-                          'Done / Complete',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                      if (sale != null) ...[
+                        BouncyPressable(
+                          scaleFactor: 0.96,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Opening invoice in PDF viewer...'),
+                                  backgroundColor: AppTheme.success,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              await PdfInvoiceHelper.printInvoice(
+                                sale: sale,
+                                items: items,
+                                activeUpiId: activeUpiId,
+                              );
+                            },
+                            icon: const Icon(Icons.print_rounded, size: 18),
+                            label: const Text(
+                              'Print Receipt',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.08),
-                          foregroundColor: AppTheme.textPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                        const SizedBox(height: 10),
+                      ],
+                      BouncyPressable(
+                        scaleFactor: 0.96,
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.check_rounded, size: 18),
+                          label: const Text(
+                            'Done / Complete',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.08),
+                            foregroundColor: AppTheme.textPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),

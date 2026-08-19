@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/motion/motion.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/recent_sales_view_model.dart';
 import '../../../../data/models/sale.dart';
@@ -28,8 +29,28 @@ class _DashboardViewState extends State<DashboardView> {
     return Consumer<RecentSalesViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ShimmerSkeleton.line(width: 200, height: 28),
+                const SizedBox(height: 8),
+                ShimmerSkeleton.line(width: 320, height: 14),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(child: ShimmerSkeleton.card(height: 90)),
+                    const SizedBox(width: 12),
+                    Expanded(child: ShimmerSkeleton.card(height: 90)),
+                    const SizedBox(width: 12),
+                    Expanded(child: ShimmerSkeleton.card(height: 90)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ShimmerSkeleton.card(height: 240),
+              ],
+            ),
           );
         }
 
@@ -122,19 +143,25 @@ class _DashboardViewState extends State<DashboardView> {
     final list = [
       _KpiCard(
         title: 'TODAY\'S TOTAL REVENUE',
-        value: '₹${todaySum.toStringAsFixed(2)}',
+        numericValue: todaySum,
+        prefix: '₹',
+        decimalDigits: 2,
         icon: Icons.currency_rupee_rounded,
         color: AppTheme.primaryLight,
       ),
       _KpiCard(
         title: 'PENDING VERIFICATIONS',
-        value: '$pending orders',
+        numericValue: pending,
+        suffix: ' orders',
+        decimalDigits: 0,
         icon: Icons.pending_actions_rounded,
         color: AppTheme.warning,
       ),
       _KpiCard(
         title: 'COMPLETED TRANSACTIONS',
-        value: '$confirmed orders',
+        numericValue: confirmed,
+        suffix: ' orders',
+        decimalDigits: 0,
         icon: Icons.task_alt_rounded,
         color: AppTheme.success,
       ),
@@ -142,27 +169,27 @@ class _DashboardViewState extends State<DashboardView> {
 
     if (isDesktop) {
       return Row(
-        children: list
-            .map(
-              (card) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12.0),
-                  child: card,
-                ),
-              ),
-            )
-            .toList(),
+        children: list.asMap().entries.map((entry) {
+          final int idx = entry.key;
+          final card = entry.value;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: idx < list.length - 1 ? 12.0 : 0.0),
+              child: StaggeredSlideFade(index: idx, child: card),
+            ),
+          );
+        }).toList(),
       );
     } else {
       return Column(
-        children: list
-            .map(
-              (card) => Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: card,
-              ),
-            )
-            .toList(),
+        children: list.asMap().entries.map((entry) {
+          final int idx = entry.key;
+          final card = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: StaggeredSlideFade(index: idx, child: card),
+          );
+        }).toList(),
       );
     }
   }
@@ -823,60 +850,67 @@ class _DashboardViewState extends State<DashboardView> {
 
 class _KpiCard extends StatelessWidget {
   final String title;
-  final String value;
+  final num numericValue;
+  final String prefix;
+  final String suffix;
+  final int decimalDigits;
   final IconData icon;
   final Color color;
 
   const _KpiCard({
     required this.title,
-    required this.value,
+    required this.numericValue,
+    this.prefix = '',
+    this.suffix = '',
+    this.decimalDigits = 0,
     required this.icon,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: AppTheme.glassCardDecoration(
-        color: Colors.white.withOpacity(0.02),
-        borderRadius: 12,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textMuted,
-                  letterSpacing: 0.5,
+    return BouncyPressable(
+      scaleFactor: 0.98,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: AppTheme.glassCardDecoration(
+          color: Colors.white.withOpacity(0.02),
+          borderRadius: 14,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTypography.badge.copyWith(
+                    color: AppTheme.textMuted,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                const SizedBox(height: 8),
+                RollingNumberTicker(
+                  value: numericValue,
+                  prefix: prefix,
+                  suffix: suffix,
+                  decimalDigits: decimalDigits,
+                  style: AppTypography.currencyLarge.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(8),
+              ],
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -824,12 +824,10 @@ class SupabaseSyncService extends ChangeNotifier {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
         pricelistMap[item.id] = item.toJson();
       }
-      await localDb.saveAllPricelistItems(pricelistMap, clearOthers: !isDelta);
-
       // ── Step 8: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud(force: force);
 
-      // ── Step 9: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
+      // ── Step 10: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
       try {
         final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
         final settingsMap = <String, dynamic>{};

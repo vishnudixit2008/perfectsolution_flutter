@@ -523,3 +523,4 @@ class ShopRepository {
     return recordsWithClosingStock;
   }
 }
+

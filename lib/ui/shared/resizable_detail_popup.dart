@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/shop_repository.dart';
 import '../core/app_theme.dart';
+import '../core/motion/motion.dart';
 
 /// A shared resizable detail popup dialog that persists its size across sessions.
 /// All pages should use this widget for showing entry details.
@@ -39,7 +40,7 @@ class ResizableDetailPopup extends StatefulWidget {
   @override
   State<ResizableDetailPopup> createState() => _ResizableDetailPopupState();
 
-  /// Shows a resizable detail popup as a dialog.
+  /// Shows a resizable detail popup as an Apple-grade spring scale-in dialog.
   static Future<void> show({
     required BuildContext context,
     required String title,
@@ -49,16 +50,44 @@ class ResizableDetailPopup extends StatefulWidget {
     Widget Function(BuildContext context, double scaleFactor)? actionsBuilder,
     required ShopRepository repository,
   }) {
-    return showDialog(
+    return showGeneralDialog(
       context: context,
-      barrierColor: Colors.black54,
-      builder: (_) => ResizableDetailPopup(
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss Dialog',
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      transitionDuration: AppleMotion.quick,
+      pageBuilder: (ctx, anim1, anim2) => ResizableDetailPopup(
         title: title,
         subtitle: subtitle,
         contentBuilder: contentBuilder,
         actionsBuilder: actionsBuilder,
         repository: repository,
       ),
+      transitionBuilder: (ctx, anim, secondaryAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: AppleMotion.spring,
+          reverseCurve: AppleMotion.modalExitCurve,
+        );
+        final scale = Tween<double>(
+          begin: AppleMotion.modalEntryScale,
+          end: 1.0,
+        ).animate(curved);
+        final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: anim,
+            curve: Curves.easeOut,
+            reverseCurve: AppleMotion.modalExitCurve,
+          ),
+        );
+        return FadeTransition(
+          opacity: fade,
+          child: ScaleTransition(
+            scale: scale,
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

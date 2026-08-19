@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../data/repositories/shop_repository.dart';
 import '../../../data/services/supabase_sync_service.dart';
 import '../../core/app_theme.dart';
+import '../../core/motion/motion.dart';
 
 class AppHeaderSyncButton extends StatefulWidget {
   final VoidCallback? onSynced;
@@ -150,55 +151,51 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
             ? Icons.cloud_off_rounded
             : Icons.cloud_sync_rounded;
 
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _triggerSync(context),
-            onSecondaryTap: () => _showSyncOptionsDialog(context),
-            onLongPress: () => _showSyncOptionsDialog(context),
-            borderRadius: BorderRadius.circular(20),
-            mouseCursor: SystemMouseCursors.click,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: statusColor.withValues(alpha: 0.35),
-                  width: 1,
-                ),
+        return BouncyPressable(
+          scaleFactor: 0.94,
+          onTap: () => _triggerSync(context),
+          onSecondaryTap: () => _showSyncOptionsDialog(context),
+          onLongPress: () => _showSyncOptionsDialog(context),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: statusColor.withValues(alpha: 0.35),
+                width: 1,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isSyncing)
-                    SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 1.5,
-                        color: statusColor,
-                      ),
-                    )
-                  else
-                    Icon(
-                      statusIcon,
-                      size: 14,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isSyncing)
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
                       color: statusColor,
                     ),
-                  const SizedBox(width: 6),
-                  Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
-                      letterSpacing: 0.2,
-                    ),
+                  )
+                else
+                  Icon(
+                    statusIcon,
+                    size: 14,
+                    color: statusColor,
                   ),
-                ],
-              ),
+                const SizedBox(width: 6),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
           ),
         );
