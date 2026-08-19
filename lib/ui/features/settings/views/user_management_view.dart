@@ -4,6 +4,7 @@ import '../../../../data/models/app_user.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../../ui/core/motion/motion.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../auth/view_models/auth_view_model.dart';
 
@@ -52,7 +53,7 @@ class _UserManagementViewState extends State<UserManagementView> {
         ),
       );
     } else {
-      showDialog(
+      showAppModalDialog(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => _UserPermissionsDialog(
@@ -245,16 +246,39 @@ class _UserManagementViewState extends State<UserManagementView> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _showAddEditUserPage(),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add User'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
+                BouncyPressable(
+                  scaleFactor: 0.93,
+                  onTap: () => _showAddEditUserPage(),
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.4),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 18, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'Add User',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -503,8 +527,8 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
                   TextFormField(
                     controller: nameController,
                     enabled: widget.existingUser == null ||
-                        widget.existingUser?.email !=
-                            'admin@perfectsolution.com',
+                        !AppUser.isPermanentAdmin(
+                            widget.existingUser?.email ?? ''),
                     style: const TextStyle(color: AppTheme.textPrimary),
                     decoration: _inputDec('Full Name *'),
                     validator: (val) =>
@@ -979,8 +1003,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                     child: TextFormField(
                       controller: nameController,
                       enabled: widget.existingUser == null ||
-                          widget.existingUser?.email !=
-                              'admin@perfectsolution.com',
+                          !AppUser.isPermanentAdmin(
+                              widget.existingUser?.email ?? ''),
                       style: const TextStyle(color: AppTheme.textPrimary),
                       decoration: const InputDecoration(
                         labelText: 'Employee Name *',

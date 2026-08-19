@@ -26,6 +26,7 @@ import 'ui/features/inward_repairs/view_models/inward_repairs_view_model.dart';
 import 'ui/features/replacements/view_models/replacements_view_model.dart';
 import 'ui/features/requests/view_models/requests_view_model.dart';
 import 'ui/features/purchases/view_models/purchases_view_model.dart';
+import 'ui/features/dealers/view_models/dealers_view_model.dart';
 import 'ui/features/auth/view_models/auth_view_model.dart';
 import 'ui/features/auth/views/login_view.dart';
 import 'ui/navigation/navigation_view_model.dart';
@@ -101,6 +102,9 @@ void main(List<String> args) async {
         ),
         ChangeNotifierProvider(
           create: (context) => PurchasesViewModel(repository: repository),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => DealersViewModel(repository: repository),
         ),
         ChangeNotifierProvider(create: (context) => NavigationViewModel()),
       ],

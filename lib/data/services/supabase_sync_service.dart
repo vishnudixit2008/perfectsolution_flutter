@@ -13,6 +13,7 @@ import '../models/purchase_order.dart';
 import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/sale.dart';
+import '../models/dealer.dart';
 import '../services/local_database_service.dart';
 import '../services/user_permission_service.dart';
 import '../repositories/shop_repository.dart';
@@ -551,6 +552,8 @@ class SupabaseSyncService extends ChangeNotifier {
               await localDb.deleteRequestOrder(rid);
             case 'purchases':
               await localDb.deletePurchaseOrder(rid);
+            case 'dealers':
+              await localDb.deleteDealer(rid);
           }
         }
       } catch (e) {
@@ -824,12 +827,26 @@ class SupabaseSyncService extends ChangeNotifier {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
         pricelistMap[item.id] = item.toJson();
       }
-      await localDb.saveAllPricelistItems(pricelistMap, clearOthers: !isDelta);
+      // ── Step 8: Dealers ────────────────────────────────────────────────────
+      try {
+        var dealersQuery = client.from('dealers').select();
+        if (isDelta) dealersQuery = dealersQuery.gt('updated_at', lastSyncIso);
+        final dealersData = await dealersQuery.timeout(const Duration(seconds: 5));
+        final dealersList = <Dealer>[];
+        for (final json in dealersData) {
+          dealersList.add(Dealer.fromJson(Map<String, dynamic>.from(json)));
+        }
+        if (dealersList.isNotEmpty || !isDelta) {
+          await localDb.saveAllDealers(dealersList, clearOthers: !isDelta);
+        }
+      } catch (e) {
+        if (kDebugMode) print('Dealers table sync error: $e');
+      }
 
-      // ── Step 8: Users & Permissions ────────────────────────────────────────
+      // ── Step 9: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud(force: force);
 
-      // ── Step 9: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
+      // ── Step 10: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
       try {
         final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
         final settingsMap = <String, dynamic>{};
@@ -899,6 +916,27 @@ class SupabaseSyncService extends ChangeNotifier {
         }
         if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] is Map) {
           await StatusManagementService.loadFromDefaultStatusesMap(settingsMap['shop_default_statuses']);
+        }
+
+        if (settingsMap.containsKey('dealers_registry') && settingsMap['dealers_registry'] is List) {
+          final List<Dealer> list = [];
+          for (var item in settingsMap['dealers_registry'] as List) {
+            try {
+              list.add(Dealer.fromJson(Map<String, dynamic>.from(item)));
+            } catch (_) {}
+          }
+          if (list.isNotEmpty) {
+            await localDb.saveAllDealers(list);
+          }
+        } else if (!isDelta) {
+          final localDealers = localDb.getDealers();
+          if (localDealers.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'dealers_registry',
+              'value': localDealers.map((d) => d.toJson()).toList(),
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
         }
       } catch (e) {
         if (kDebugMode) print('Shop settings sync error: $e');
@@ -1297,6 +1335,23 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  /// Syncs full dealer registry to shop_settings in Supabase
+  Future<void> syncDealersToCloud(LocalDatabaseService localDb) async {
+    if (!_isInitialized) return;
+    try {
+      final client = Supabase.instance.client;
+      final dealers = localDb.getDealers();
+      await client.from('shop_settings').upsert({
+        'key': 'dealers_registry',
+        'value': dealers.map((d) => d.toJson()).toList(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+      _setStatus(SyncStatus.synced, 'Dealers live synced');
+    } catch (e) {
+      if (kDebugMode) print('Dealers cloud sync error: $e');
+    }
+  }
+
   /// Deletes all inward estimate items for a given job_no
   Future<void> deleteEstimateItemsForJob(int jobNo) async {
     if (!_isInitialized) return;
@@ -1436,6 +1491,25 @@ class SupabaseSyncService extends ChangeNotifier {
         _setStatus(SyncStatus.error, 'Delete Error: $e');
       }
     }
+  }
+
+  /// Sync dealer entity to Supabase
+  Future<void> syncDealerToCloud(Dealer dealer, {LocalDatabaseService? localDb}) async {
+    await pushRecordToCloud(
+      'dealers',
+      dealer.toJson(),
+      localDb: localDb,
+    );
+  }
+
+  /// Delete dealer entity from Supabase
+  Future<void> deleteDealerFromCloud(String dealerId, {LocalDatabaseService? localDb}) async {
+    await deleteRecordFromCloud(
+      'dealers',
+      'id',
+      dealerId,
+      localDb: localDb,
+    );
   }
 
   /// One-click reset for production launch: Clears test data from Cloud & Local

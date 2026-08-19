@@ -107,40 +107,108 @@ class AppTheme {
         color: textPrimary,
       ),
 
-      // Text styling
+      // Text styling with Apple SF Pro / HIG tracking & weight hierarchy
       textTheme: const TextTheme(
-
+        displayLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 32,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.8,
+          color: textPrimary,
+          height: 1.2,
+        ),
         headlineLarge: TextStyle(
           fontFamily: 'Inter',
           fontSize: 28,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.7,
           color: textPrimary,
+          height: 1.25,
         ),
         headlineMedium: TextStyle(
           fontFamily: 'Inter',
           fontSize: 22,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
           color: textPrimary,
+          height: 1.3,
         ),
-        titleLarge: TextStyle(
+        headlineSmall: TextStyle(
           fontFamily: 'Inter',
           fontSize: 18,
           fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
           color: textPrimary,
+          height: 1.35,
+        ),
+        titleLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
+          color: textPrimary,
+          height: 1.35,
         ),
         titleMedium: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w600,
+          letterSpacing: -0.2,
           color: textPrimary,
+          height: 1.4,
         ),
-        bodyLarge: TextStyle(fontFamily: 'Inter', fontSize: 15, color: textPrimary),
-        bodyMedium: TextStyle(fontFamily: 'Inter', fontSize: 14, color: textSecondary),
+        titleSmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
+          color: textPrimary,
+          height: 1.4,
+        ),
+        bodyLarge: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.15,
+          color: textPrimary,
+          height: 1.45,
+        ),
+        bodyMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          letterSpacing: -0.05,
+          color: textSecondary,
+          height: 1.45,
+        ),
+        bodySmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.1,
+          color: textMuted,
+          height: 1.4,
+        ),
         labelLarge: TextStyle(
           fontFamily: 'Inter',
           fontSize: 14,
           fontWeight: FontWeight.w600,
+          letterSpacing: -0.1,
           color: textPrimary,
+        ),
+        labelMedium: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+          color: textSecondary,
+        ),
+        labelSmall: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+          color: textMuted,
         ),
       ),
 
@@ -228,4 +296,122 @@ class AppTheme {
       ),
     );
   }
+}
+
+/// Standardized Apple SF Pro / HIG Typography Tokens
+class AppTypography {
+  /// 30px Bold (-0.7px tracking) — Page Large Titles
+  static const TextStyle largeTitle = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 30,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.7,
+    color: AppTheme.textPrimary,
+    height: 1.2,
+  );
+
+  /// 22px Bold (-0.5px tracking) — Section Headers
+  static const TextStyle title1 = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.5,
+    color: AppTheme.textPrimary,
+    height: 1.25,
+  );
+
+  /// 18px SemiBold (-0.3px tracking) — Card Titles & Dialog Headers
+  static const TextStyle title2 = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.3,
+    color: AppTheme.textPrimary,
+    height: 1.3,
+  );
+
+  /// 16px SemiBold (-0.2px tracking) — Standard Item Titles
+  static const TextStyle title3 = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
+    color: AppTheme.textPrimary,
+    height: 1.35,
+  );
+
+  /// 15px SemiBold (-0.2px tracking) — Sub-headers & Metric Labels
+  static const TextStyle headline = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
+    color: AppTheme.textPrimary,
+    height: 1.35,
+  );
+
+  /// 14px Regular (-0.1px tracking) — Primary Body Text
+  static const TextStyle body = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    letterSpacing: -0.1,
+    color: AppTheme.textPrimary,
+    height: 1.45,
+  );
+
+  /// 13px Medium (-0.05px tracking) — Secondary Details & List Items
+  static const TextStyle callout = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    letterSpacing: -0.05,
+    color: AppTheme.textSecondary,
+    height: 1.4,
+  );
+
+  /// 12px Medium (0.0px tracking) — Hints & Metadata
+  static const TextStyle subhead = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0.0,
+    color: AppTheme.textSecondary,
+  );
+
+  /// 11px Regular (+0.1px tracking) — Timestamps & Footnotes
+  static const TextStyle footnote = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0.1,
+    color: AppTheme.textMuted,
+  );
+
+  /// 10px Bold (+0.6px tracking, Uppercase) — Status Badges & Category Tags
+  static const TextStyle badge = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.6,
+    color: AppTheme.textPrimary,
+  );
+
+  /// 14px SemiBold (-0.2px tracking) — Currency Pricing
+  static const TextStyle currency = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
+    color: AppTheme.primaryLight,
+  );
+
+  /// 20px Bold (-0.5px tracking) — Prominent Financial Grand Totals
+  static const TextStyle currencyLarge = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.5,
+    color: AppTheme.primaryLight,
+  );
 }

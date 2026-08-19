@@ -14,6 +14,7 @@ import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
+import '../models/dealer.dart';
 import 'supabase_sync_service.dart';
 import 'kiosk_broadcast_service.dart';
 
@@ -29,6 +30,7 @@ class LocalDatabaseService {
   static const String _requestBoxName = 'request_box';
   static const String _purchaseBoxName = 'purchase_box';
   static const String _purchaseItemsBoxName = 'purchase_items_box';
+  static const String _dealersBoxName = 'dealers_box';
   static const String _pendingSyncBoxName = 'pending_sync_queue';
 
   late Box _pricelistBox;
@@ -42,6 +44,7 @@ class LocalDatabaseService {
   late Box _requestBox;
   late Box _purchaseBox;
   late Box _purchaseItemsBox;
+  late Box _dealersBox;
   late Box _pendingSyncBox;
 
   Future<void> init() async {
@@ -64,6 +67,7 @@ class LocalDatabaseService {
     _requestBox = await _openBoxSafely(_requestBoxName);
     _purchaseBox = await _openBoxSafely(_purchaseBoxName);
     _purchaseItemsBox = await _openBoxSafely(_purchaseItemsBoxName);
+    _dealersBox = await _openBoxSafely(_dealersBoxName);
     _pendingSyncBox = await _openBoxSafely(_pendingSyncBoxName);
 
     // Seed data is disabled since Supabase is now the source of truth
@@ -1229,4 +1233,49 @@ class LocalDatabaseService {
 
     return updatedProducts;
   }
+
+  // ── Dealers Operations ──────────────────────────────────────────────────
+  List<Dealer> getDealers() {
+    final List<Dealer> list = [];
+    for (var key in _dealersBox.keys) {
+      final raw = _dealersBox.get(key);
+      if (raw != null) {
+        try {
+          list.add(Dealer.fromJson(Map<String, dynamic>.from(raw)));
+        } catch (_) {}
+      }
+    }
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
+  }
+
+  Dealer? getDealerById(String id) {
+    final raw = _dealersBox.get(id);
+    if (raw == null) return null;
+    try {
+      return Dealer.fromJson(Map<String, dynamic>.from(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveDealer(Dealer dealer) async {
+    await _dealersBox.put(dealer.id, dealer.toJson());
+  }
+
+  Future<void> deleteDealer(String id) async {
+    await _dealersBox.delete(id);
+  }
+
+  Future<void> saveAllDealers(List<Dealer> dealers, {bool clearOthers = false}) async {
+    if (clearOthers) {
+      await _dealersBox.clear();
+    }
+    final Map<String, Map<String, dynamic>> map = {};
+    for (var d in dealers) {
+      map[d.id] = d.toJson();
+    }
+    await _dealersBox.putAll(map);
+  }
 }
+

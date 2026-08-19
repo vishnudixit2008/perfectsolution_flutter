@@ -9,6 +9,7 @@ import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../../ui/core/motion/motion.dart';
 import '../../calls/view_models/calls_view_model.dart';
 import '../../../navigation/navigation_view_model.dart';
 import '../../../shared/components/app_page_header.dart';
@@ -127,8 +128,19 @@ class _CallsViewState extends State<CallsView> {
     return Consumer<CallsViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.calls.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+              ],
+            ),
           );
         }
 
@@ -241,43 +253,11 @@ class _CallsViewState extends State<CallsView> {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.02),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          style: const TextStyle(fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText:
-                                'Search customer, mobile, query, staff...',
-                            hintStyle: const TextStyle(fontSize: 12),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              color: AppTheme.textMuted,
-                              size: 18,
-                            ),
-                            border: InputBorder.none,
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(
-                                      Icons.clear_rounded,
-                                      size: 16,
-                                    ),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      setState(() {});
-                                    },
-                                  )
-                                : null,
-                          ),
-                        ),
+                      child: AppAnimatedSearchBar(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        onClear: () => setState(() {}),
+                        hintText: 'Search customer, mobile, query, staff...',
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1521,7 +1501,7 @@ class _CallsViewState extends State<CallsView> {
       return;
     }
 
-    showDialog(
+    showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _CallFormDialog(existingCall: existingCall),
@@ -1708,7 +1688,17 @@ class _CallFormDialogState extends State<_CallFormDialog> {
 
   List<String> get _staffOptions {
     final list = UserPermissionService.getStaffDisplayNames();
-    return list.isNotEmpty ? list : ['Office'];
+    final Map<String, String> unique = {};
+    for (final item in list) {
+      final name = UserPermissionService.formatStaffName(item).trim();
+      if (name.isNotEmpty && name.toLowerCase() != 'unassigned') {
+        unique[name.toLowerCase()] = name;
+      }
+    }
+    if (!unique.containsKey('office')) {
+      unique['office'] = 'Office';
+    }
+    return unique.values.toList();
   }
 
   // ignore: unused_field
@@ -1736,10 +1726,21 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     _queryController = TextEditingController(
       text: call?.query ?? widget.prefillQuery ?? '',
     );
+
+    final currentUser = UserPermissionService.getCurrentUser();
+    String defaultAssigned = 'Office';
+    if (currentUser.name.trim().isNotEmpty) {
+      defaultAssigned = UserPermissionService.formatStaffName(currentUser.name);
+    } else if (currentUser.email.trim().isNotEmpty) {
+      defaultAssigned = UserPermissionService.formatStaffName(currentUser.email);
+    }
+
     _assignedController = TextEditingController(
       text: (call?.assignedTo.isNotEmpty ?? false)
-          ? call!.assignedTo
-          : (widget.prefillAssigned ?? _staffOptions.first),
+          ? UserPermissionService.formatStaffName(call!.assignedTo)
+          : (widget.prefillAssigned != null
+              ? UserPermissionService.formatStaffName(widget.prefillAssigned)
+              : defaultAssigned),
     );
     _estimateController = TextEditingController(
       text: call?.estimate ?? widget.prefillEstimate ?? '',
@@ -1861,12 +1862,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
           if (isAssignedVis) ...[
             DropdownButtonFormField<String>(
               initialValue: (() {
-                final current = _assignedController.text.trim();
-                if (current.isEmpty) return _staffOptions.first;
+                final current = _assignedController.text.trim().toLowerCase();
                 for (final opt in _staffOptions) {
-                  if (opt.toLowerCase() == current.toLowerCase() ||
-                      UserPermissionService.formatStaffName(current).toLowerCase() ==
-                          opt.toLowerCase()) {
+                  if (opt.toLowerCase() == current) {
                     return opt;
                   }
                 }
@@ -1887,7 +1885,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               items: _staffOptions.map((staff) {
                 return DropdownMenuItem<String>(
                   value: staff,
-                  child: Text(UserPermissionService.formatStaffName(staff)),
+                  child: Text(staff),
                 );
               }).toList(),
             ),
@@ -2034,7 +2032,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
       content: Container(
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: const BoxConstraints(maxWidth: 620),
         width: MediaQuery.of(context).size.width * 0.9,
         child: SingleChildScrollView(child: formContent),
       ),
@@ -2080,25 +2078,45 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     );
   }
 
+  bool _isSaving = false;
+
   void _saveForm(BuildContext context) async {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Guard: wait for photo upload to complete before saving
-      if (_isPhotoUploading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+    if (_isSaving) return;
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter customer name to save.'),
+          backgroundColor: AppTheme.danger,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // Guard: wait for photo upload to complete before saving
+    if (_isPhotoUploading) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⏳ Photo is still uploading to Google Drive. Please wait a moment before saving.',
           ),
-        );
-        return;
-      }
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
+    setState(() => _isSaving = true);
+
+    try {
       final viewModel = context.read<CallsViewModel>();
-
       final int callId = widget.existingCall?.id ?? viewModel.getNextCallId();
+
+      final assignedVal = _assignedController.text.trim().isNotEmpty
+          ? _assignedController.text.trim()
+          : 'Office';
 
       final newCall = CallModel(
         id: callId,
@@ -2113,7 +2131,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         query: _queryController.text.trim().isNotEmpty
             ? _queryController.text.trim()
             : null,
-        assignedTo: _assignedController.text.trim(),
+        assignedTo: assignedVal,
         estimate: _estimateController.text.trim().isNotEmpty
             ? _estimateController.text.trim()
             : null,
@@ -2137,6 +2155,19 @@ class _CallFormDialogState extends State<_CallFormDialog> {
             ),
           ),
         );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving call: $e'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }

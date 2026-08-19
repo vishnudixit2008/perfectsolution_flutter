@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
+import '../../core/motion/motion.dart';
 
 class AppHeaderActionButton extends StatelessWidget {
   final String label;
@@ -24,51 +25,70 @@ class AppHeaderActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isOutlined) {
-      return OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 17, color: foregroundColor ?? AppTheme.textPrimary),
-        label: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: foregroundColor ?? AppTheme.textPrimary,
-            letterSpacing: 0.2,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          side: BorderSide(
-            color: borderColor ?? Colors.white.withValues(alpha: 0.15),
-            width: 1,
-          ),
-          shape: RoundedRectangleBorder(
+      return BouncyPressable(
+        scaleFactor: 0.93,
+        onTap: onPressed,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: borderColor ?? Colors.white.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: foregroundColor ?? AppTheme.textPrimary),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: foregroundColor ?? AppTheme.textPrimary,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-          letterSpacing: 0.2,
-        ),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor ?? AppTheme.primary,
-        foregroundColor: foregroundColor ?? Colors.white,
-        elevation: 2,
-        shadowColor: (backgroundColor ?? AppTheme.primary).withValues(alpha: 0.4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(
+    return BouncyPressable(
+      scaleFactor: 0.93,
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? AppTheme.primary,
           borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: (backgroundColor ?? AppTheme.primary).withValues(alpha: 0.4),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: foregroundColor ?? Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: foregroundColor ?? Colors.white,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

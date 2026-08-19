@@ -9,6 +9,7 @@ import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../../ui/core/motion/motion.dart';
 import '../../../navigation/navigation_view_model.dart';
 import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
@@ -24,6 +25,8 @@ import '../../../shared/status_management_dialog.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/purchases_view_model.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/models/dealer.dart';
+import '../../dealers/views/dealers_view.dart';
 
 class PurchasesView extends StatefulWidget {
   const PurchasesView({super.key});
@@ -34,6 +37,7 @@ class PurchasesView extends StatefulWidget {
 
 class _PurchasesViewState extends State<PurchasesView> {
   final TextEditingController _searchController = TextEditingController();
+  String _selectedDealerFilter = 'All';
 
   // Table columns widths
   // ignore: unused_field
@@ -126,19 +130,37 @@ class _PurchasesViewState extends State<PurchasesView> {
     return Consumer<PurchasesViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.purchases.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 80),
+              ],
+            ),
           );
         }
 
         final double screenWidth = MediaQuery.of(context).size.width;
         final bool isDesktop = screenWidth >= 800;
+        final allDealers = context.watch<ShopRepository>().getDealers();
+        final List<String> dealerFilterList = ['All', ...allDealers.map((d) => d.name)];
 
         // Filtering
         final query = _searchController.text.trim().toLowerCase();
         final filtered = viewModel.purchases.where((p) {
           if (!UserPermissionService.isStatusVisible('purchases', p.status)) {
             return false;
+          }
+          if (_selectedDealerFilter != 'All') {
+            if (p.purchasedFrom.trim().toLowerCase() != _selectedDealerFilter.trim().toLowerCase()) {
+              return false;
+            }
           }
           if (query.isEmpty) return true;
           final idMatch = p.id.toLowerCase().contains(query);
@@ -213,42 +235,12 @@ class _PurchasesViewState extends State<PurchasesView> {
 
               // Search Bar
               if (isDesktop)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search ID, vendor, status, notes...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.textMuted,
-                        size: 20,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search ID, vendor, status, notes...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -258,7 +250,49 @@ class _PurchasesViewState extends State<PurchasesView> {
                   }),
                   hintText: 'Search purchase ID, vendor...',
                 ),
-              const SizedBox(height: 12),
+
+              // Dealer Filter Chips Bar
+              if (allDealers.isNotEmpty) ...[
+                Container(
+                  height: 36,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    itemCount: dealerFilterList.length,
+                    separatorBuilder: (_, index) => const SizedBox(width: 8),
+                    itemBuilder: (context, idx) {
+                      final dName = dealerFilterList[idx];
+                      final isSelected = _selectedDealerFilter == dName;
+                      return FilterChip(
+                        selected: isSelected,
+                        avatar: isSelected
+                            ? null
+                            : (dName == 'All'
+                                ? const Icon(Icons.apps_rounded, size: 14, color: AppTheme.textSecondary)
+                                : const Icon(Icons.storefront_rounded, size: 14, color: AppTheme.textSecondary)),
+                        label: Text(dName),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                        ),
+                        backgroundColor: const Color(0xFF131A2E),
+                        selectedColor: AppTheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          side: BorderSide(
+                            color: isSelected ? AppTheme.primary : Colors.white12,
+                          ),
+                        ),
+                        onSelected: (_) => setState(() => _selectedDealerFilter = dName),
+                      );
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 4),
 
               // Table / Cards list grouped by status
               Expanded(
@@ -968,7 +1002,7 @@ class _PurchasesViewState extends State<PurchasesView> {
       return;
     }
 
-    showDialog(
+    showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _PurchaseFormDialog(
@@ -1448,16 +1482,70 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             const SizedBox(height: 12),
           ],
           if (isPurchasedFromVis) ...[
-            TextFormField(
-              controller: _vendorController,
-              readOnly: !isPurchasedFromMod,
-              enabled: isPurchasedFromMod,
-              decoration: const InputDecoration(
-                labelText: 'Purchased From (Vendor / Dealer Name) *',
-              ),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'Please enter vendor name'
-                  : null,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Autocomplete<String>(
+                    initialValue: TextEditingValue(text: _vendorController.text),
+                    optionsBuilder: (textVal) {
+                      final allDealers = context.read<ShopRepository>().getDealers();
+                      final list = allDealers.map((d) => d.name).toList();
+                      if (textVal.text.isEmpty) {
+                        return list;
+                      }
+                      return list.where((d) => d.toLowerCase().contains(textVal.text.toLowerCase()));
+                    },
+                    onSelected: (val) {
+                      _vendorController.text = val;
+                      setState(() {});
+                    },
+                    fieldViewBuilder: (ctx, controller, focus, onSub) {
+                      controller.addListener(() {
+                        _vendorController.text = controller.text;
+                      });
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focus,
+                        readOnly: !isPurchasedFromMod,
+                        enabled: isPurchasedFromMod,
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Purchased From (Dealer / Vendor) *',
+                          hintText: 'Select dealer from directory...',
+                          prefixIcon: Icon(Icons.storefront_rounded, size: 20),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Please enter or select vendor name'
+                            : null,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: IconButton.filledTonal(
+                    onPressed: () async {
+                      final newDealer = await showDialog<Dealer>(
+                        context: context,
+                        builder: (_) => const DealerAddEditDialog(),
+                      );
+                      if (newDealer != null && mounted) {
+                        setState(() {
+                          _vendorController.text = newDealer.name;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.add_business_rounded, color: AppTheme.primaryLight, size: 20),
+                    tooltip: 'Add New Dealer to Directory',
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
+                      padding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
           ],

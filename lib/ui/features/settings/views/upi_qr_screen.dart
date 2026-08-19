@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/app_theme.dart';
+import '../../../core/motion/motion.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 
@@ -318,7 +319,8 @@ class _UpiQrScreenState extends State<UpiQrScreen>
                               style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
                               overflow: TextOverflow.ellipsis),
                         ),
-                        GestureDetector(
+                        BouncyPressable(
+                          scaleFactor: 0.90,
                           onTap: () {
                             Clipboard.setData(ClipboardData(text: upiId));
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -355,21 +357,19 @@ class _UpiQrScreenState extends State<UpiQrScreen>
                 child: widget.initialAmount != null && widget.initialAmount! > 0
                     ? Column(
                         children: [
-                          const Text(
+                          Text(
                             'AMOUNT TO PAY',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                            style: AppTypography.badge.copyWith(
                               color: AppTheme.textMuted,
-                              letterSpacing: 0.8,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '₹${widget.initialAmount!.toStringAsFixed(2)}',
-                            style: TextStyle(
+                          RollingNumberTicker(
+                            value: widget.initialAmount!,
+                            prefix: '₹',
+                            decimalDigits: 2,
+                            style: AppTypography.currencyLarge.copyWith(
                               fontSize: isMobile ? 24 : 28,
-                              fontWeight: FontWeight.bold,
                               color: AppTheme.secondary,
                             ),
                           ),
@@ -423,19 +423,19 @@ class _UpiQrScreenState extends State<UpiQrScreen>
               ),
               const SizedBox(height: 20),
 
-              // QR Code
+              // QR Code with Apple spring and ambient halo
               ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.secondary.withValues(alpha: 0.32),
-                        blurRadius: 30,
-                        spreadRadius: 2,
+                        color: AppTheme.secondary.withValues(alpha: 0.38),
+                        blurRadius: 36,
+                        spreadRadius: 3,
                         offset: const Offset(0, 8),
                       ),
                     ],

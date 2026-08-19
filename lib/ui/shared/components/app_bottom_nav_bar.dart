@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
+import '../../core/motion/motion.dart';
 import '../../navigation/navigation_view_model.dart';
 import '../../features/pricelist/view_models/pricelist_view_model.dart';
 import '../../../data/services/user_permission_service.dart';
@@ -25,7 +26,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
     {'title': 'Sales', 'icon': Icons.receipt_long_rounded, 'index': 4, 'module': 'sales'},
     {'title': 'Requests', 'icon': Icons.help_outline_rounded, 'index': 5, 'module': 'requests'},
     {'title': 'Purchases', 'icon': Icons.shopping_cart_rounded, 'index': 6, 'module': 'purchases'},
-    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 7, 'module': 'settings'},
+    {'title': 'Dealers', 'icon': Icons.storefront_rounded, 'index': 7, 'module': 'dealers'},
+    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 8, 'module': 'settings'},
   ];
 
   @override
@@ -95,7 +97,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
 
                     return SizedBox(
                       width: 76,
-                      child: InkWell(
+                      child: BouncyPressable(
+                        scaleFactor: 0.92,
                         onTap: () {
                           if (idx == 3) {
                             try {
@@ -105,12 +108,12 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
                           context.read<NavigationViewModel>().setIndex(idx);
                         },
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
+                          duration: const Duration(milliseconds: 200),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
+                                duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 3,
@@ -121,24 +124,30 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(
-                                  item['icon'] as IconData,
-                                  size: 20,
-                                  color: isActive
-                                      ? AppTheme.primaryLight
-                                      : AppTheme.textSecondary.withValues(
-                                          alpha: 0.6,
-                                        ),
+                                child: AnimatedScale(
+                                  scale: isActive ? 1.08 : 1.0,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutBack,
+                                  child: Icon(
+                                    item['icon'] as IconData,
+                                    size: 20,
+                                    color: isActive
+                                        ? AppTheme.primaryLight
+                                        : AppTheme.textSecondary.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 item['title'] as String,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 10.5,
                                   fontWeight: isActive
-                                      ? FontWeight.bold
+                                      ? FontWeight.w700
                                       : FontWeight.w500,
+                                  letterSpacing: 0.1,
                                   color: isActive
                                       ? AppTheme.primaryLight
                                       : AppTheme.textSecondary.withValues(

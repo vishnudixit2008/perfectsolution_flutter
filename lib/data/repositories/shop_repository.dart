@@ -10,6 +10,7 @@ import '../models/request_order.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
 import '../models/product_history_record.dart';
+import '../models/dealer.dart';
 import '../services/local_database_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_photo_service.dart';
@@ -522,4 +523,27 @@ class ShopRepository {
 
     return recordsWithClosingStock;
   }
+
+  // ── Dealers Operations ──────────────────────────────────────────────────
+  List<Dealer> getDealers() => _localDb.getDealers();
+
+  Dealer? getDealerById(String id) => _localDb.getDealerById(id);
+
+  Dealer? getDealerByName(String name) {
+    final clean = name.trim().toLowerCase();
+    return _localDb.getDealers().where((d) => d.name.trim().toLowerCase() == clean).firstOrNull;
+  }
+
+  Future<void> saveDealer(Dealer dealer) async {
+    await _localDb.saveDealer(dealer);
+    await SupabaseSyncService.instance.syncDealerToCloud(dealer, localDb: _localDb);
+    notifyTableChanged('dealers');
+  }
+
+  Future<void> deleteDealer(String id) async {
+    await _localDb.deleteDealer(id);
+    await SupabaseSyncService.instance.deleteDealerFromCloud(id, localDb: _localDb);
+    notifyTableChanged('dealers');
+  }
 }
+

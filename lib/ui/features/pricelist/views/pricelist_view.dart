@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
+import 'package:shop_management_flutter/ui/core/motion/motion.dart';
 import 'package:shop_management_flutter/data/models/pricelist_item.dart';
 import 'package:shop_management_flutter/ui/features/pricelist/view_models/pricelist_view_model.dart';
 import '../../../shared/photo_attachment_widget.dart';
@@ -50,8 +51,19 @@ class _PricelistViewState extends State<PricelistView> {
     return Consumer<PricelistViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.items.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                ShimmerSkeleton.card(height: 72),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 72),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 72),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 72),
+              ],
+            ),
           );
         }
 
@@ -135,26 +147,11 @@ class _PricelistViewState extends State<PricelistView> {
     final String currentCategory =
         viewModel.selectedCategory ?? 'All Categories';
 
-    Widget searchField = TextField(
+    Widget searchField = AppAnimatedSearchBar(
       controller: _searchController,
       onChanged: viewModel.setSearchQuery,
-      decoration: InputDecoration(
-        hintText: 'Search by product name, description, or category...',
-        prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textMuted),
-        suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(
-                  Icons.clear_rounded,
-                  size: 18,
-                  color: AppTheme.textMuted,
-                ),
-                onPressed: () {
-                  _searchController.clear();
-                  viewModel.setSearchQuery('');
-                },
-              )
-            : null,
-      ),
+      onClear: () => viewModel.setSearchQuery(''),
+      hintText: 'Search by product name, description, or category...',
     );
 
     Widget categoryFilter = Container(
@@ -1308,7 +1305,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
   String? photoUrl = existingItem?.photo;
   bool isPhotoUploading = false;
 
-  return showDialog<PricelistItem>(
+  return showAppModalDialog<PricelistItem>(
     context: context,
     barrierDismissible: false,
     builder: (context) {

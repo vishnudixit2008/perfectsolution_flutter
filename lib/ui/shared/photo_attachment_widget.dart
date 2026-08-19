@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/services/supabase_photo_service.dart';
 import '../core/app_theme.dart';
+import 'app_photo_viewer_dialog.dart';
 
 class PhotoAttachmentWidget extends StatefulWidget {
   final String? initialPhotoUrl;
@@ -249,7 +250,7 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         setState(() {
           _isUploading = true;
           _uploadStatusText =
-              'Uploading ${selectedFiles.length} photo(s) to Google Drive...';
+              'Compressing & uploading ${selectedFiles.length} photo(s)...';
           _photoUrls.addAll(localPaths);
         });
         widget.onUploadingChanged?.call(true);
@@ -446,122 +447,10 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
   }
 
   void _showImagePreviewDialog(int initialIndex) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        int currentIndex = initialIndex;
-        return StatefulBuilder(
-          builder: (context, setPreviewState) {
-            final rawUrl = _photoUrls[currentIndex];
-
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
-                constraints: const BoxConstraints(
-                  maxWidth: 850,
-                  maxHeight: 650,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF131A2E),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        // Header
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Photo ${currentIndex + 1} of ${_photoUrls.length}',
-                                style: const TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                                onPressed: () => Navigator.pop(ctx),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 1, color: Colors.white10),
-                        // Image Body
-                        Expanded(
-                          child: Center(
-                            child: PhotoAttachmentWidget.buildAppImage(
-                              rawUrl,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Navigation Arrows if multiple photos
-                    if (_photoUrls.length > 1) ...[
-                      if (currentIndex > 0)
-                        Positioned(
-                          left: 12,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setPreviewState(() => currentIndex--);
-                              },
-                            ),
-                          ),
-                        ),
-                      if (currentIndex < _photoUrls.length - 1)
-                        Positioned(
-                          right: 12,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                setPreviewState(() => currentIndex++);
-                              },
-                            ),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+    AppPhotoViewerDialog.show(
+      context,
+      photoUrls: _photoUrls,
+      initialIndex: initialIndex,
     );
   }
 
@@ -841,116 +730,10 @@ class PhotoGallerySection extends StatelessWidget {
     List<String> urls,
     int initialIndex,
   ) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        int currentIndex = initialIndex;
-        return StatefulBuilder(
-          builder: (context, setPreviewState) {
-            final rawUrl = urls[currentIndex];
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
-                constraints: const BoxConstraints(
-                  maxWidth: 850,
-                  maxHeight: 650,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF131A2E),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Photo ${currentIndex + 1} of ${urls.length}',
-                                style: const TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 24,
-                                ),
-                                onPressed: () => Navigator.pop(ctx),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 1, color: Colors.white10),
-                        Expanded(
-                          child: Center(
-                            child: PhotoAttachmentWidget.buildAppImage(
-                              rawUrl,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (urls.length > 1) ...[
-                      if (currentIndex > 0)
-                        Positioned(
-                          left: 12,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () =>
-                                  setPreviewState(() => currentIndex--),
-                            ),
-                          ),
-                        ),
-                      if (currentIndex < urls.length - 1)
-                        Positioned(
-                          right: 12,
-                          top: 0,
-                          bottom: 0,
-                          child: Center(
-                            child: IconButton(
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.black54,
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                color: Colors.white,
-                              ),
-                              onPressed: () =>
-                                  setPreviewState(() => currentIndex++),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+    AppPhotoViewerDialog.show(
+      context,
+      photoUrls: urls,
+      initialIndex: initialIndex,
     );
   }
 }

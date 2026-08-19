@@ -11,6 +11,7 @@ import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
 import '../../../../ui/core/app_theme.dart';
+import '../../../../ui/core/motion/motion.dart';
 import '../../../navigation/navigation_view_model.dart';
 import '../../../shared/components/app_page_header.dart';
 import '../../../shared/components/app_list_card.dart';
@@ -133,8 +134,19 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     return Consumer<InwardRepairsViewModel>(
       builder: (context, viewModel, child) {
         if (viewModel.isLoading && viewModel.repairs.isEmpty) {
-          return const Center(
-            child: CircularProgressIndicator(color: AppTheme.primary),
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                ShimmerSkeleton.card(height: 84),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 84),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 84),
+                const SizedBox(height: 10),
+                ShimmerSkeleton.card(height: 84),
+              ],
+            ),
           );
         }
 
@@ -238,46 +250,12 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
 
               // Search Bar
               if (isDesktop)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search by job no, customer, device, status...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.textMuted,
-                        size: 20,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.clear_rounded,
-                                size: 18,
-                                color: AppTheme.textMuted,
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search by job no, customer, device, status...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -751,14 +729,18 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
               color: AppTheme.primaryLight,
             ),
             const SizedBox(width: 4),
-            Text(
-              repair.discount > 0
-                  ? 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)} (Disc. ₹${repair.discount.toStringAsFixed(0)})'
-                  : 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)}',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.primaryLight,
+            Expanded(
+              child: Text(
+                repair.discount > 0
+                    ? 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)} (Disc. ₹${repair.discount.toStringAsFixed(0)})'
+                    : 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primaryLight,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1002,21 +984,27 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     border: Border.all(color: Colors.white.withOpacity(0.04)),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        it.itemName ?? it.itemDescription ?? 'Item',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12 * scale,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          it.itemName ?? it.itemDescription ?? 'Item',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 12 * scale,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      SizedBox(width: 8 * scale),
                       Text(
                         '${it.quantity} x ₹${(it.lineType == 'Service' ? it.servicePrice : it.unitPrice).toStringAsFixed(0)} = ₹${it.totalAmount.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: AppTheme.primaryLight,
                           fontSize: 12 * scale,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1248,7 +1236,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       return;
     }
 
-    showDialog(
+    showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _InwardRepairFormDialog(
