@@ -1449,6 +1449,7 @@ Perfect Solution''';
         'totalAmount': est.totalAmount > 0
             ? est.totalAmount
             : ((est.quantity > 0 ? est.quantity : 1) * price),
+        'notes': est.notes,
       };
     }).toList();
 

@@ -137,16 +137,25 @@ class _SalesViewState extends State<SalesView> {
               item['itemDescription'] ?? item['itemName'] ?? 'Estimate Item',
           quantity: (item['quantity'] as num?)?.toInt() ?? 1,
           itemPrice: (item['itemPrice'] as num?)?.toDouble() ?? 0.0,
+          customPrice: (item['customPrice'] as num?)?.toDouble(),
+          notes: item['notes']?.toString(),
         );
       }
     } else {
       final String? itemName =
           prefill['itemName'] ?? prefill['item'] ?? prefill['devices'];
-      final double amount =
-          (prefill['amount'] ?? prefill['totalAmount'] ?? 0.0) as double;
+      final double amount = (prefill['amount'] != null
+          ? (prefill['amount'] as num).toDouble()
+          : (prefill['totalAmount'] != null
+              ? (prefill['totalAmount'] as num).toDouble()
+              : 0.0));
 
       if (itemName != null && itemName.isNotEmpty) {
-        salesVM.addCustomServiceToCart(itemName, amount);
+        salesVM.addCustomServiceToCart(
+          itemName,
+          amount,
+          notes: prefill['notes']?.toString(),
+        );
       }
     }
 

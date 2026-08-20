@@ -39,6 +39,7 @@ class SaleItem {
     int? quantity,
     double? itemPrice,
     double? customPrice,
+    bool clearCustomPrice = false,
     String? serviceName,
     double? servicePrice,
     double? totalAmount,
@@ -52,7 +53,7 @@ class SaleItem {
       itemDescription: itemDescription ?? this.itemDescription,
       quantity: quantity ?? this.quantity,
       itemPrice: itemPrice ?? this.itemPrice,
-      customPrice: customPrice ?? this.customPrice,
+      customPrice: clearCustomPrice ? null : (customPrice ?? this.customPrice),
       serviceName: serviceName ?? this.serviceName,
       servicePrice: servicePrice ?? this.servicePrice,
       totalAmount: totalAmount ?? this.totalAmount,
@@ -94,7 +95,18 @@ class SaleItem {
         ? (json['custom_price'] is num
               ? (json['custom_price'] as num).toDouble()
               : double.tryParse(json['custom_price'].toString()))
-        : null;
+        : (json['unit_price'] != null &&
+                json['item_price'] != null &&
+                (json['unit_price'] is num
+                        ? (json['unit_price'] as num).toDouble()
+                        : double.tryParse(json['unit_price'].toString()) ?? 0.0) !=
+                    (json['item_price'] is num
+                        ? (json['item_price'] as num).toDouble()
+                        : double.tryParse(json['item_price'].toString()) ?? 0.0)
+            ? (json['unit_price'] is num
+                ? (json['unit_price'] as num).toDouble()
+                : double.tryParse(json['unit_price'].toString()))
+            : null);
     final String? parsedServiceName = json['service_name']?.toString();
     final double? parsedServicePrice = json['service_price'] != null
         ? (json['service_price'] is num
@@ -117,7 +129,9 @@ class SaleItem {
       customPrice: parsedCustomPrice,
       serviceName: parsedServiceName,
       servicePrice: parsedServicePrice,
-      totalAmount: parsedTotal,
+      totalAmount: parsedTotal > 0
+          ? parsedTotal
+          : (parsedQty * (parsedCustomPrice ?? parsedItemPrice)),
       notes: parsedNotes,
     );
   }

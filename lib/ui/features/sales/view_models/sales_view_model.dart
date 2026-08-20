@@ -101,7 +101,7 @@ class SalesViewModel extends ChangeNotifier {
       final item = _cartItems[existingIdx];
       _cartItems[existingIdx] = item.copyWith(
         quantity: item.quantity + 1,
-        totalAmount: (item.quantity + 1) * (item.customPrice ?? item.itemPrice),
+        totalAmount: (item.quantity + 1) * item.activePrice,
       );
     } else {
       // Create new line item (temp invoiceNo = 0, will assign on checkout)
@@ -148,9 +148,11 @@ class SalesViewModel extends ChangeNotifier {
     required String itemDescription,
     required int quantity,
     required double itemPrice,
+    double? customPrice,
     String? notes,
   }) {
     final int qty = quantity > 0 ? quantity : 1;
+    final double effectivePrice = customPrice ?? itemPrice;
     final newItem = SaleItem(
       id: '${lineType.toLowerCase()}_${DateTime.now().microsecondsSinceEpoch}_${_cartItems.length}_${_cartItems.hashCode}',
       invoiceNo: 0,
@@ -159,7 +161,8 @@ class SalesViewModel extends ChangeNotifier {
       itemDescription: itemDescription,
       quantity: qty,
       itemPrice: itemPrice,
-      totalAmount: qty * itemPrice,
+      customPrice: customPrice,
+      totalAmount: qty * effectivePrice,
       notes: notes,
     );
     _cartItems.add(newItem);
@@ -204,6 +207,7 @@ class SalesViewModel extends ChangeNotifier {
       final double activeRate = price ?? item.itemPrice;
       _cartItems[idx] = item.copyWith(
         customPrice: price,
+        clearCustomPrice: price == null,
         totalAmount: item.quantity * activeRate,
       );
       notifyListeners();

@@ -1108,15 +1108,40 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
   ) {
     final navVM = context.read<NavigationViewModel>();
-    navVM.setIndex(
-      NavigationViewModel.sales,
-      prefillData: {
-        'target': 'sales',
-        'customerName': pur.purchasedFrom,
-        'itemName': 'Purchase inventory sale conversion: ${pur.id}',
-        'amount': pur.totalAmount,
-      },
-    );
+    final purchaseItems = viewModel.getPurchaseItems(pur.id);
+
+    if (purchaseItems.isNotEmpty) {
+      final itemsList = purchaseItems.map((item) {
+        return {
+          'itemId': item.itemId,
+          'lineType': 'Product',
+          'itemDescription': item.itemName ?? item.customItemName ?? 'Product',
+          'quantity': item.quantity,
+          'itemPrice': item.unitPrice,
+          'totalAmount': item.amount,
+        };
+      }).toList();
+
+      navVM.setIndex(
+        NavigationViewModel.sales,
+        prefillData: {
+          'target': 'sales',
+          'customerName': pur.purchasedFrom,
+          'estimateItems': itemsList,
+          'totalAmount': pur.totalAmount,
+        },
+      );
+    } else {
+      navVM.setIndex(
+        NavigationViewModel.sales,
+        prefillData: {
+          'target': 'sales',
+          'customerName': pur.purchasedFrom,
+          'itemName': 'Purchase inventory sale conversion: ${pur.id}',
+          'amount': pur.totalAmount,
+        },
+      );
+    }
   }
 }
 

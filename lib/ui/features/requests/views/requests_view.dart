@@ -1135,6 +1135,8 @@ class _RequestsViewState extends State<RequestsView> {
         'customerName': r.customerName,
         'customerNumber': r.mobileNo,
         'advance': r.advance,
+        'itemName': r.item,
+        'amount': r.totalAmount > 0 ? r.totalAmount : r.advance,
       },
     );
   }

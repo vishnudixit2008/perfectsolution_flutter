@@ -1631,13 +1631,19 @@ class _CallsViewState extends State<CallsView> {
   void _convertToSale(BuildContext context, CallModel call) {
     final navVM = context.read<NavigationViewModel>();
     Navigator.pop(context);
+    final double? estAmount = call.estimate != null
+        ? double.tryParse(call.estimate!.replaceAll(RegExp(r'[^0-9.]'), ''))
+        : null;
     navVM.setIndex(
       NavigationViewModel.sales,
       prefillData: {
         'target': 'sales',
         'customerName': call.name,
         'customerNumber': call.mobileNo,
-        'itemName': 'Call log conversion - ${call.name}',
+        'itemName': (call.query != null && call.query!.trim().isNotEmpty)
+            ? 'Call Enquiry: ${call.query}'
+            : 'Call log conversion - ${call.name}',
+        if (estAmount != null && estAmount > 0) 'amount': estAmount,
       },
     );
   }
