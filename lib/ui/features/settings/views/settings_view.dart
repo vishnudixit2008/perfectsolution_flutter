@@ -11,6 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
+import 'package:shop_management_flutter/ui/shared/update_dialog.dart';
 import 'user_management_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -165,6 +166,26 @@ class _SettingsViewState extends State<SettingsView> {
                             ),
                           );
                         },
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checking for updates...'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                          await UpdateDialog.showIfNeeded(context, forceCheck: true);
+                        },
+                        icon: const Icon(Icons.sync_rounded, size: 14),
+                        label: const Text('Check for Updates', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryLight,
+                          side: BorderSide(color: AppTheme.primaryLight.withValues(alpha: 0.3)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
                       ),
                     ],
                   ),
