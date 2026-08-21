@@ -3,7 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Industry-Grade Apple & Telegram-Inspired Physics Curves, Timings, and Profiling Constants
+/// Platform-aware: desktop (Windows/macOS) gets lean, snappy timings;
+/// mobile (Android) keeps the expressive, liquid spring profile.
 class AppleMotion {
+  // ── Platform Detection ───────────────────────────────────────────────────────
+  /// true on Windows and macOS (mouse input primary, high-DPI monitors).
+  static bool get isDesktop {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.linux;
+  }
+
   // ── Physics Curves ──────────────────────────────────────────────────────────
   /// Natural fluid spring for interactive press and bounce states (Telegram / iOS style)
   static const Curve spring = Cubic(0.175, 0.885, 0.32, 1.15);
@@ -42,16 +53,53 @@ class AppleMotion {
   /// 550ms — Large dashboards, full page transitions, charts
   static const Duration stately = Duration(milliseconds: 550);
 
+  // ── Platform-Adaptive Durations ─────────────────────────────────────────────
+  /// Page transition: lean 220ms on desktop, expressive 380ms on mobile
+  static Duration get pageTransitionDuration =>
+      isDesktop ? const Duration(milliseconds: 220) : const Duration(milliseconds: 380);
+
+  /// Modal dialog: crisp 200ms on desktop, liquid 420ms on mobile
+  static Duration get modalDuration =>
+      isDesktop ? const Duration(milliseconds: 200) : const Duration(milliseconds: 420);
+
+  /// Sidebar/nav item highlight transition
+  static Duration get navItemDuration =>
+      isDesktop ? const Duration(milliseconds: 160) : const Duration(milliseconds: 280);
+
+  /// Staggered list item entrance delay per item index
+  static Duration get staggerDelay =>
+      isDesktop ? const Duration(milliseconds: 8) : const Duration(milliseconds: 20);
+
+  /// Max items that play entrance animation (beyond = instant render)
+  static int get staggerMaxIndex => isDesktop ? 4 : 8;
+
+  /// Base duration for staggered entrance items
+  static Duration get staggerBaseDuration =>
+      isDesktop ? const Duration(milliseconds: 160) : const Duration(milliseconds: 420);
+
   // ── Scale Values ────────────────────────────────────────────────────────────
-  /// 0.97x — Standard tactile depression for cards & buttons on tap
+  /// 0.97x — Standard tactile depression for cards & buttons on tap (mobile)
   static const double pressScale = 0.97;
 
-  /// 0.94x — Initial modal scale-in starting point
+  /// Desktop: no scale transform — hover highlight replaces scale animation
+  static const double pressScaleDesktop = 1.0;
+
+  /// 0.94x — Initial modal scale-in starting point (mobile)
   static const double modalEntryScale = 0.94;
 
-  /// Triggers a lightweight haptic feedback tick without blocking main thread
+  /// Desktop modal entry scale: less dramatic, crisper professional feel
+  static const double modalEntryScaleDesktop = 0.97;
+
+  // ── Hover Colors (Desktop) ───────────────────────────────────────────────────
+  /// Subtle hover overlay for desktop list rows & cards
+  static const Color hoverOverlay = Color(0x0AFFFFFF); // white ~4%
+
+  /// Active press overlay for desktop
+  static const Color pressOverlay = Color(0x12FFFFFF); // white ~7%
+
+  /// Triggers a lightweight haptic feedback tick (no-op on desktop)
   static void triggerHapticFeedback({bool light = true}) {
-    if (kIsWeb) return;
+    if (kIsWeb || isDesktop) return;
     try {
       if (light) {
         HapticFeedback.selectionClick();
@@ -61,3 +109,4 @@ class AppleMotion {
     } catch (_) {}
   }
 }
+

@@ -690,85 +690,18 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                 final item = visibleItems[index];
                 final int navIndex = item['index'] as int;
                 final bool isActive = currentIndex == navIndex;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 2.0,
-                  ),
-                  child: BouncyPressable(
-                    scaleFactor: 0.94,
-                    onTap: () {
-                      if (navIndex == 3) {
-                        try {
-                          context.read<PricelistViewModel>().resetSortAndFilters();
-                        } catch (_) {}
-                      }
-                      context.read<NavigationViewModel>().setIndex(navIndex);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppTheme.primary.withValues(alpha: 0.14)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isActive
-                              ? AppTheme.primary.withValues(alpha: 0.28)
-                              : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 3.5,
-                            height: isActive ? 16 : 0,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? AppTheme.primaryLight
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          SizedBox(width: isActive ? 10 : 4),
-                          AnimatedScale(
-                            scale: isActive ? 1.08 : 1.0,
-                            duration: const Duration(milliseconds: 200),
-                            curve: AppleMotion.spring,
-                            child: Icon(
-                              item['icon'],
-                              color: isActive
-                                  ? AppTheme.primaryLight
-                                  : AppTheme.textSecondary,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              item['title'],
-                              style: TextStyle(
-                                color: isActive
-                                    ? AppTheme.textPrimary
-                                    : AppTheme.textSecondary,
-                                fontWeight: isActive
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                return _DesktopNavItem(
+                  icon: item['icon'] as IconData,
+                  title: item['title'] as String,
+                  isActive: isActive,
+                  onTap: () {
+                    if (navIndex == 3) {
+                      try {
+                        context.read<PricelistViewModel>().resetSortAndFilters();
+                      } catch (_) {}
+                    }
+                    context.read<NavigationViewModel>().setIndex(navIndex);
+                  },
                 );
               },
             ),
@@ -886,8 +819,13 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   }
 }
 
-/// Keeps all views mounted and alive in memory while rendering a rich,
-/// liquid 380ms spring fade-scale-slide transition when switching tabs.
+/// Platform-adaptive page transition stack.
+///
+/// **Desktop**: 220ms fade-only. No SlideTransition / ScaleTransition on the full
+///   page tree. Eliminates 3-layer GPU compositing that caused jank on Windows/Mac
+///   with hundreds of mounted list rows. Pure opacity — the cheapest possible blend.
+///
+/// **Mobile**: 380ms liquid spring: fade + 2% scale + 2% slide upward.
 class _FadeScaleIndexedStack extends StatefulWidget {
   final int index;
   final List<Widget> children;
@@ -905,38 +843,50 @@ class _FadeScaleIndexedStackState extends State<_FadeScaleIndexedStack>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
-  late final Animation<Offset> _slideAnimation;
-  late final Animation<double> _scaleAnimation;
+  // Mobile-only animations
+  Animation<Offset>? _slideAnimation;
+  Animation<double>? _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380),
+      duration: AppleMotion.pageTransitionDuration,
     );
 
-    final curved = CurvedAnimation(
-      parent: _controller,
-      curve: const Cubic(0.175, 0.885, 0.32, 1.15),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
+    if (AppleMotion.isDesktop) {
+      // Desktop: pure fade — zero GPU compositing transform cost
+      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: Curves.easeOut,
+        ),
+      );
+    } else {
+      // Mobile: liquid spring fade + scale + subtle upward slide
+      final curved = CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.70, curve: Curves.easeOut),
-      ),
-    );
+        curve: const Cubic(0.175, 0.885, 0.32, 1.15),
+      );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 0.02),
-      end: Offset.zero,
-    ).animate(curved);
+      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: const Interval(0.0, 0.70, curve: Curves.easeOut),
+        ),
+      );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.98,
-      end: 1.0,
-    ).animate(curved);
+      _slideAnimation = Tween<Offset>(
+        begin: const Offset(0.0, 0.02),
+        end: Offset.zero,
+      ).animate(curved);
+
+      _scaleAnimation = Tween<double>(
+        begin: 0.98,
+        end: 1.0,
+      ).animate(curved);
+    }
 
     _controller.value = 1.0;
   }
@@ -970,17 +920,197 @@ class _FadeScaleIndexedStackState extends State<_FadeScaleIndexedStack>
           );
         }
 
+        Widget view = widget.children[i];
+
+        if (!AppleMotion.isDesktop) {
+          // Mobile: apply scale + slide on top of fade
+          view = ScaleTransition(
+            scale: _scaleAnimation!,
+            child: SlideTransition(
+              position: _slideAnimation!,
+              child: view,
+            ),
+          );
+        }
+
         return FadeTransition(
           opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: widget.children[i],
-            ),
-          ),
+          child: view,
         );
       }),
+    );
+  }
+}
+
+/// Desktop sidebar nav item with a single AnimationController per item.
+/// Updates only via [didUpdateWidget] — zero parent tree rebuild cost.
+/// Renders:
+///   - Animated active highlight pill (opacity + scaleX)
+///   - Animated left indicator bar (height 0→16px via SizeTransition)
+///   - Icon color morph via ColorTween
+///   - Label weight change
+class _DesktopNavItem extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DesktopNavItem({
+    required this.icon,
+    required this.title,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  State<_DesktopNavItem> createState() => _DesktopNavItemState();
+}
+
+class _DesktopNavItemState extends State<_DesktopNavItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _highlightOpacity;
+  late final Animation<double> _highlightScaleX;
+  late final Animation<double> _barHeight;
+  late final Animation<Color?> _iconColor;
+
+  static const _inactiveColor = Color(0xFF8B95A8);
+  static const _activeColor = AppTheme.primaryLight;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: AppleMotion.navItemDuration,
+    );
+
+    final curved = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Cubic(0.25, 1.0, 0.5, 1.0),
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    _highlightOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
+    _highlightScaleX = Tween<double>(begin: 0.88, end: 1.0).animate(curved);
+    _barHeight = Tween<double>(begin: 0.0, end: 16.0).animate(curved);
+    _iconColor = ColorTween(begin: _inactiveColor, end: _activeColor)
+        .animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: Curves.easeOutCubic,
+    ));
+
+    if (widget.isActive) _ctrl.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DesktopNavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _ctrl.forward();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) {
+              return Stack(
+                children: [
+                  // Animated highlight pill background
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: _highlightOpacity.value,
+                      child: Transform.scale(
+                        scaleX: _highlightScaleX.value,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppTheme.primary
+                                  .withValues(alpha: 0.28),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Content row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        // Animated indicator bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: SizedBox(
+                            width: 3.5,
+                            height: 16,
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: Container(
+                                width: 3.5,
+                                height: _barHeight.value,
+                                decoration: BoxDecoration(
+                                  color: _iconColor.value ??
+                                      _inactiveColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                            width: _highlightOpacity.value > 0.5 ? 10 : 4),
+                        // Icon with color morph
+                        Icon(
+                          widget.icon,
+                          color: _iconColor.value ?? _inactiveColor,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 12),
+                        // Label
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: TextStyle(
+                              color: _iconColor.value ?? _inactiveColor,
+                              fontWeight: _highlightOpacity.value > 0.5
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'motion_tokens.dart';
 
-/// Ultra-performant staggered entrance animation designed specifically for high-density lists.
+/// Ultra-performant staggered entrance animation — platform-adaptive.
 ///
-/// Performance Optimizations:
-/// 1. Viewport Capping: Only items with [index] < [maxAnimatedIndex] (default 8) instantiate
-///    an [AnimationController]. Items beyond 8 render instantly with zero animation overhead.
-/// 2. Layer-Level Transforms: Uses [FadeTransition] and [SlideTransition] directly, manipulating
-///    [RenderAnimatedOpacity] and [RenderTransform] without triggering widget tree rebuilds.
-/// 3. Paint Isolation: Enclosed in [RepaintBoundary] to isolate animating rows from adjacent list nodes.
+/// **Desktop**: 8ms delay, 4 items max, 160ms duration → near-instant reveal,
+///   professional feel on big screens where all items are visible simultaneously.
+/// **Mobile**: 20ms delay, 8 items max, 420ms duration → expressive cascade.
+///
+/// Items beyond [maxAnimatedIndex] render instantly with zero animation overhead.
+/// Uses [FadeTransition] + [SlideTransition] at the layer level — zero rebuilds.
 class StaggeredSlideFade extends StatefulWidget {
   final Widget child;
   final int index;
@@ -22,12 +22,14 @@ class StaggeredSlideFade extends StatefulWidget {
     super.key,
     required this.child,
     this.index = 0,
-    this.baseDuration = AppleMotion.medium,
-    this.itemDelay = const Duration(milliseconds: 20),
-    this.slideOffset = 12.0,
+    Duration? baseDuration,
+    Duration? itemDelay,
+    this.slideOffset = 10.0,
     this.curve = AppleMotion.easeOut,
-    this.maxAnimatedIndex = 8,
-  });
+    int? maxAnimatedIndex,
+  })  : baseDuration = baseDuration ?? AppleMotion.medium,
+        itemDelay = itemDelay ?? const Duration(milliseconds: 20),
+        maxAnimatedIndex = maxAnimatedIndex ?? 8;
 
   @override
   State<StaggeredSlideFade> createState() => _StaggeredSlideFadeState();
@@ -43,14 +45,17 @@ class _StaggeredSlideFadeState extends State<StaggeredSlideFade>
   void initState() {
     super.initState();
 
-    // If beyond the initial viewport threshold, skip animation completely to conserve CPU/GPU
-    if (widget.index >= widget.maxAnimatedIndex) {
-      return;
-    }
+    // Platform-aware thresholds
+    final maxIndex = AppleMotion.staggerMaxIndex;
+
+    // Beyond viewport threshold → skip animation entirely to save CPU/GPU
+    if (widget.index >= maxIndex) return;
+
+    final duration = AppleMotion.staggerBaseDuration;
 
     _controller = AnimationController(
       vsync: this,
-      duration: widget.baseDuration,
+      duration: duration,
     );
 
     _fadeAnimation = CurvedAnimation(
@@ -68,7 +73,7 @@ class _StaggeredSlideFadeState extends State<StaggeredSlideFade>
       ),
     );
 
-    final delay = widget.itemDelay * widget.index;
+    final delay = AppleMotion.staggerDelay * widget.index;
     if (delay == Duration.zero) {
       _controller!.forward();
     } else {
@@ -88,8 +93,8 @@ class _StaggeredSlideFadeState extends State<StaggeredSlideFade>
 
   @override
   Widget build(BuildContext context) {
-    // Zero-overhead fast path for non-initial items
-    if (widget.index >= widget.maxAnimatedIndex || _controller == null) {
+    final maxIndex = AppleMotion.staggerMaxIndex;
+    if (widget.index >= maxIndex || _controller == null) {
       return widget.child;
     }
 

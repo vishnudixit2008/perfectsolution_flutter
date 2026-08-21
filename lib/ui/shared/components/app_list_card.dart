@@ -159,6 +159,7 @@ class AppListCard extends StatelessWidget {
       index: index,
       child: BouncyPressable(
         scaleFactor: 0.982,
+        hoverBorderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: cardContent,
       ),
