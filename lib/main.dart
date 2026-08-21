@@ -134,7 +134,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       if (kDebugMode) {
-        print('[Lifecycle] App resumed / screen unlocked — triggering quick delta catchup sync');
+        print(
+          '[Lifecycle] App resumed / screen unlocked — triggering quick delta catchup sync',
+        );
       }
       try {
         final repo = Provider.of<ShopRepository>(context, listen: false);

@@ -832,9 +832,20 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 ///
 /// **Perf architecture**:
 /// - Pages built lazily (only on first visit, cached forever — no rebuilds).
-/// - `TickerMode(enabled: false)` pauses shimmers/animations in background pages.
-/// - `RepaintBoundary` isolates each page's compositor layer.
-/// - Animation fires after first paint via `addPostFrameCallback` (no first-frame jank).
+/// Apple-style lazy-loading directional page transition stack.
+///
+/// **Why previous version lagged and went back and forth**:
+/// It scheduled `_ctrl.forward(from: 0.0)` in `addPostFrameCallback`.
+/// This caused Frame 0 to draw the new page at 100% (since _ctrl.value was 1.0),
+/// then Frame 1 reset _ctrl to 0.0 (popping the old page back in), and then
+/// animated forward — causing a noticeable 1-second lag and a back-and-forth flicker.
+///
+/// **Fix**:
+/// 1. Synchronously reset and start `_ctrl.forward(from: 0.0)` in `didUpdateWidget`.
+/// 2. Directional awareness: forward tab movements glide from right (+X), backward from left (-X).
+/// 3. Zero-rebuild layer transitions: uses `FadeTransition` & `SlideTransition` directly.
+/// 4. Auto-cleanup: `statusListener` clears `_previousIndex = null` on completion so
+///    the old page immediately goes into zero-cost `Offstage(offstage: true)`.
 class _LazyIndexedStack extends StatefulWidget {
   final int index;
   final int count;
@@ -871,40 +882,59 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
   Animation<double>? _mobileScale;
   Animation<double>? _mobileFade;
 
-  // easeOutExpo — the iOS/macOS standard deceleration curve
+  // easeOutExpo — Apple macOS standard deceleration curve
   static const Curve _expoOut = Cubic(0.16, 1.0, 0.3, 1.0);
 
   @override
   void initState() {
     super.initState();
     _activeIndex = widget.index;
+    _previousIndex = null;
 
     _ctrl = AnimationController(
       vsync: this,
       duration: AppleMotion.isDesktop
-          ? const Duration(milliseconds: 280)
-          : const Duration(milliseconds: 360),
+          ? const Duration(milliseconds: 240)
+          : const Duration(milliseconds: 320),
     );
 
-    _setupAnimations();
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted && _previousIndex != null) {
+          setState(() {
+            _previousIndex = null;
+          });
+        }
+      }
+    });
+
+    _setupAnimations(isForward: true);
     _ctrl.value = 1.0; // start fully visible
   }
 
-  void _setupAnimations() {
+  void _setupAnimations({required bool isForward}) {
     if (AppleMotion.isDesktop) {
-      // ── Incoming page: glides in from the right ──────────────────────────
+      final double inOffset = isForward ? 0.03 : -0.03;
+      final double outOffset = isForward ? -0.02 : 0.02;
+
+      final curved = CurvedAnimation(
+        parent: _ctrl,
+        curve: _expoOut,
+      );
+
+      // ── Incoming page: glides in smoothly from direction ────────────────
       _incomingFade = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _ctrl,
-          curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+          curve: const Interval(0.0, 0.75, curve: Curves.easeOut),
         ),
       );
       _incomingSlide = Tween<Offset>(
-        begin: const Offset(0.04, 0.0), // 4% from right
+        begin: Offset(inOffset, 0.0),
         end: Offset.zero,
-      ).animate(CurvedAnimation(parent: _ctrl, curve: _expoOut));
+      ).animate(curved);
 
-      // ── Outgoing page: recedes gently to the left ────────────────────────
+      // ── Outgoing page: recedes gently in opposite direction ──────────────
       _outgoingFade = Tween<double>(begin: 1.0, end: 0.0).animate(
         CurvedAnimation(
           parent: _ctrl,
@@ -913,10 +943,14 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
       );
       _outgoingSlide = Tween<Offset>(
         begin: Offset.zero,
-        end: const Offset(-0.025, 0.0), // recedes 2.5% to left
-      ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInCubic));
+        end: Offset(outOffset, 0.0),
+      ).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: Curves.easeInQuad,
+        ),
+      );
 
-      // Set defaults so mobile fields are non-null
       _mobileFade = _incomingFade;
     } else {
       // ── Mobile: vertical spring slide ───────────────────────────────────
@@ -936,7 +970,6 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
       ).animate(curved);
       _mobileScale = Tween<double>(begin: 0.975, end: 1.0).animate(curved);
 
-      // Set defaults so desktop fields are non-null
       _incomingFade = _mobileFade!;
       _incomingSlide = _mobileSlide!;
       _outgoingFade = _mobileFade!;
@@ -950,10 +983,9 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
     if (oldWidget.index != widget.index) {
       _previousIndex = oldWidget.index;
       _activeIndex = widget.index;
-      // Fire after first paint so there's zero first-frame jank
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _ctrl.forward(from: 0.0);
-      });
+      final isForward = widget.index >= oldWidget.index;
+      _setupAnimations(isForward: isForward);
+      _ctrl.forward(from: 0.0);
     }
   }
 
@@ -970,6 +1002,9 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
   @override
   Widget build(BuildContext context) {
     final built = <int>{..._cache.keys, _activeIndex};
+    if (_previousIndex != null) {
+      built.add(_previousIndex!);
+    }
 
     return Stack(
       fit: StackFit.expand,
@@ -986,27 +1021,16 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
 
         if (AppleMotion.isDesktop) {
           if (isExiting) {
-            // Outgoing: recede left + fade out
-            return AnimatedBuilder(
-              animation: _ctrl,
-              builder: (_, child) {
-                final t = _ctrl.value;
-                // Once animation is done, hide the exiting page
-                if (t >= 1.0) {
-                  return Offstage(offstage: true, child: child!);
-                }
-                return FadeTransition(
-                  opacity: _outgoingFade,
-                  child: SlideTransition(
-                    position: _outgoingSlide,
-                    child: child,
-                  ),
-                );
-              },
-              child: page,
+            // Outgoing: recede + fade out
+            return FadeTransition(
+              opacity: _outgoingFade,
+              child: SlideTransition(
+                position: _outgoingSlide,
+                child: page,
+              ),
             );
           }
-          // Incoming: glide in from right + fade in
+          // Incoming: glide in + fade in
           return FadeTransition(
             opacity: _incomingFade,
             child: SlideTransition(
@@ -1031,6 +1055,7 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
     );
   }
 }
+
 
 
 /// Desktop sidebar nav item with a single AnimationController per item.
