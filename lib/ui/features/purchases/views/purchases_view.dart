@@ -410,6 +410,14 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
   ) {
+    final listEntries = <_PurchaseListItem>[];
+    for (final entry in groupedPurchases.entries) {
+      listEntries.add(_PurchaseListItem.header(entry.key, entry.value.length));
+      for (final pur in entry.value) {
+        listEntries.add(_PurchaseListItem.card(pur));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -457,24 +465,21 @@ class _PurchasesViewState extends State<PurchasesView> {
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedPurchases.entries) ...[
-                    _buildStatusSectionHeader(
-                      entry.key,
-                      entry.value.length,
-                    ),
-                    for (final pur in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, pur),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.purchase!);
+              },
             ),
           ),
         ],

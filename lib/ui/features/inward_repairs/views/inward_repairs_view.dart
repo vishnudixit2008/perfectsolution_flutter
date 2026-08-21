@@ -420,6 +420,14 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     InwardRepairsViewModel viewModel,
     Map<String, List<InwardRepair>> groupedRepairs,
   ) {
+    final listEntries = <_InwardListItem>[];
+    for (final entry in groupedRepairs.entries) {
+      listEntries.add(_InwardListItem.header(entry.key, entry.value.length));
+      for (final repair in entry.value) {
+        listEntries.add(_InwardListItem.card(repair));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -491,24 +499,21 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
             ),
           ),
 
-          // Scrollable Body with Status Headers on Top and Entries Below Each Status
+          // Scrollable Body with Status Headers on Top and Entries Below Each Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedRepairs.entries) ...[
-                    _buildStatusSectionHeader(
-                      entry.key,
-                      entry.value.length,
-                    ),
-                    for (final repair in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, repair),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.repair!);
+              },
             ),
           ),
         ],

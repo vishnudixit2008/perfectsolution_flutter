@@ -29,6 +29,7 @@ import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/services/kiosk_broadcast_service.dart';
+import '../../../../data/services/ui_preferences_service.dart';
 
 class SalesView extends StatefulWidget {
   const SalesView({super.key});
@@ -60,10 +61,46 @@ class _SalesViewState extends State<SalesView> {
   final TextEditingController _discountController = TextEditingController();
   final TextEditingController _advanceController = TextEditingController();
 
+  void _loadSavedColumnWidths() {
+    _invoiceColumnWidth =
+        UiPreferencesService.getColumnWidth('sales', 'invoice') ?? 100.0;
+    _dateColumnWidth =
+        UiPreferencesService.getColumnWidth('sales', 'date') ?? 130.0;
+    _nameColumnWidth =
+        UiPreferencesService.getColumnWidth('sales', 'name') ?? 180.0;
+    _itemsColumnWidth =
+        UiPreferencesService.getColumnWidth('sales', 'items') ?? 250.0;
+    _amountColumnWidth =
+        UiPreferencesService.getColumnWidth('sales', 'amount') ?? 120.0;
+  }
+
+  void _updateColumnWidth(String columnKey, double newWidth) {
+    setState(() {
+      switch (columnKey) {
+        case 'invoice':
+          _invoiceColumnWidth = newWidth;
+          break;
+        case 'date':
+          _dateColumnWidth = newWidth;
+          break;
+        case 'name':
+          _nameColumnWidth = newWidth;
+          break;
+        case 'items':
+          _itemsColumnWidth = newWidth;
+          break;
+        case 'amount':
+          _amountColumnWidth = newWidth;
+          break;
+      }
+    });
+    UiPreferencesService.setColumnWidth('sales', columnKey, newWidth);
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SalesViewModel>().loadCatalog();
       context.read<RecentSalesViewModel>().loadSales();
@@ -767,51 +804,45 @@ class _SalesViewState extends State<SalesView> {
                     viewModel,
                     'Invoice #',
                     _invoiceColumnWidth,
-                    (delta) => setState(
-                      () => _invoiceColumnWidth = (_invoiceColumnWidth + delta)
-                          .clamp(60.0, 200.0),
+                    (delta) => _updateColumnWidth(
+                      'invoice',
+                      (_invoiceColumnWidth + delta).clamp(60.0, 200.0),
                     ),
                   ),
                   _buildResizableHeaderSales(
                     viewModel,
                     'Date & Time',
                     _dateColumnWidth,
-                    (delta) => setState(
-                      () => _dateColumnWidth = (_dateColumnWidth + delta).clamp(
-                        100.0,
-                        300.0,
-                      ),
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateColumnWidth + delta).clamp(100.0, 300.0),
                     ),
                   ),
                   _buildResizableHeaderSales(
                     viewModel,
                     'Customer',
                     _nameColumnWidth,
-                    (delta) => setState(
-                      () => _nameColumnWidth = (_nameColumnWidth + delta).clamp(
-                        100.0,
-                        400.0,
-                      ),
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameColumnWidth + delta).clamp(100.0, 400.0),
                     ),
                   ),
                   _buildResizableHeaderSales(
                     viewModel,
                     'Items / Services',
                     _itemsColumnWidth,
-                    (delta) => setState(
-                      () => _itemsColumnWidth = (_itemsColumnWidth + delta).clamp(
-                        150.0,
-                        600.0,
-                      ),
+                    (delta) => _updateColumnWidth(
+                      'items',
+                      (_itemsColumnWidth + delta).clamp(150.0, 600.0),
                     ),
                   ),
                   _buildResizableHeaderSales(
                     viewModel,
                     'Payment Mode',
                     _amountColumnWidth,
-                    (delta) => setState(
-                      () => _amountColumnWidth = (_amountColumnWidth + delta)
-                          .clamp(80.0, 250.0),
+                    (delta) => _updateColumnWidth(
+                      'amount',
+                      (_amountColumnWidth + delta).clamp(80.0, 250.0),
                     ),
                   ),
                   Expanded(
@@ -834,28 +865,41 @@ class _SalesViewState extends State<SalesView> {
               ),
             ),
 
-            // Scrollable Body Rows grouped by Status
+            // Scrollable Body Rows grouped by Status (Virtualized ListView.builder)
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                padding: const EdgeInsets.only(bottom: 80),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final entry in groupedSales.entries) ...[
-                      _buildStatusSectionHeader(entry.key, entry.value.length),
-                      for (final sale in entry.value) ...[
-                        _buildSaleRow(context, viewModel, sale),
-                      ],
-                    ],
-                  ],
-                ),
-              ),
+              child: () {
+                final listEntries = <_SaleListItem>[];
+                for (final entry in groupedSales.entries) {
+                  listEntries.add(_SaleListItem.header(entry.key, entry.value.length));
+                  for (final sale in entry.value) {
+                    listEntries.add(_SaleListItem.sale(sale));
+                  }
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80),
+                  itemCount: listEntries.length,
+                  itemBuilder: (context, index) {
+                    final item = listEntries[index];
+                    if (item.statusHeader != null) {
+                      return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+                    }
+                    return _buildSaleRow(context, viewModel, item.sale!);
+                  },
+                );
+              }(),
             ),
           ],
         ),
       );
     } else {
+      final listEntries = <_SaleListItem>[];
+      for (final entry in groupedSales.entries) {
+        listEntries.add(_SaleListItem.header(entry.key, entry.value.length));
+        for (final sale in entry.value) {
+          listEntries.add(_SaleListItem.sale(sale));
+        }
+      }
+
       return RefreshIndicator(
         color: AppTheme.primaryLight,
         backgroundColor: const Color(0xFF131A2E),
@@ -864,107 +908,114 @@ class _SalesViewState extends State<SalesView> {
           await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
           if (context.mounted) viewModel.loadSales();
         },
-        child: ListView(
+        child: ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(bottom: 120),
-          children: [
-            for (final entry in groupedSales.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final sale in entry.value) ...[
-                Builder(
-                  builder: (context) {
-                    final items = viewModel.getSaleItems(sale.invoiceNo);
-                    final String itemsSummary = items.isNotEmpty
-                        ? items
-                            .map((i) =>
-                                '${i.itemDescription ?? "Item"} (${i.quantity})')
-                            .join(', ')
-                        : 'No items recorded';
-
-                    final String customerTitle = sale.customerName?.isNotEmpty == true
-                        ? sale.customerName!
-                        : 'Walk-in Customer';
-
-                    return AppListCard(
-                      title: customerTitle,
-                      subtitle: 'Invoice #${sale.invoiceNo} • ${sale.paymentMode}',
-                      metadataRows: [
-                        if (sale.customerNumber != null &&
-                            sale.customerNumber!.trim().isNotEmpty &&
-                            sale.customerNumber != 'N/A')
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.phone_rounded,
-                                size: 12,
-                                color: AppTheme.textMuted,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                sale.customerNumber!,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.inventory_2_outlined,
-                              size: 12,
-                              color: AppTheme.primaryLight,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                itemsSummary,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.textMuted,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.success,
-                              ),
-                            ),
-                            Text(
-                              DateFormat('dd MMM yyyy, hh:mm a').format(sale.saleDate),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
-                      onDelete: () =>
-                          _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
-                    );
-                  },
-                ),
-              ],
-            ],
-          ],
+          itemCount: listEntries.length,
+          itemBuilder: (context, index) {
+            final item = listEntries[index];
+            if (item.statusHeader != null) {
+              return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+            }
+            return _buildMobileSaleCard(context, viewModel, item.sale!, itemIndex: index);
+          },
         ),
       );
     }
+  }
+
+  Widget _buildMobileSaleCard(
+    BuildContext context,
+    RecentSalesViewModel viewModel,
+    Sale sale, {
+    int itemIndex = 0,
+  }) {
+    final items = viewModel.getSaleItems(sale.invoiceNo);
+    final String itemsSummary = items.isNotEmpty
+        ? items
+            .map((i) =>
+                '${i.itemDescription ?? "Item"} (${i.quantity})')
+            .join(', ')
+        : 'No items recorded';
+
+    final String customerTitle = sale.customerName?.isNotEmpty == true
+        ? sale.customerName!
+        : 'Walk-in Customer';
+
+    return AppListCard(
+      index: itemIndex,
+      title: customerTitle,
+      subtitle: 'Invoice #${sale.invoiceNo} • ${sale.paymentMode}',
+      metadataRows: [
+        if (sale.customerNumber != null &&
+            sale.customerNumber!.trim().isNotEmpty &&
+            sale.customerNumber != 'N/A')
+          Row(
+            children: [
+              const Icon(
+                Icons.phone_rounded,
+                size: 12,
+                color: AppTheme.textMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                sale.customerNumber!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(
+              Icons.inventory_2_outlined,
+              size: 12,
+              color: AppTheme.primaryLight,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                itemsSummary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textMuted,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Total: ₹${sale.totalAmount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.success,
+              ),
+            ),
+            Text(
+              DateFormat('dd MMM yyyy, hh:mm a').format(sale.saleDate),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ],
+      onTap: () => _showInvoiceDetailsSheet(context, viewModel, sale),
+      onDelete: () =>
+          _confirmDeleteInvoice(context, viewModel, sale.invoiceNo),
+    );
   }
 
   void _confirmDeleteInvoice(
@@ -2951,4 +3002,13 @@ class _SalesViewState extends State<SalesView> {
       },
     );
   }
+}
+
+class _SaleListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final Sale? sale;
+
+  _SaleListItem.header(this.statusHeader, this.statusCount) : sale = null;
+  _SaleListItem.sale(this.sale) : statusHeader = null, statusCount = null;
 }

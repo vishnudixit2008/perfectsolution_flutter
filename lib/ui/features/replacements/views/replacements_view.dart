@@ -392,6 +392,14 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     ReplacementsViewModel viewModel,
     Map<String, List<Replacement>> groupedReplacements,
   ) {
+    final listEntries = <_ReplacementListItem>[];
+    for (final entry in groupedReplacements.entries) {
+      listEntries.add(_ReplacementListItem.header(entry.key, entry.value.length));
+      for (final repl in entry.value) {
+        listEntries.add(_ReplacementListItem.card(repl));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -455,21 +463,21 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedReplacements.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final repl in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, repl),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.replacement!);
+              },
             ),
           ),
         ],

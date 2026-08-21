@@ -401,6 +401,14 @@ class _RequestsViewState extends State<RequestsView> {
     RequestsViewModel viewModel,
     Map<String, List<RequestOrder>> groupedRequests,
   ) {
+    final listEntries = <_RequestListItem>[];
+    for (final entry in groupedRequests.entries) {
+      listEntries.add(_RequestListItem.header(entry.key, entry.value.length));
+      for (final req in entry.value) {
+        listEntries.add(_RequestListItem.card(req));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -464,21 +472,21 @@ class _RequestsViewState extends State<RequestsView> {
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedRequests.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final req in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, req),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.request!);
+              },
             ),
           ),
         ],

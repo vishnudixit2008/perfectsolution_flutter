@@ -13,6 +13,7 @@ import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/services/ui_preferences_service.dart';
 import 'product_history_dialog.dart';
 
 import '../../../../data/services/pdf_stock_list_helper.dart';
@@ -32,9 +33,36 @@ class _PricelistViewState extends State<PricelistView> {
   bool _isSelectionMode = false;
   final Set<int> _selectedItemIds = {};
 
+  void _loadSavedColumnWidths() {
+    _nameColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'name') ?? 350.0;
+    _priceColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'price') ?? 150.0;
+    _stockColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'stock') ?? 150.0;
+  }
+
+  void _updateColumnWidth(String columnKey, double newWidth) {
+    setState(() {
+      switch (columnKey) {
+        case 'name':
+          _nameColumnWidth = newWidth;
+          break;
+        case 'price':
+          _priceColumnWidth = newWidth;
+          break;
+        case 'stock':
+          _stockColumnWidth = newWidth;
+          break;
+      }
+    });
+    UiPreferencesService.setColumnWidth('pricelist', columnKey, newWidth);
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PricelistViewModel>().loadItems();
     });
@@ -510,6 +538,29 @@ class _PricelistViewState extends State<PricelistView> {
     );
   }
 
+  Widget _buildCategorySectionHeader(String category) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.02),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.04)),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+        ),
+      ),
+      child: Text(
+        category.toUpperCase(),
+        style: const TextStyle(
+          color: AppTheme.primaryLight,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDesktopGrid(BuildContext context, PricelistViewModel viewModel) {
     final items = viewModel.pagedItems;
 
@@ -526,36 +577,11 @@ class _PricelistViewState extends State<PricelistView> {
       groupedItems[cat]!.add(item);
     }
 
-    // Build list of widgets (category headers + rows)
-    final List<Widget> listWidgets = [];
+    final listEntries = <_PricelistListItem>[];
     groupedItems.forEach((category, categoryItems) {
-      // Category Header row
-      listWidgets.add(
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.02),
-            border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.04)),
-              bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
-            ),
-          ),
-          child: Text(
-            category.toUpperCase(),
-            style: const TextStyle(
-              color: AppTheme.primaryLight,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              letterSpacing: 1.0,
-            ),
-          ),
-        ),
-      );
-
-      // Category Items
+      listEntries.add(_PricelistListItem.header(category));
       for (var item in categoryItems) {
-        listWidgets.add(_buildItemRow(context, viewModel, item));
+        listEntries.add(_PricelistListItem.item(item));
       }
     });
 
@@ -610,11 +636,9 @@ class _PricelistViewState extends State<PricelistView> {
                   'Product Name',
                   'itemName',
                   _nameColumnWidth,
-                  (delta) => setState(
-                    () => _nameColumnWidth = (_nameColumnWidth + delta).clamp(
-                      150.0,
-                      800.0,
-                    ),
+                  (delta) => _updateColumnWidth(
+                    'name',
+                    (_nameColumnWidth + delta).clamp(150.0, 800.0),
                   ),
                 ),
                 _buildResizableHeader(
@@ -622,11 +646,9 @@ class _PricelistViewState extends State<PricelistView> {
                   'Cash Price',
                   'price',
                   _priceColumnWidth,
-                  (delta) => setState(
-                    () => _priceColumnWidth = (_priceColumnWidth + delta).clamp(
-                      100.0,
-                      400.0,
-                    ),
+                  (delta) => _updateColumnWidth(
+                    'price',
+                    (_priceColumnWidth + delta).clamp(100.0, 400.0),
                   ),
                 ),
                 Expanded(
@@ -638,9 +660,9 @@ class _PricelistViewState extends State<PricelistView> {
                       'Stock Qty',
                       'stockQty',
                       _stockColumnWidth,
-                      (delta) => setState(
-                        () => _stockColumnWidth = (_stockColumnWidth + delta)
-                            .clamp(100.0, 400.0),
+                      (delta) => _updateColumnWidth(
+                        'stock',
+                        (_stockColumnWidth + delta).clamp(100.0, 400.0),
                       ),
                     ),
                   ),
@@ -649,12 +671,18 @@ class _PricelistViewState extends State<PricelistView> {
             ),
           ),
 
-          // Scrollable Body Rows
+          // Scrollable Body Rows (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 80),
-              child: Column(children: listWidgets),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final entry = listEntries[index];
+                if (entry.categoryHeader != null) {
+                  return _buildCategorySectionHeader(entry.categoryHeader!);
+                }
+                return _buildItemRow(context, viewModel, entry.item!);
+              },
             ),
           ),
         ],
@@ -774,109 +802,120 @@ class _PricelistViewState extends State<PricelistView> {
           : 'General';
       categoryGroups.putIfAbsent(cat, () => []).add(item);
     }
-    final categoryKeys = categoryGroups.keys.toList();
+
+    final listEntries = <_PricelistListItem>[];
+    categoryGroups.forEach((category, categoryItems) {
+      listEntries.add(_PricelistListItem.header(category));
+      for (final item in categoryItems) {
+        listEntries.add(_PricelistListItem.item(item));
+      }
+    });
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 120),
-      itemCount: categoryKeys.length,
-      itemBuilder: (context, catIdx) {
-        final catTitle = categoryKeys[catIdx];
-        final catItems = categoryGroups[catTitle]!;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                catTitle.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: AppTheme.primaryLight,
-                ),
+      itemCount: listEntries.length,
+      itemBuilder: (context, index) {
+        final entry = listEntries[index];
+        if (entry.categoryHeader != null) {
+          return Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.primary.withValues(alpha: 0.3),
               ),
             ),
-            ...catItems.map((item) {
-              final bool isSelected = _selectedItemIds.contains(item.id);
-              final metadata = <Widget>[];
-
-              metadata.add(
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '₹${item.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryLight,
-                      ),
-                    ),
-                    AppStockBadge(stockQty: item.stockQty),
-                  ],
-                ),
-              );
-
-              if (item.itemDescription != null &&
-                  item.itemDescription!.trim().isNotEmpty) {
-                metadata.add(const SizedBox(height: 6));
-                metadata.add(
-                  Text(
-                    item.itemDescription!,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              }
-
-              if (item.photoList.isNotEmpty) {
-                metadata.add(const SizedBox(height: 6));
-                metadata.add(PhotoGallerySection(photoUrls: item.photoList));
-              }
-
-              return AppListCard(
-                title: item.itemName,
-                metadataRows: metadata,
-                onTap: () {
-                  if (_isSelectionMode) {
-                    setState(() {
-                      if (isSelected) {
-                        _selectedItemIds.remove(item.id);
-                      } else {
-                        _selectedItemIds.add(item.id);
-                      }
-                    });
-                  } else {
-                    _showDetailPopup(context, item, viewModel);
-                  }
-                },
-                onEdit: () => _showAddEditItemDialog(
-                  context,
-                  viewModel,
-                  existingItem: item,
-                ),
-                onDelete: () => _confirmDeleteItem(context, viewModel, item),
-              );
-            }),
-          ],
-        );
+            child: Text(
+              entry.categoryHeader!.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+                color: AppTheme.primaryLight,
+              ),
+            ),
+          );
+        }
+        return _buildMobileCardItem(context, viewModel, entry.item!, itemIndex: index);
       },
     );
   }
+
+  Widget _buildMobileCardItem(
+    BuildContext context,
+    PricelistViewModel viewModel,
+    PricelistItem item, {
+    int itemIndex = 0,
+  }) {
+    final bool isSelected = _selectedItemIds.contains(item.id);
+    final metadata = <Widget>[];
+
+    metadata.add(
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '₹${item.price.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryLight,
+            ),
+          ),
+          AppStockBadge(stockQty: item.stockQty),
+        ],
+      ),
+    );
+
+    if (item.itemDescription != null &&
+        item.itemDescription!.trim().isNotEmpty) {
+      metadata.add(const SizedBox(height: 6));
+      metadata.add(
+        Text(
+          item.itemDescription!,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+
+    if (item.photoList.isNotEmpty) {
+      metadata.add(const SizedBox(height: 6));
+      metadata.add(PhotoGallerySection(photoUrls: item.photoList));
+    }
+
+    return AppListCard(
+      index: itemIndex,
+      title: item.itemName,
+      metadataRows: metadata,
+      onTap: () {
+        if (_isSelectionMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedItemIds.remove(item.id);
+            } else {
+              _selectedItemIds.add(item.id);
+            }
+          });
+        } else {
+          _showDetailPopup(context, item, viewModel);
+        }
+      },
+      onEdit: () => _showAddEditItemDialog(
+        context,
+        viewModel,
+        existingItem: item,
+      ),
+      onDelete: () => _confirmDeleteItem(context, viewModel, item),
+    );
+  }
+
 
   void _showDetailPopup(
     BuildContext context,
@@ -1981,4 +2020,12 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
       ),
     );
   }
+}
+
+class _PricelistListItem {
+  final String? categoryHeader;
+  final PricelistItem? item;
+
+  _PricelistListItem.header(this.categoryHeader) : item = null;
+  _PricelistListItem.item(this.item) : categoryHeader = null;
 }

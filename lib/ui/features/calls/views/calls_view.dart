@@ -725,6 +725,14 @@ class _CallsViewState extends State<CallsView> {
         _queryWidth +
         _assignedWidth;
 
+    final listEntries = <_CallListItem>[];
+    for (final entry in groupedCalls.entries) {
+      listEntries.add(_CallListItem.header(entry.key, entry.value.length));
+      for (final call in entry.value) {
+        listEntries.add(_CallListItem.card(call));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -808,21 +816,21 @@ class _CallsViewState extends State<CallsView> {
                       ],
                     ),
                   ),
-                  // Scrollable Body grouped by Status
+                  // Scrollable Body grouped by Status (Virtualized ListView.builder)
                   Expanded(
-                    child: SingleChildScrollView(
+                    child: ListView.builder(
                       padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final entry in groupedCalls.entries) ...[
-                            _buildStatusSectionHeader(entry.key, entry.value.length),
-                            for (final call in entry.value) ...[
-                              _buildDesktopTableRow(context, viewModel, call),
-                            ],
-                          ],
-                        ],
-                      ),
+                      itemCount: listEntries.length,
+                      itemBuilder: (context, index) {
+                        final item = listEntries[index];
+                        if (item.statusHeader != null) {
+                          return _buildStatusSectionHeader(
+                            item.statusHeader!,
+                            item.statusCount!,
+                          );
+                        }
+                        return _buildDesktopTableRow(context, viewModel, item.call!);
+                      },
                     ),
                   ),
                 ],
