@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/replacement.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
@@ -419,46 +418,51 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Job No',
-                  _jobNoWidth,
-                  (delta) => _updateColumnWidth(
-                    'jobNo',
-                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'jobNo'))
+                  _buildResizableHeader(
+                    'Job No',
+                    _jobNoWidth,
+                    (delta) => _updateColumnWidth(
+                      'jobNo',
+                      (_jobNoWidth + delta).clamp(60.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(120.0, 400.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'name'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(120.0, 400.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'mobileNo'))
+                  _buildResizableHeader(
+                    'Mobile',
+                    _mobileWidth,
+                    (delta) => _updateColumnWidth(
+                      'mobile',
+                      (_mobileWidth + delta).clamp(100.0, 300.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Replacement Item',
-                  _itemWidth,
-                  (delta) => _updateColumnWidth(
-                    'item',
-                    (_itemWidth + delta).clamp(150.0, 500.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'item'))
+                  _buildResizableHeader(
+                    'Replacement Item',
+                    _itemWidth,
+                    (delta) => _updateColumnWidth(
+                      'item',
+                      (_itemWidth + delta).clamp(150.0, 500.0),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -503,48 +507,53 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _jobNoWidth,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              child: Text(
-                repl.jobNo,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+            if (UserPermissionService.isFieldVisible('replacements', 'jobNo'))
+              Container(
+                width: _jobNoWidth,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Text(
+                  repl.jobNo,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repl.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('replacements', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(repl.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _itemWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repl.item,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('replacements', 'name'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repl.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('replacements', 'mobileNo'))
+              Container(
+                width: _mobileWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(repl.mobileNo ?? '-'),
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'item'))
+              Container(
+                width: _itemWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repl.item,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ),
@@ -680,6 +689,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('replacements', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('replacements', 'canDelete');
+
     return AppListCard(
       index: itemIndex,
       title: '#${repl.jobNo} • ${repl.item}',
@@ -687,8 +699,8 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       statusBadge: _buildStatusChip(repl.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, repl, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingReplacement: repl),
-      onDelete: () => _confirmDelete(context, repl.jobNo, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingReplacement: repl) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, repl.jobNo, viewModel) : null,
     );
   }
 
@@ -793,97 +805,120 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: repl.name,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: repl.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Replacement Item',
-              value: repl.item,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Assigned To',
-              value: UserPermissionService.formatStaffName(repl.assignedTo),
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Deposit Date',
-              value: depDate,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Receive Date',
-              value: recDate,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: repl.status,
-              scaleFactor: scale,
-            ),
-            if (repl.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('replacements', 'name') && repl.name.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: repl.name,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'mobileNo') && repl.mobileNo != null && repl.mobileNo!.trim().isNotEmpty && repl.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: repl.mobileNo!,
+                trailing: InlineCallButton(
+                  phone: repl.mobileNo!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'item') && repl.item.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Replacement Item',
+                value: repl.item,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'assignedTo') && repl.assignedTo != null && repl.assignedTo!.trim().isNotEmpty && repl.assignedTo != 'N/A')
+              ScaledInfoRow(
+                label: 'Assigned To',
+                value: UserPermissionService.formatStaffName(repl.assignedTo),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'depositDate') && repl.depositDate != null)
+              ScaledInfoRow(
+                label: 'Deposit Date',
+                value: depDate,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'receiveDate') && repl.receiveDate != null)
+              ScaledInfoRow(
+                label: 'Receive Date',
+                value: recDate,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: repl.status,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'photo') && repl.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: repl.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(repl.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, repl);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.request_page,
-                  label: 'Enter in Request',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'request', repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', repl),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('replacements', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('replacements', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('replacements', 'canConvertToSale');
+              final canTransferInward = UserPermissionService.canPerformModuleAction('replacements', 'canTransferInward');
+              final canTransferRequest = UserPermissionService.canPerformModuleAction('replacements', 'canTransferRequest');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('replacements', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferInward && !canTransferRequest && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(repl),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicate(context, repl);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, repl),
+                    ),
+                  if (canTransferInward)
+                    ScaledActionButton(
+                      icon: Icons.build,
+                      label: 'Enter in Inward',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'inward', repl),
+                    ),
+                  if (canTransferRequest)
+                    ScaledActionButton(
+                      icon: Icons.request_page,
+                      label: 'Enter in Request',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'request', repl),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', repl),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -1077,19 +1112,20 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _launchPhone(String number) async {
-    if (number.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  void _launchWhatsApp(Replacement r) {
+  static void launchWhatsAppForReplacement(Replacement r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
-    final message =
-        "Hello ${r.name}, We have updated your replacement item ${r.item} status to ${r.status} (JobNo: ${r.jobNo}). Perfect Solution";
+    final message = '''Hello ${r.name},
+
+We have received your item ${r.item} for replacement under Job No. ${r.jobNo}. Our team is processing your request and we will provide you with a timely update once it is processed.
+
+Thank you for your cooperation.
+
+Perfect Solution''';
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
+
+  void _launchWhatsApp(Replacement r) => launchWhatsAppForReplacement(r);
 
   void _duplicate(BuildContext context, Replacement r) {
     showDialog(
@@ -1299,14 +1335,24 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       photo: _photoUrl,
     );
 
+    final bool isNewEntry = widget.existingReplacement == null;
     await viewModel.saveReplacement(r);
+
+    // Auto-trigger WhatsApp message if adding new replacement entry as sale.perfectsolutionnoida@gmail.com
+    if (isNewEntry) {
+      final currentUserEmail =
+          UserPermissionService.getCurrentUser().email.trim().toLowerCase();
+      if (currentUserEmail == 'sale.perfectsolutionnoida@gmail.com') {
+        _ReplacementsViewState.launchWhatsAppForReplacement(r);
+      }
+    }
 
     if (mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.existingReplacement == null
+            isNewEntry
                 ? 'Replacement created successfully'
                 : 'Replacement updated successfully',
           ),
@@ -1371,28 +1417,37 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     final bool isStatusVis = UserPermissionService.isFieldVisible('replacements', 'status');
     final bool isStatusMod = UserPermissionService.canModifyField('replacements', 'status', isEdit: isEdit);
 
+    final bool isJobNoVis = UserPermissionService.isFieldVisible('replacements', 'jobNo');
+    final bool isDepositDateVis = UserPermissionService.isFieldVisible('replacements', 'depositDate');
+    final bool isDepositDateMod = UserPermissionService.canModifyField('replacements', 'depositDate', isEdit: isEdit);
+    final bool isReceiveDateVis = UserPermissionService.isFieldVisible('replacements', 'receiveDate');
+    final bool isReceiveDateMod = UserPermissionService.canModifyField('replacements', 'receiveDate', isEdit: isEdit);
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('replacements', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('replacements', 'photo', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Job Number: ',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-              Text(
-                isEdit
-                    ? widget.existingReplacement!.jobNo
-                    : viewModel.getNextJobNo(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+          if (isJobNoVis)
+            Row(
+              children: [
+                const Text(
+                  'Job Number: ',
+                  style: TextStyle(color: AppTheme.textSecondary),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  isEdit
+                      ? widget.existingReplacement!.jobNo
+                      : viewModel.getNextJobNo(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
+                ),
+              ],
+            ),
           if (isDateVis) ...[
             const SizedBox(height: 12),
             DateTimePickerField(
@@ -1460,19 +1515,23 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
             const SizedBox(height: 12),
           ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Replacement Item Photo / Receipt (Google Drive Link)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (url) {
-              _photoUrl = url;
-            },
-          ),
-          const SizedBox(height: 12),
+          if (isPhotoVis) ...[
+            PhotoAttachmentWidget(
+              initialPhotoUrl: _photoUrl,
+              label: 'Replacement Item Photo / Receipt (Google Drive Link)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (url) {
+                      _photoUrl = url;
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
 
           if (isStatusVis) ...[
             DropdownButtonFormField<String>(
@@ -1515,41 +1574,47 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
           ],
 
           // Deposit Date Picker
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _depositDate == null
-                      ? 'Deposit Date: Not set'
-                      : 'Deposit Date: ${DateFormat('dd/MM/yyyy').format(_depositDate!)}',
-                  style: const TextStyle(fontSize: 13),
+          if (isDepositDateVis) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _depositDate == null
+                        ? 'Deposit Date: Not set'
+                        : 'Deposit Date: ${DateFormat('dd/MM/yyyy').format(_depositDate!)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
-              ),
-              OutlinedButton(
-                onPressed: () => _selectDate(context, true),
-                child: const Text('Set Deposit'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                if (isDepositDateMod)
+                  OutlinedButton(
+                    onPressed: () => _selectDate(context, true),
+                    child: const Text('Set Deposit'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Receive Date Picker
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _receiveDate == null
-                      ? 'Receive Date: Not set'
-                      : 'Receive Date: ${DateFormat('dd/MM/yyyy').format(_receiveDate!)}',
-                  style: const TextStyle(fontSize: 13),
+          if (isReceiveDateVis) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _receiveDate == null
+                        ? 'Receive Date: Not set'
+                        : 'Receive Date: ${DateFormat('dd/MM/yyyy').format(_receiveDate!)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
-              ),
-              OutlinedButton(
-                onPressed: () => _selectDate(context, false),
-                child: const Text('Set Receive'),
-              ),
-            ],
-          ),
+                if (isReceiveDateMod)
+                  OutlinedButton(
+                    onPressed: () => _selectDate(context, false),
+                    child: const Text('Set Receive'),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -29,7 +29,7 @@ class AppHeaderActionButton extends StatelessWidget {
         scaleFactor: 0.93,
         onTap: onPressed,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9.5),
           decoration: BoxDecoration(
             color: backgroundColor ?? Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
@@ -40,8 +40,9 @@ class AppHeaderActionButton extends StatelessWidget {
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(icon, size: 17, color: foregroundColor ?? AppTheme.textPrimary),
+              Icon(icon, size: 18, color: foregroundColor ?? AppTheme.textPrimary),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -62,10 +63,11 @@ class AppHeaderActionButton extends StatelessWidget {
       scaleFactor: 0.93,
       onTap: onPressed,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9.5),
         decoration: BoxDecoration(
           color: backgroundColor ?? AppTheme.primary,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.transparent, width: 1),
           boxShadow: [
             BoxShadow(
               color: (backgroundColor ?? AppTheme.primary).withValues(alpha: 0.4),
@@ -76,6 +78,7 @@ class AppHeaderActionButton extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(icon, size: 18, color: foregroundColor ?? Colors.white),
             const SizedBox(width: 8),

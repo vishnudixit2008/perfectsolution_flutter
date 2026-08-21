@@ -121,9 +121,9 @@ class _PricelistViewState extends State<PricelistView> {
                       label: isDesktop ? 'Export Stock PDF' : 'Stock PDF',
                       icon: Icons.picture_as_pdf_outlined,
                       isOutlined: true,
-                      backgroundColor: const Color(0xFF1E293B),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       foregroundColor: AppTheme.textPrimary,
-                      borderColor: Colors.white.withValues(alpha: 0.15),
+                      borderColor: Colors.white.withValues(alpha: 0.12),
                       onPressed: () async {
                         final items = viewModel.filteredItems.isNotEmpty
                             ? viewModel.filteredItems
@@ -174,9 +174,9 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel,
     bool isDesktop,
   ) {
-    final List<String> cats = ['All Categories', ...viewModel.categories];
     final String currentCategory =
         viewModel.selectedCategory ?? 'All Categories';
+    final bool hasCategoryFilter = viewModel.selectedCategory != null;
 
     Widget searchField = AppAnimatedSearchBar(
       controller: _searchController,
@@ -185,32 +185,83 @@ class _PricelistViewState extends State<PricelistView> {
       hintText: 'Search by product name, description, or category...',
     );
 
-    Widget categoryFilter = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: currentCategory,
-          dropdownColor: const Color(0xFF131A2E),
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppTheme.textSecondary,
+    Widget categoryFilterButton = BouncyPressable(
+      scaleFactor: 0.98,
+      onTap: () => _showSearchableCategoryDialog(context, viewModel),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: hasCategoryFilter
+              ? AppTheme.primary.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: hasCategoryFilter
+                ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.08),
+            width: 1.0,
           ),
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-          onChanged: (val) {
-            if (val == 'All Categories') {
-              viewModel.setSelectedCategory(null);
-            } else {
-              viewModel.setSelectedCategory(val);
-            }
-          },
-          items: cats.map((cat) {
-            return DropdownMenuItem<String>(value: cat, child: Text(cat));
-          }).toList(),
+          boxShadow: hasCategoryFilter
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.category_outlined,
+              size: 16,
+              color: hasCategoryFilter
+                  ? AppTheme.primaryLight
+                  : AppTheme.textMuted.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                currentCategory,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hasCategoryFilter ? FontWeight.w600 : FontWeight.w400,
+                  color: hasCategoryFilter
+                      ? AppTheme.primaryLight
+                      : AppTheme.textPrimary,
+                  letterSpacing: -0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasCategoryFilter) ...[
+              BouncyPressable(
+                scaleFactor: 0.88,
+                onTap: () => viewModel.setSelectedCategory(null),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Icon(
+                    Icons.cancel_rounded,
+                    size: 15,
+                    color: AppTheme.primaryLight.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: hasCategoryFilter
+                  ? AppTheme.primaryLight
+                  : AppTheme.textMuted.withValues(alpha: 0.8),
+              size: 18,
+            ),
+          ],
         ),
       ),
     );
@@ -219,8 +270,8 @@ class _PricelistViewState extends State<PricelistView> {
       return Row(
         children: [
           Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 16),
-          Expanded(flex: 1, child: categoryFilter),
+          const SizedBox(width: 12),
+          Expanded(flex: 1, child: categoryFilterButton),
         ],
       );
     } else {
@@ -242,39 +293,8 @@ class _PricelistViewState extends State<PricelistView> {
                     'Category',
                     style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                   ),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    initialValue: currentCategory,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF1B243B),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                    ),
-                    items: cats.map((cat) {
-                      return DropdownMenuItem(value: cat, child: Text(cat));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val == 'All Categories') {
-                        viewModel.setSelectedCategory(null);
-                      } else {
-                        viewModel.setSelectedCategory(val);
-                      }
-                    },
-                  ),
+                  const SizedBox(height: 6),
+                  categoryFilterButton,
                 ],
               ),
             ),
@@ -282,6 +302,204 @@ class _PricelistViewState extends State<PricelistView> {
         ),
       );
     }
+  }
+
+  void _showSearchableCategoryDialog(
+    BuildContext context,
+    PricelistViewModel viewModel,
+  ) {
+    showAppModalDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final List<String> allCats = viewModel.categories;
+            final String currentCategory =
+                viewModel.selectedCategory ?? 'All Categories';
+
+            final filteredCats = allCats.where((c) {
+              if (searchQuery.trim().isEmpty) return true;
+              return c.toLowerCase().contains(searchQuery.trim().toLowerCase());
+            }).toList();
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.category_outlined,
+                    color: AppTheme.primaryLight,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Select Category',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                height: 440,
+                child: Column(
+                  children: [
+                    AppAnimatedSearchBar(
+                      hintText: 'Search category name...',
+                      onChanged: (q) {
+                        setDialogState(() {
+                          searchQuery = q;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          if (searchQuery.trim().isEmpty ||
+                              'all categories'.contains(searchQuery.trim().toLowerCase()))
+                            _buildCategoryDialogTile(
+                              title: 'All Categories',
+                              isSelected: currentCategory == 'All Categories',
+                              itemCount: viewModel.items.length,
+                              onTap: () {
+                                viewModel.setSelectedCategory(null);
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ...filteredCats.map((cat) {
+                            final int count = viewModel.items
+                                .where((it) => it.category?.trim().toLowerCase() == cat.trim().toLowerCase())
+                                .length;
+                            return _buildCategoryDialogTile(
+                              title: cat,
+                              isSelected: currentCategory == cat,
+                              itemCount: count,
+                              onTap: () {
+                                viewModel.setSelectedCategory(cat);
+                                Navigator.pop(context);
+                              },
+                            );
+                          }),
+                          if (filteredCats.isEmpty &&
+                              !('all categories'.contains(searchQuery.trim().toLowerCase())))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Center(
+                                child: Text(
+                                  'No categories found matching "$searchQuery"',
+                                  style: const TextStyle(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryDialogTile({
+    required String title,
+    required bool isSelected,
+    required int itemCount,
+    required VoidCallback onTap,
+  }) {
+    return BouncyPressable(
+      scaleFactor: 0.98,
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.primary.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.06),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected
+                      ? AppTheme.primaryLight
+                      : AppTheme.textPrimary,
+                  fontSize: 13.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.primaryLight.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$itemCount items',
+                style: TextStyle(
+                  color: isSelected
+                      ? AppTheme.primaryLight
+                      : AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.check_rounded,
+                color: AppTheme.primaryLight,
+                size: 16,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildEmptyState(BuildContext context, PricelistViewModel viewModel) {
@@ -417,63 +635,66 @@ class _PricelistViewState extends State<PricelistView> {
                 ),
               ),
             // Product Name cell
-            Container(
-              width: _nameColumnWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                item.itemName,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Cash Price cell
-            Container(
-              width: _priceColumnWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '₹${item.price.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            // Stock Qty cell (expanded to fill remaining space)
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+            if (UserPermissionService.isFieldVisible('pricelist', 'itemName'))
+              Container(
+                width: _nameColumnWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 alignment: Alignment.centerLeft,
+                child: Text(
+                  item.itemName,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            // Cash Price cell
+            if (UserPermissionService.isFieldVisible('pricelist', 'price'))
+              Container(
+                width: _priceColumnWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '₹${item.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            // Stock Qty cell (expanded to fill remaining space)
+            if (UserPermissionService.isFieldVisible('pricelist', 'stockQty'))
+              Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${item.stockQty} units',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppTheme.primaryLight,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${item.stockQty} units',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.primaryLight,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             const SizedBox(width: 8),
           ],
         ),
@@ -481,24 +702,62 @@ class _PricelistViewState extends State<PricelistView> {
     );
   }
 
-  Widget _buildCategorySectionHeader(String category) {
+  Widget _buildCategorySectionHeader(String category, [int totalQty = 0]) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
+        color: Colors.white.withValues(alpha: 0.02),
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.04)),
-          bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
         ),
       ),
-      child: Text(
-        category.toUpperCase(),
-        style: const TextStyle(
-          color: AppTheme.primaryLight,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-          letterSpacing: 1.0,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.primary.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppTheme.primary.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                category.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+              if (totalQty > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  width: 3,
+                  height: 3,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.primaryLight,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$totalQty ${totalQty == 1 ? 'unit' : 'units'}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryLight.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -522,7 +781,9 @@ class _PricelistViewState extends State<PricelistView> {
 
     final listEntries = <_PricelistListItem>[];
     groupedItems.forEach((category, categoryItems) {
-      listEntries.add(_PricelistListItem.header(category));
+      final int totalQty =
+          categoryItems.fold(0, (sum, item) => sum + item.stockQty);
+      listEntries.add(_PricelistListItem.header(category, totalQty));
       for (var item in categoryItems) {
         listEntries.add(_PricelistListItem.item(item));
       }
@@ -574,42 +835,45 @@ class _PricelistViewState extends State<PricelistView> {
                       },
                     ),
                   ),
-                _buildResizableHeader(
-                  viewModel,
-                  'Product Name',
-                  'itemName',
-                  _nameColumnWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameColumnWidth + delta).clamp(150.0, 800.0),
+                if (UserPermissionService.isFieldVisible('pricelist', 'itemName'))
+                  _buildResizableHeader(
+                    viewModel,
+                    'Product Name',
+                    'itemName',
+                    _nameColumnWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameColumnWidth + delta).clamp(150.0, 800.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  viewModel,
-                  'Cash Price',
-                  'price',
-                  _priceColumnWidth,
-                  (delta) => _updateColumnWidth(
+                if (UserPermissionService.isFieldVisible('pricelist', 'price'))
+                  _buildResizableHeader(
+                    viewModel,
+                    'Cash Price',
                     'price',
-                    (_priceColumnWidth + delta).clamp(100.0, 400.0),
+                    _priceColumnWidth,
+                    (delta) => _updateColumnWidth(
+                      'price',
+                      (_priceColumnWidth + delta).clamp(100.0, 400.0),
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 16),
-                    alignment: Alignment.centerLeft,
-                    child: _buildResizableHeader(
-                      viewModel,
-                      'Stock Qty',
-                      'stockQty',
-                      _stockColumnWidth,
-                      (delta) => _updateColumnWidth(
-                        'stock',
-                        (_stockColumnWidth + delta).clamp(100.0, 400.0),
+                if (UserPermissionService.isFieldVisible('pricelist', 'stockQty'))
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 16),
+                      alignment: Alignment.centerLeft,
+                      child: _buildResizableHeader(
+                        viewModel,
+                        'Stock Qty',
+                        'stockQty',
+                        _stockColumnWidth,
+                        (delta) => _updateColumnWidth(
+                          'stock',
+                          (_stockColumnWidth + delta).clamp(100.0, 400.0),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -622,7 +886,10 @@ class _PricelistViewState extends State<PricelistView> {
               itemBuilder: (context, index) {
                 final entry = listEntries[index];
                 if (entry.categoryHeader != null) {
-                  return _buildCategorySectionHeader(entry.categoryHeader!);
+                  return _buildCategorySectionHeader(
+                    entry.categoryHeader!,
+                    entry.categoryCount ?? 0,
+                  );
                 }
                 return _buildItemRow(context, viewModel, entry.item!);
               },
@@ -748,7 +1015,9 @@ class _PricelistViewState extends State<PricelistView> {
 
     final listEntries = <_PricelistListItem>[];
     categoryGroups.forEach((category, categoryItems) {
-      listEntries.add(_PricelistListItem.header(category));
+      final int totalQty =
+          categoryItems.fold(0, (sum, item) => sum + item.stockQty);
+      listEntries.add(_PricelistListItem.header(category, totalQty));
       for (final item in categoryItems) {
         listEntries.add(_PricelistListItem.item(item));
       }
@@ -769,25 +1038,9 @@ class _PricelistViewState extends State<PricelistView> {
         itemBuilder: (context, index) {
           final entry = listEntries[index];
           if (entry.categoryHeader != null) {
-            return Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                entry.categoryHeader!.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: AppTheme.primaryLight,
-                ),
-              ),
+            return _buildCategorySectionHeader(
+              entry.categoryHeader!,
+              entry.categoryCount ?? 0,
             );
           }
           return _buildMobileCardItem(context, viewModel, entry.item!, itemIndex: index);
@@ -860,12 +1113,16 @@ class _PricelistViewState extends State<PricelistView> {
           _showDetailPopup(context, item, viewModel);
         }
       },
-      onEdit: () => _showAddEditItemDialog(
-        context,
-        viewModel,
-        existingItem: item,
-      ),
-      onDelete: () => _confirmDeleteItem(context, viewModel, item),
+      onEdit: UserPermissionService.canPerformModuleAction('pricelist', 'canEdit')
+          ? () => _showAddEditItemDialog(
+              context,
+              viewModel,
+              existingItem: item,
+            )
+          : null,
+      onDelete: UserPermissionService.canPerformModuleAction('pricelist', 'canDelete')
+          ? () => _confirmDeleteItem(context, viewModel, item)
+          : null,
     );
   }
 
@@ -1211,6 +1468,15 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel,
     PricelistItem item,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('pricelist', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Catalog Items.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -1256,11 +1522,27 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel, {
     PricelistItem? existingItem,
   }) {
+    final isEdit = existingItem != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('pricelist', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Catalog Items.'
+                : 'Access Denied: You do not have permission to add new Catalog Items.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+    final canDelete = UserPermissionService.canPerformModuleAction('pricelist', 'canDelete');
     showAddEditPricelistItemDialog(
       context,
       viewModel,
       existingItem: existingItem,
-      onDeleteRequested: existingItem != null
+      onDeleteRequested: existingItem != null && canDelete
           ? () => _confirmDeleteItem(context, viewModel, existingItem)
           : null,
     );
@@ -1356,17 +1638,23 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             }
           }
 
-          final bool isItemVis = UserPermissionService.isFieldVisible('pricelist', 'item');
-          final bool isItemMod = UserPermissionService.canModifyField('pricelist', 'item', isEdit: isEdit);
+          final bool isItemVis = UserPermissionService.isFieldVisible('pricelist', 'itemName');
+          final bool isItemMod = UserPermissionService.canModifyField('pricelist', 'itemName', isEdit: isEdit);
 
           final bool isCatVis = UserPermissionService.isFieldVisible('pricelist', 'category');
           final bool isCatMod = UserPermissionService.canModifyField('pricelist', 'category', isEdit: isEdit);
 
-          final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'cashPrice');
-          final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'cashPrice', isEdit: isEdit);
+          final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'price');
+          final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'price', isEdit: isEdit);
+
+          final bool isStockQtyVis = UserPermissionService.isFieldVisible('pricelist', 'stockQty');
+          final bool isStockQtyMod = UserPermissionService.canModifyField('pricelist', 'stockQty', isEdit: isEdit);
 
           final bool isDescVis = UserPermissionService.isFieldVisible('pricelist', 'itemDescription');
           final bool isDescMod = UserPermissionService.canModifyField('pricelist', 'itemDescription', isEdit: isEdit);
+
+          final bool isPhotoVis = UserPermissionService.isFieldVisible('pricelist', 'photo');
+          final bool isPhotoMod = UserPermissionService.canModifyField('pricelist', 'photo', isEdit: isEdit);
 
           final Widget formContent = Form(
             key: formKey,
@@ -1430,17 +1718,20 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                           },
                         ),
                       ),
-                    if (isPriceVis) const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: stockController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Stock Qty',
-                          hintText: 'e.g. 10',
+                    if (isPriceVis && isStockQtyVis) const SizedBox(width: 12),
+                    if (isStockQtyVis)
+                      Expanded(
+                        child: TextFormField(
+                          controller: stockController,
+                          readOnly: !isStockQtyMod,
+                          enabled: isStockQtyMod,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Stock Qty',
+                            hintText: 'e.g. 10',
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1460,20 +1751,23 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 ],
 
                 // Photo attachment widget
-                PhotoAttachmentWidget(
-                  initialPhotoUrl: photoUrl,
-                  onUploadingChanged: (uploading) {
-                    setDialogState(() {
-                      isPhotoUploading = uploading;
-                    });
-                  },
-                  onPhotoChanged: (url) {
-                    setDialogState(() {
-                      photoUrl = url;
-                    });
-                  },
-                  label: 'Product Image',
-                ),
+                if (isPhotoVis)
+                  PhotoAttachmentWidget(
+                    initialPhotoUrl: photoUrl,
+                    onUploadingChanged: (uploading) {
+                      setDialogState(() {
+                        isPhotoUploading = uploading;
+                      });
+                    },
+                    onPhotoChanged: isPhotoMod
+                        ? (url) {
+                            setDialogState(() {
+                              photoUrl = url;
+                            });
+                          }
+                        : null,
+                    label: 'Product Image',
+                  ),
               ],
             ),
           );
@@ -1977,8 +2271,12 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
 
 class _PricelistListItem {
   final String? categoryHeader;
+  final int? categoryCount;
   final PricelistItem? item;
 
-  _PricelistListItem.header(this.categoryHeader) : item = null;
-  _PricelistListItem.item(this.item) : categoryHeader = null;
+  _PricelistListItem.header(this.categoryHeader, [this.categoryCount = 0])
+      : item = null;
+  _PricelistListItem.item(this.item)
+      : categoryHeader = null,
+        categoryCount = null;
 }

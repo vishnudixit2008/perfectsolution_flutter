@@ -928,6 +928,23 @@ class SupabaseSyncService extends ChangeNotifier {
         if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] is Map) {
           await StatusManagementService.loadFromDefaultStatusesMap(settingsMap['shop_default_statuses']);
         }
+
+        if (settingsMap.containsKey('custom_services_list') && settingsMap['custom_services_list'] is List) {
+          final cloudList = (settingsMap['custom_services_list'] as List).map((e) => e.toString()).toList();
+          final localList = localDb.getCustomServiceNames();
+          final mergedSet = <String>{...localList, ...cloudList};
+          final mergedList = mergedSet.toList();
+          await localDb.setCustomServicesList(mergedList, syncToCloud: false);
+        } else if (!isDelta) {
+          final localList = localDb.getCustomServiceNames();
+          if (localList.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'custom_services_list',
+              'value': localList,
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
       } catch (e) {
         if (kDebugMode) print('Shop settings sync error: $e');
       }
@@ -1255,6 +1272,12 @@ class SupabaseSyncService extends ChangeNotifier {
               await StatusManagementService.loadFromCustomStatusesMap(value);
             } else if (key == 'shop_default_statuses' && value is Map) {
               await StatusManagementService.loadFromDefaultStatusesMap(value);
+            } else if (key == 'custom_services_list' && value is List) {
+              final cloudList = List<String>.from(value.map((e) => e.toString()));
+              final localList = localDb.getCustomServiceNames();
+              final mergedSet = <String>{...localList, ...cloudList};
+              await localDb.setCustomServicesList(mergedSet.toList(), syncToCloud: false);
+              ShopRepository.notifyTableChanged('custom_services');
             }
           }
           ShopRepository.notifyTableChanged('shop_settings');

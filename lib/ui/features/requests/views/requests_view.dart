@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/request_order.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
@@ -428,46 +427,51 @@ class _RequestsViewState extends State<RequestsView> {
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('requests', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('requests', 'customerName'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(100.0, 300.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 250.0),
+                if (UserPermissionService.isFieldVisible('requests', 'mobileNo'))
+                  _buildResizableHeader(
+                    'Mobile',
+                    _mobileWidth,
+                    (delta) => _updateColumnWidth(
+                      'mobile',
+                      (_mobileWidth + delta).clamp(100.0, 250.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Requested Item',
-                  _itemWidth,
-                  (delta) => _updateColumnWidth(
-                    'item',
-                    (_itemWidth + delta).clamp(120.0, 400.0),
+                if (UserPermissionService.isFieldVisible('requests', 'item'))
+                  _buildResizableHeader(
+                    'Requested Item',
+                    _itemWidth,
+                    (delta) => _updateColumnWidth(
+                      'item',
+                      (_itemWidth + delta).clamp(120.0, 400.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Total Price',
-                  _amountWidth,
-                  (delta) => _updateColumnWidth(
-                    'amount',
-                    (_amountWidth + delta).clamp(80.0, 250.0),
+                if (UserPermissionService.isFieldVisible('requests', 'totalAmount'))
+                  _buildResizableHeader(
+                    'Total Price',
+                    _amountWidth,
+                    (delta) => _updateColumnWidth(
+                      'amount',
+                      (_amountWidth + delta).clamp(80.0, 250.0),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -512,44 +516,49 @@ class _RequestsViewState extends State<RequestsView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                req.customerName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('requests', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(req.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _itemWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                req.item,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('requests', 'customerName'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  req.customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            Container(
-              width: _amountWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                req.totalAmount > 0
-                    ? '₹${req.totalAmount.toStringAsFixed(0)}'
-                    : '-',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+            if (UserPermissionService.isFieldVisible('requests', 'mobileNo'))
+              Container(
+                width: _mobileWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(req.mobileNo ?? '-'),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('requests', 'item'))
+              Container(
+                width: _itemWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  req.item,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'totalAmount'))
+              Container(
+                width: _amountWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  req.totalAmount > 0
+                      ? '₹${req.totalAmount.toStringAsFixed(0)}'
+                      : '-',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
           ],
         ),
       ),
@@ -736,14 +745,17 @@ class _RequestsViewState extends State<RequestsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('requests', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('requests', 'canDelete');
+
     return AppListCard(
       index: itemIndex,
       title: req.customerName,
       statusBadge: _buildStatusChip(req.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, req, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingRequest: req),
-      onDelete: () => _confirmDelete(context, req.id, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingRequest: req) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, req.id, viewModel) : null,
     );
   }
 
@@ -813,107 +825,126 @@ class _RequestsViewState extends State<RequestsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Request ID',
-              value: req.id,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: req.customerName,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: req.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Requested Item',
-              value: req.item,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Advance Paid',
-              value: '₹${req.advance.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Total Estimated Price',
-              value: '₹${req.totalAmount.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Dealer Name / Vendor',
-              value: req.dealerName ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: req.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: req.estimate ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (req.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('requests', 'customerName') && req.customerName.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: req.customerName,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'mobileNo') && req.mobileNo != null && req.mobileNo!.trim().isNotEmpty && req.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: req.mobileNo!,
+                trailing: InlineCallButton(
+                  phone: req.mobileNo!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'item') && req.item.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Requested Item',
+                value: req.item,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'advance') && req.advance > 0)
+              ScaledInfoRow(
+                label: 'Advance Paid',
+                value: '₹${req.advance.toStringAsFixed(2)}',
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'totalAmount') && req.totalAmount > 0)
+              ScaledInfoRow(
+                label: 'Total Estimated Price',
+                value: '₹${req.totalAmount.toStringAsFixed(2)}',
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'dealerName') && req.dealerName != null && req.dealerName!.trim().isNotEmpty && req.dealerName != 'N/A')
+              ScaledInfoRow(
+                label: 'Dealer Name / Vendor',
+                value: req.dealerName!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: req.status,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'estimate') && req.estimate != null && req.estimate!.trim().isNotEmpty && req.estimate != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes',
+                value: req.estimate!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('requests', 'photo') && req.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: req.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(req.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, req);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Enter in Replacement',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'replacement', req),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', req),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('requests', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('requests', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('requests', 'canConvertToSale');
+              final canTransferInward = UserPermissionService.canPerformModuleAction('requests', 'canTransferInward');
+              final canTransferReplacement = UserPermissionService.canPerformModuleAction('requests', 'canTransferReplacement');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('requests', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferInward && !canTransferReplacement && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(req),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicate(context, req);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, req),
+                    ),
+                  if (canTransferInward)
+                    ScaledActionButton(
+                      icon: Icons.build,
+                      label: 'Enter in Inward',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'inward', req),
+                    ),
+                  if (canTransferReplacement)
+                    ScaledActionButton(
+                      icon: Icons.swap_horiz_rounded,
+                      label: 'Enter in Replacement',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'replacement', req),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', req),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -1109,12 +1140,6 @@ class _RequestsViewState extends State<RequestsView> {
         ],
       ),
     );
-  }
-
-  void _launchPhone(String number) async {
-    if (number.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   void _launchWhatsApp(RequestOrder r) {
@@ -1360,6 +1385,12 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     final bool isStatusVis = UserPermissionService.isFieldVisible('requests', 'status');
     final bool isStatusMod = UserPermissionService.canModifyField('requests', 'status', isEdit: isEdit);
 
+    final bool isEstimateVis = UserPermissionService.isFieldVisible('requests', 'estimate');
+    final bool isEstimateMod = UserPermissionService.canModifyField('requests', 'estimate', isEdit: isEdit);
+
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('requests', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('requests', 'photo', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
@@ -1507,27 +1538,34 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
           ),
           const SizedBox(height: 12),
 
-          TextFormField(
-            controller: _estimateController,
-            decoration: const InputDecoration(
-              labelText: 'Estimate Details & Private Notes',
+          if (isEstimateVis) ...[
+            TextFormField(
+              controller: _estimateController,
+              readOnly: !isEstimateMod,
+              enabled: isEstimateMod,
+              decoration: const InputDecoration(
+                labelText: 'Estimate Details & Private Notes',
+              ),
+              maxLines: 3,
             ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
+          ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Sample / Requested Item Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
+          if (isPhotoVis)
+            PhotoAttachmentWidget(
+              initialPhotoUrl: _photoUrl,
+              label: 'Sample / Requested Item Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      _photoUrl = urls;
+                    }
+                  : null,
+            ),
         ],
       ),
     );

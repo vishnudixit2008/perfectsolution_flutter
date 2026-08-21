@@ -16,6 +16,7 @@ import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
 import 'supabase_sync_service.dart';
 import 'kiosk_broadcast_service.dart';
+import '../repositories/shop_repository.dart';
 
 class LocalDatabaseService {
   static const String _pricelistBoxName = 'pricelist_box';
@@ -467,7 +468,7 @@ class LocalDatabaseService {
     return List<String>.from(list);
   }
 
-  Future<void> saveCustomServiceName(String name) async {
+  Future<void> saveCustomServiceName(String name, {bool syncToCloud = true}) async {
     final cleaned = name.trim();
     if (cleaned.isEmpty) return;
 
@@ -486,6 +487,35 @@ class LocalDatabaseService {
     if (!exists) {
       list.add(capitalized);
       await _settingsBox.put('custom_services_list', list);
+      ShopRepository.notifyTableChanged('custom_services');
+
+      if (syncToCloud) {
+        unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+          'shop_settings',
+          {
+            'key': 'custom_services_list',
+            'value': list,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          localDb: this,
+        ));
+      }
+    }
+  }
+
+  Future<void> setCustomServicesList(List<String> services, {bool syncToCloud = false}) async {
+    await _settingsBox.put('custom_services_list', services);
+    ShopRepository.notifyTableChanged('custom_services');
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'custom_services_list',
+          'value': services,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
     }
   }
 

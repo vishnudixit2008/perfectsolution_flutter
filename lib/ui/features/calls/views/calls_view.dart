@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../../data/models/call_model.dart';
 import '../../../../data/repositories/shop_repository.dart';
@@ -378,10 +377,7 @@ class _CallsViewState extends State<CallsView> {
                                   : AppTheme.textMuted,
                             ),
                             selectedItemBuilder: (context) {
-                              return viewModel.availableAssignedPersons.map((a) {
-                                final displayName = a == 'All' || a == 'Unassigned'
-                                    ? a
-                                    : UserPermissionService.formatStaffName(a);
+                              return viewModel.availableAssignedPersons.map((displayName) {
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -421,12 +417,9 @@ class _CallsViewState extends State<CallsView> {
                                 );
                               }).toList();
                             },
-                            items: viewModel.availableAssignedPersons.map((a) {
-                              final displayName = a == 'All' || a == 'Unassigned'
-                                  ? a
-                                  : UserPermissionService.formatStaffName(a);
+                            items: viewModel.availableAssignedPersons.map((displayName) {
                               return DropdownMenuItem<String>(
-                                value: a,
+                                value: displayName,
                                 child: Text(
                                   displayName,
                                   style: const TextStyle(
@@ -549,13 +542,10 @@ class _CallsViewState extends State<CallsView> {
                                   ),
                                 ),
                                 items: viewModel.availableAssignedPersons.map((
-                                  a,
+                                  displayName,
                                 ) {
-                                  final displayName = a == 'All' || a == 'Unassigned'
-                                      ? a
-                                      : UserPermissionService.formatStaffName(a);
                                   return DropdownMenuItem(
-                                    value: a,
+                                    value: displayName,
                                     child: Text(displayName),
                                   );
                                 }).toList(),
@@ -765,54 +755,59 @@ class _CallsViewState extends State<CallsView> {
                     ),
                     child: Row(
                       children: [
-                        _buildResizableHeader(
-                          'Date',
-                          _dateWidth,
-                          (delta) => _updateColumnWidth(
-                            'date',
-                            (_dateWidth + delta).clamp(80.0, 200.0),
+                        if (UserPermissionService.isFieldVisible('calls', 'date'))
+                          _buildResizableHeader(
+                            'Date',
+                            _dateWidth,
+                            (delta) => _updateColumnWidth(
+                              'date',
+                              (_dateWidth + delta).clamp(80.0, 200.0),
+                            ),
                           ),
-                        ),
-                        _buildResizableHeader(
-                          'Customer Name',
-                          _nameWidth,
-                          (delta) => _updateColumnWidth(
-                            'name',
-                            (_nameWidth + delta).clamp(120.0, 400.0),
+                        if (UserPermissionService.isFieldVisible('calls', 'name'))
+                          _buildResizableHeader(
+                            'Customer Name',
+                            _nameWidth,
+                            (delta) => _updateColumnWidth(
+                              'name',
+                              (_nameWidth + delta).clamp(120.0, 400.0),
+                            ),
                           ),
-                        ),
-                        _buildResizableHeader(
-                          'Mobile',
-                          _mobileWidth,
-                          (delta) => _updateColumnWidth(
-                            'mobile',
-                            (_mobileWidth + delta).clamp(100.0, 300.0),
+                        if (UserPermissionService.isFieldVisible('calls', 'mobileNo'))
+                          _buildResizableHeader(
+                            'Mobile',
+                            _mobileWidth,
+                            (delta) => _updateColumnWidth(
+                              'mobile',
+                              (_mobileWidth + delta).clamp(100.0, 300.0),
+                            ),
                           ),
-                        ),
-                        _buildResizableHeader(
-                          'Query',
-                          _queryWidth,
-                          (delta) => _updateColumnWidth(
-                            'query',
-                            (_queryWidth + delta).clamp(120.0, 500.0),
+                        if (UserPermissionService.isFieldVisible('calls', 'query'))
+                          _buildResizableHeader(
+                            'Query',
+                            _queryWidth,
+                            (delta) => _updateColumnWidth(
+                              'query',
+                              (_queryWidth + delta).clamp(120.0, 500.0),
+                            ),
                           ),
-                        ),
-                        _buildResizableHeader(
-                          'Assigned To',
-                          _assignedWidth,
-                          (delta) => _updateColumnWidth(
-                            'assigned',
-                            (_assignedWidth + delta).clamp(120.0, 400.0),
+                        if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
+                          _buildResizableHeader(
+                            'Assigned To',
+                            _assignedWidth,
+                            (delta) => _updateColumnWidth(
+                              'assigned',
+                              (_assignedWidth + delta).clamp(120.0, 400.0),
+                            ),
+                            onTapDown: !isOnlyAssignedRestricted
+                                ? (details) => _showAssignedFilterMenu(
+                                      context,
+                                      viewModel,
+                                      details.globalPosition,
+                                    )
+                                : null,
+                            isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
                           ),
-                          onTapDown: !isOnlyAssignedRestricted
-                              ? (details) => _showAssignedFilterMenu(
-                                    context,
-                                    viewModel,
-                                    details.globalPosition,
-                                  )
-                              : null,
-                          isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
-                        ),
                       ],
                     ),
                   ),
@@ -860,48 +855,53 @@ class _CallsViewState extends State<CallsView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                call.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            if (UserPermissionService.isFieldVisible('calls', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(call.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _queryWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                call.query ?? '-',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Container(
-              width: _assignedWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                UserPermissionService.formatStaffName(call.assignedTo),
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
+            if (UserPermissionService.isFieldVisible('calls', 'name'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  call.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('calls', 'mobileNo'))
+              Container(
+                width: _mobileWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(call.mobileNo ?? '-'),
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'query'))
+              Container(
+                width: _queryWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  call.query ?? '-',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
+              Container(
+                width: _assignedWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  UserPermissionService.formatStaffName(call.assignedTo),
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ),
@@ -1094,6 +1094,36 @@ class _CallsViewState extends State<CallsView> {
       );
     }
 
+    if (UserPermissionService.isFieldVisible('calls', 'address') &&
+        call.address != null &&
+        call.address!.trim().isNotEmpty &&
+        call.address != 'N/A') {
+      if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
+      metadata.add(
+        Row(
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              size: 13,
+              color: AppTheme.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                call.address!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (call.query != null &&
         call.query!.trim().isNotEmpty &&
         call.query != 'N/A') {
@@ -1127,14 +1157,17 @@ class _CallsViewState extends State<CallsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('calls', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('calls', 'canDelete');
+
     return AppListCard(
       index: itemIndex,
       title: call.name,
       statusBadge: _buildStatusChip(call.status),
       metadataRows: metadata,
       onTap: () => _showDetailPopup(context, call, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingCall: call),
-      onDelete: () => _confirmDeleteCall(context, viewModel, call.id),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingCall: call) : null,
+      onDelete: canDelete ? () => _confirmDeleteCall(context, viewModel, call.id) : null,
     );
   }
 
@@ -1145,6 +1178,15 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     int id,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('calls', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Calls.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1350,103 +1392,131 @@ class _CallsViewState extends State<CallsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: call.name,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: call.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Address',
-              value: call.address ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Query / Problem',
-              value: call.query ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Assigned To',
-              value: UserPermissionService.formatStaffName(call.assignedTo),
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Estimate Amount',
-              value: call.estimate ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: call.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: call.notes ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (call.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('calls', 'name') && call.name.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: call.name,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'mobileNo') && call.mobileNo != null && call.mobileNo!.trim().isNotEmpty && call.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: call.mobileNo!,
+                trailing: InlineCallButton(
+                  phone: call.mobileNo!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'address') && call.address != null && call.address!.trim().isNotEmpty && call.address != 'N/A')
+              ScaledInfoRow(
+                label: 'Address',
+                value: call.address!,
+                trailing: InlineDirectionsButton(
+                  address: call.address!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'query') && call.query != null && call.query!.trim().isNotEmpty && call.query != 'N/A')
+              ScaledInfoRow(
+                label: 'Query / Problem',
+                value: call.query!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'assignedTo') && call.assignedTo.trim().isNotEmpty && call.assignedTo != 'N/A')
+              ScaledInfoRow(
+                label: 'Assigned To',
+                value: UserPermissionService.formatStaffName(call.assignedTo),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'estimate') && call.estimate != null && call.estimate!.trim().isNotEmpty && call.estimate != 'N/A')
+              ScaledInfoRow(
+                label: 'Estimate Amount',
+                value: call.estimate!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: call.status,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'notes') && call.notes != null && call.notes!.trim().isNotEmpty && call.notes != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes',
+                value: call.notes!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'photo') && call.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: call.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
             // Action buttons
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(call.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicateCall(context, call);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.request_page,
-                  label: 'Enter in Request',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'request', call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', call),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('calls', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('calls', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('calls', 'canConvertToSale');
+              final canTransferInward = UserPermissionService.canPerformModuleAction('calls', 'canTransferInward');
+              final canTransferRequest = UserPermissionService.canPerformModuleAction('calls', 'canTransferRequest');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('calls', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferInward && !canTransferRequest && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(call),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicateCall(context, call);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, call),
+                    ),
+                  if (canTransferInward)
+                    ScaledActionButton(
+                      icon: Icons.build,
+                      label: 'Enter in Inward',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'inward', call),
+                    ),
+                  if (canTransferRequest)
+                    ScaledActionButton(
+                      icon: Icons.request_page,
+                      label: 'Enter in Request',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'request', call),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', call),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -1577,11 +1647,6 @@ class _CallsViewState extends State<CallsView> {
         );
       }
     }
-  }
-
-  void _launchPhone(String number) async {
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   void _launchWhatsApp(CallModel call) {
@@ -1819,6 +1884,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     final bool isNotesVis = UserPermissionService.isFieldVisible('calls', 'notes');
     final bool isNotesMod = UserPermissionService.canModifyField('calls', 'notes', isEdit: isEdit);
 
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('calls', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('calls', 'photo', isEdit: isEdit);
+
     final formContent = Form(
       key: _formKey,
       child: Column(
@@ -1979,18 +2047,21 @@ class _CallFormDialogState extends State<_CallFormDialog> {
             ),
             const SizedBox(height: 16),
           ],
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Enquiry / Product Screenshot or Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
+          if (isPhotoVis)
+            PhotoAttachmentWidget(
+              initialPhotoUrl: _photoUrl,
+              label: 'Enquiry / Product Screenshot or Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      _photoUrl = urls;
+                    }
+                  : null,
+            ),
         ],
       ),
     );

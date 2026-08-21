@@ -80,16 +80,6 @@ class _UserManagementViewState extends State<UserManagementView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.person_add_alt_1_rounded,
-              color: AppTheme.primaryLight,
-            ),
-            onPressed: () => _showAddEditUserPage(),
-            tooltip: 'Add New Employee User',
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(isMobile ? 16 : 24),
@@ -513,207 +503,172 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
       ),
       body: Form(
         key: formKey,
-        child: Column(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + MediaQuery.of(context).viewPadding.bottom,
+          ),
           children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // ── User Info Section ─────────────────────────────────
-                  _SectionLabel(label: 'User Information'),
-                  const SizedBox(height: 10),
+            // ── User Info Section ─────────────────────────────────
+            _SectionLabel(label: 'User Information'),
+            const SizedBox(height: 10),
 
-                  // Name field
-                  TextFormField(
-                    controller: nameController,
-                    enabled: widget.existingUser == null ||
-                        !AppUser.isPermanentAdmin(
-                            widget.existingUser?.email ?? ''),
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: _inputDec('Full Name *'),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Email field
-                  TextFormField(
-                    controller: emailController,
-                    enabled: widget.existingUser == null,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: _inputDec('Email ID (Login Identifier) *'),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Password field
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: obscurePassword,
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: _inputDec(
-                      'Password *',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscurePassword
-                              ? Icons.visibility_off_rounded
-                              : Icons.visibility_rounded,
-                          color: AppTheme.primaryLight,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setState(() => obscurePassword = !obscurePassword),
-                        tooltip: obscurePassword
-                            ? 'Show Password'
-                            : 'Hide Password',
-                      ),
-                    ),
-                    validator: (val) {
-                      if (widget.existingUser == null &&
-                          (val == null || val.trim().isEmpty)) {
-                        return 'Password required for new user';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Role picker
-                  DropdownButtonFormField<String>(
-                    value: role,
-                    isExpanded: true,
-                    decoration: _inputDec('Role Type'),
-                    dropdownColor: const Color(0xFF131A2E),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'admin',
-                        child: Text(
-                          'Admin (Full Control)',
-                          style: TextStyle(color: AppTheme.textPrimary),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'employee',
-                        child: Text(
-                          'Employee (Custom Rules)',
-                          style: TextStyle(color: AppTheme.textPrimary),
-                        ),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => role = val);
-                    },
-                  ),
-
-                  if (role == 'employee') ...[
-                    const SizedBox(height: 20),
-
-                    // ── Quick Presets ─────────────────────────────────
-                    _SectionLabel(label: 'Quick Presets'),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildPresetChip(
-                            'Full Access', 'full', AppTheme.success),
-                        _buildPresetChip('Standard Staff', 'standard',
-                            AppTheme.primaryLight),
-                        _buildPresetChip(
-                            'View Only', 'readonly', AppTheme.warning),
-                        _buildPresetChip('Hide Financials', 'hide_financials',
-                            AppTheme.danger),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── Module Permissions ────────────────────────────
-                    _SectionLabel(label: 'Module Permissions'),
-                    const SizedBox(height: 10),
-                    ...AppUser.modules.map((moduleKey) {
-                      return _buildMobileModuleTile(moduleKey);
-                    }),
-                  ] else ...[
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.primaryLight.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(
-                            Icons.verified_user_rounded,
-                            color: AppTheme.primaryLight,
-                            size: 36,
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Administrator Account',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Admin users have unrestricted access to all pages, actions, and columns.',
-                            style: TextStyle(
-                              color: AppTheme.textMuted,
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 24),
-                ],
-              ),
+            // Name field
+            TextFormField(
+              controller: nameController,
+              enabled: widget.existingUser == null ||
+                  !AppUser.isPermanentAdmin(
+                      widget.existingUser?.email ?? ''),
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: _inputDec('Full Name *'),
+              validator: (val) =>
+                  val == null || val.trim().isEmpty ? 'Required' : null,
             ),
+            const SizedBox(height: 12),
 
-            // ── Bottom Save Bar ─────────────────────────────────────────
-            Container(
-              color: const Color(0xFF131A2E),
-              padding: EdgeInsets.fromLTRB(
-                16,
-                12,
-                16,
-                12 + MediaQuery.of(context).viewPadding.bottom,
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => saveUser(
-                    existingUser: widget.existingUser,
-                    onSaved: widget.onSaved,
-                    context: context,
+            // Email field
+            TextFormField(
+              controller: emailController,
+              enabled: widget.existingUser == null,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              keyboardType: TextInputType.emailAddress,
+              decoration: _inputDec('Email ID (Login Identifier) *'),
+              validator: (val) =>
+                  val == null || val.trim().isEmpty ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+
+            // Password field
+            TextFormField(
+              controller: passwordController,
+              obscureText: obscurePassword,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: _inputDec(
+                'Password *',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: AppTheme.primaryLight,
+                    size: 20,
                   ),
-                  icon: const Icon(Icons.save_rounded, size: 18),
-                  label: const Text(
-                    'Save User Permissions',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  onPressed: () =>
+                      setState(() => obscurePassword = !obscurePassword),
+                  tooltip: obscurePassword
+                      ? 'Show Password'
+                      : 'Hide Password',
                 ),
               ),
+              validator: (val) {
+                if (widget.existingUser == null &&
+                    (val == null || val.trim().isEmpty)) {
+                  return 'Password required for new user';
+                }
+                return null;
+              },
             ),
+            const SizedBox(height: 12),
+
+            // Role picker
+            DropdownButtonFormField<String>(
+              value: role,
+              isExpanded: true,
+              decoration: _inputDec('Role Type'),
+              dropdownColor: const Color(0xFF131A2E),
+              items: const [
+                DropdownMenuItem(
+                  value: 'admin',
+                  child: Text(
+                    'Admin (Full Control)',
+                    style: TextStyle(color: AppTheme.textPrimary),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'employee',
+                  child: Text(
+                    'Employee (Custom Rules)',
+                    style: TextStyle(color: AppTheme.textPrimary),
+                  ),
+                ),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => role = val);
+              },
+            ),
+
+            if (role == 'employee') ...[
+              const SizedBox(height: 20),
+
+              // ── Quick Presets ─────────────────────────────────
+              _SectionLabel(label: 'Quick Presets'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildPresetChip(
+                      'Full Access', 'full', AppTheme.success),
+                  _buildPresetChip('Standard Staff', 'standard',
+                      AppTheme.primaryLight),
+                  _buildPresetChip(
+                      'View Only', 'readonly', AppTheme.warning),
+                  _buildPresetChip('Hide Financials', 'hide_financials',
+                      AppTheme.danger),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Module Permissions ────────────────────────────
+              _SectionLabel(label: 'Module Permissions'),
+              const SizedBox(height: 10),
+              ...AppUser.modules.map((moduleKey) {
+                return _buildMobileModuleTile(moduleKey);
+              }),
+            ] else ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primaryLight.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.verified_user_rounded,
+                      color: AppTheme.primaryLight,
+                      size: 36,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'Administrator Account',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Admin users have unrestricted access to all pages, actions, and columns.',
+                      style: TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -1447,7 +1402,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
   late Map<String, List<String>> statusSelectableAccess;
   late Map<String, bool> onlyAssignedAccess;
 
-  String expandedModuleKey = 'inward';
+  String expandedModuleKey = 'calls';
   final Map<String, String> activeSubTab = {};
 
   void initPermissions(AppUser? u) {

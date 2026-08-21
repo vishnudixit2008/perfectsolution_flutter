@@ -18,6 +18,9 @@ class SalesViewModel extends ChangeNotifier {
       } else if (table == 'app_users') {
         loadCatalog();
       }
+      if (table == 'custom_services' || table == 'shop_settings' || table == 'all') {
+        loadSavedServices();
+      }
     });
   }
 

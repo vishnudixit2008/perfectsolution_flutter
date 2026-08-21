@@ -1687,19 +1687,6 @@ class _SettingsViewState extends State<SettingsView> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 14),
-
-          // Feature chips
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildFeatureChip('👥 Staff Roles'),
-              _buildFeatureChip('🔒 Page Access'),
-              _buildFeatureChip('⚡ Actions Matrix'),
-              _buildFeatureChip('📋 Status Ordering'),
-            ],
-          ),
           const SizedBox(height: 16),
 
           SizedBox(
@@ -1727,25 +1714,6 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.textMuted,
-        ),
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/inward_repair.dart';
 import '../../../../data/models/inward_estimate_item.dart';
 import '../../../../data/models/pricelist_item.dart';
@@ -447,54 +446,60 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Job No',
-                  _jobNoWidth,
-                  (delta) => _updateColumnWidth(
-                    'jobNo',
-                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                if (UserPermissionService.isFieldVisible('inward', 'jobNo'))
+                  _buildResizableHeader(
+                    'Job No',
+                    _jobNoWidth,
+                    (delta) => _updateColumnWidth(
+                      'jobNo',
+                      (_jobNoWidth + delta).clamp(60.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('inward', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(120.0, 400.0),
+                if (UserPermissionService.isFieldVisible('inward', 'name'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(120.0, 400.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('inward', 'mobileNo'))
+                  _buildResizableHeader(
+                    'Mobile',
+                    _mobileWidth,
+                    (delta) => _updateColumnWidth(
+                      'mobile',
+                      (_mobileWidth + delta).clamp(100.0, 300.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Devices / Model',
-                  _devicesWidth,
-                  (delta) => _updateColumnWidth(
-                    'devices',
-                    (_devicesWidth + delta).clamp(150.0, 500.0),
+                if (UserPermissionService.isFieldVisible('inward', 'devices'))
+                  _buildResizableHeader(
+                    'Devices / Model',
+                    _devicesWidth,
+                    (delta) => _updateColumnWidth(
+                      'devices',
+                      (_devicesWidth + delta).clamp(150.0, 500.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Query / Problem',
-                  _queryWidth,
-                  (delta) => _updateColumnWidth(
-                    'query',
-                    (_queryWidth + delta).clamp(120.0, 400.0),
+                if (UserPermissionService.isFieldVisible('inward', 'query'))
+                  _buildResizableHeader(
+                    'Query / Problem',
+                    _queryWidth,
+                    (delta) => _updateColumnWidth(
+                      'query',
+                      (_queryWidth + delta).clamp(120.0, 400.0),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -537,57 +542,60 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _jobNoWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(
-                '#${repair.jobNo}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+            if (UserPermissionService.isFieldVisible('inward', 'jobNo'))
+              Container(
+                width: _jobNoWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  '#${repair.jobNo}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repair.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('inward', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(repair.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _devicesWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repair.devices,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('inward', 'name'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repair.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            Container(
-              width: _queryWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                (repair.query != null && repair.query!.isNotEmpty)
-                    ? repair.query!
-                    : '-',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppTheme.textSecondary),
+            if (UserPermissionService.isFieldVisible('inward', 'mobileNo'))
+              Container(
+                width: _mobileWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(repair.mobileNo ?? '-'),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('inward', 'devices'))
+              Container(
+                width: _devicesWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repair.devices,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('inward', 'query'))
+              Container(
+                width: _queryWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repair.query ?? '-',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ),
@@ -772,6 +780,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('inward', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('inward', 'canDelete');
+
     return AppListCard(
       index: itemIndex,
       title: '#${repair.jobNo} • ${repair.devices}',
@@ -779,8 +790,8 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       statusBadge: _buildStatusChip(repair.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, repair, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingRepair: repair),
-      onDelete: () => _confirmDelete(context, repair.jobNo, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingRepair: repair) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, repair.jobNo, viewModel) : null,
     );
   }
 
@@ -883,48 +894,53 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (repair.name.trim().isNotEmpty)
+            if (UserPermissionService.isFieldVisible('inward', 'name') && repair.name.trim().isNotEmpty)
               ScaledInfoRow(
                 label: 'Customer Name',
                 value: repair.name,
                 scaleFactor: scale,
               ),
-            if (repair.mobileNo != null && repair.mobileNo!.trim().isNotEmpty && repair.mobileNo != 'N/A')
+            if (UserPermissionService.isFieldVisible('inward', 'mobileNo') && repair.mobileNo != null && repair.mobileNo!.trim().isNotEmpty && repair.mobileNo != 'N/A')
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: repair.mobileNo!,
+                trailing: InlineCallButton(
+                  phone: repair.mobileNo!,
+                  scaleFactor: scale,
+                ),
                 scaleFactor: scale,
               ),
-            if (repair.devices.trim().isNotEmpty)
+            if (UserPermissionService.isFieldVisible('inward', 'devices') && repair.devices.trim().isNotEmpty)
               ScaledInfoRow(
                 label: 'Devices / Model',
                 value: repair.devices,
                 scaleFactor: scale,
               ),
-            if (repair.query != null && repair.query!.trim().isNotEmpty && repair.query != 'N/A')
+            if (UserPermissionService.isFieldVisible('inward', 'query') && repair.query != null && repair.query!.trim().isNotEmpty && repair.query != 'N/A')
               ScaledInfoRow(
                 label: 'Problem Reported',
                 value: repair.query!,
                 scaleFactor: scale,
               ),
-            if (repair.purchasedFrom != null && repair.purchasedFrom!.trim().isNotEmpty && repair.purchasedFrom != 'N/A')
+            if (UserPermissionService.isFieldVisible('inward', 'purchasedFrom') && repair.purchasedFrom != null && repair.purchasedFrom!.trim().isNotEmpty && repair.purchasedFrom != 'N/A')
               ScaledInfoRow(
                 label: 'Purchased From',
                 value: repair.purchasedFrom!,
                 scaleFactor: scale,
               ),
-            if (repair.notes != null && repair.notes!.trim().isNotEmpty && repair.notes != 'N/A')
+            if (UserPermissionService.isFieldVisible('inward', 'notes') && repair.notes != null && repair.notes!.trim().isNotEmpty && repair.notes != 'N/A')
               ScaledInfoRow(
                 label: 'Notes / Diagnostics',
                 value: repair.notes!,
                 scaleFactor: scale,
               ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: repair.status,
-              scaleFactor: scale,
-            ),
-            if (repair.status.trim().toLowerCase() == 'completed' || repair.status.trim().toLowerCase() == 'delivered' || repair.completionDate != null) ...[
+            if (UserPermissionService.isFieldVisible('inward', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: repair.status,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('inward', 'status') && (repair.status.trim().toLowerCase() == 'completed' || repair.status.trim().toLowerCase() == 'delivered' || repair.completionDate != null)) ...[
               Builder(
                 builder: (context) {
                   final compDate = repair.completionDate ?? repair.updatedAt;
@@ -972,7 +988,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 },
               ),
             ],
-            if (items.isNotEmpty) ...[
+            if (UserPermissionService.isFieldVisible('inward', 'estimateItems') && items.isNotEmpty) ...[
               SizedBox(height: 8 * scale),
               Text(
                 'Estimate Line Items (${items.length})',
@@ -991,9 +1007,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     vertical: 6 * scale,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
+                    color: Colors.white.withOpacity(0.03),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -1003,7 +1019,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                           it.itemName ?? it.itemDescription ?? 'Item',
                           style: TextStyle(
                             color: AppTheme.textPrimary,
-                            fontSize: 12 * scale,
+                            fontSize: 12.5 * scale,
                             fontWeight: FontWeight.w600,
                           ),
                           maxLines: 2,
@@ -1015,7 +1031,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                         '${it.quantity} x ₹${(it.lineType == 'Service' ? it.servicePrice : it.unitPrice).toStringAsFixed(0)} = ₹${it.totalAmount.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: AppTheme.primaryLight,
-                          fontSize: 12 * scale,
+                          fontSize: 12.5 * scale,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1053,14 +1069,14 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                               'Items Subtotal',
                               style: TextStyle(
                                 color: AppTheme.textSecondary,
-                                fontSize: 11 * scale,
+                                fontSize: 12 * scale,
                               ),
                             ),
                             Text(
                               '₹${subtotal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: AppTheme.textPrimary,
-                                fontSize: 12 * scale,
+                                fontSize: 12.5 * scale,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -1072,36 +1088,38 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Discount Applied',
+                                'Discount',
                                 style: TextStyle(
                                   color: AppTheme.warning,
-                                  fontSize: 11 * scale,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12 * scale,
                                 ),
                               ),
                               Text(
                                 '- ₹${discount.toStringAsFixed(2)}',
                                 style: TextStyle(
                                   color: AppTheme.warning,
-                                  fontSize: 12 * scale,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5 * scale,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ],
-                        Divider(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          height: 12 * scale,
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4 * scale),
+                          child: Divider(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            height: 1,
+                          ),
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'NET ESTIMATE TOTAL',
+                              'Total Estimate',
                               style: TextStyle(
                                 color: AppTheme.textPrimary,
-                                fontSize: 11 * scale,
+                                fontSize: 12.5 * scale,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1109,7 +1127,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                               '₹${netTotal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 color: AppTheme.primaryLight,
-                                fontSize: 14 * scale,
+                                fontSize: 13.5 * scale,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1126,53 +1144,61 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(repair.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(repair),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicateInward(context, repair, viewModel);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, repair, viewModel),
-                ),
-                ScaledActionButton(
-                  icon: Icons.request_page,
-                  label: 'Enter in Request',
-                  scaleFactor: scale,
-                  onTap: () =>
-                      _enterInModule(ctx, 'request', repair, viewModel),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () =>
-                      _enterInModule(ctx, 'purchase', repair, viewModel),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('inward', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('inward', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('inward', 'canConvertToSale');
+              final canTransferRequest = UserPermissionService.canPerformModuleAction('inward', 'canTransferRequest');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('inward', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferRequest && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(repair),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicateInward(context, repair, viewModel);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, repair, viewModel),
+                    ),
+                  if (canTransferRequest)
+                    ScaledActionButton(
+                      icon: Icons.request_page,
+                      label: 'Enter in Request',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'request', repair, viewModel),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', repair, viewModel),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -1364,12 +1390,6 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         ],
       ),
     );
-  }
-
-  void _launchPhone(String number) async {
-    if (number.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   static void launchWhatsAppForRepair(InwardRepair r) {
@@ -1858,29 +1878,38 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     final bool isNotesVis = UserPermissionService.isFieldVisible('inward', 'notes');
     final bool isNotesMod = UserPermissionService.canModifyField('inward', 'notes', isEdit: isEdit);
 
+    final bool isJobNoVis = UserPermissionService.isFieldVisible('inward', 'jobNo');
+    final bool isEstimateItemsVis = UserPermissionService.isFieldVisible('inward', 'estimateItems');
+    final bool isEstimateItemsMod = UserPermissionService.canModifyField('inward', 'estimateItems', isEdit: isEdit);
+    final bool isDiscountVis = UserPermissionService.isFieldVisible('inward', 'discount');
+    final bool isDiscountMod = UserPermissionService.canModifyField('inward', 'discount', isEdit: isEdit);
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('inward', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('inward', 'photo', isEdit: isEdit);
+
     final bool isMobile = MediaQuery.of(context).size.width < 700;
     final formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Job Number: ',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-              Text(
-                isEdit
-                    ? 'Job No. ${widget.existingRepair?.jobNo}'
-                    : 'Job No. ${viewModel.getNextJobNo()}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+          if (isJobNoVis)
+            Row(
+              children: [
+                const Text(
+                  'Job Number: ',
+                  style: TextStyle(color: AppTheme.textSecondary),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  isEdit
+                      ? 'Job No. ${widget.existingRepair?.jobNo}'
+                      : 'Job No. ${viewModel.getNextJobNo()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
+                ),
+              ],
+            ),
           if (isDateVis) ...[
             const SizedBox(height: 12),
             DateTimePickerField(
@@ -2023,57 +2052,63 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
             const SizedBox(height: 12),
           ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Device Condition / Proof Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              setState(() {
-                _photoUrl = urls;
-              });
-            },
-          ),
+          if (isPhotoVis) ...[
+            PhotoAttachmentWidget(
+              initialPhotoUrl: _photoUrl,
+              label: 'Device Condition / Proof Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      setState(() {
+                        _photoUrl = urls;
+                      });
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
 
-          const SizedBox(height: 24),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Estimate Details',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              if (_estimates.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
+          if (isEstimateItemsVis) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Estimate Details',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppTheme.textPrimary,
                   ),
-                  child: Text(
-                    '${_estimates.length} item(s) • ₹${_estimatesNetTotal.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: AppTheme.primaryLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                ),
+                if (_estimates.isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_estimates.length} item(s) • ₹${_estimatesNetTotal.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: AppTheme.primaryLight,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 8),
 
           // Add estimate item card (Mobile-optimized & Beautiful UI)
-          Builder(
+          if (isEstimateItemsMod)
+            Builder(
             builder: (context) {
               final catalogItems = context.watch<PricelistViewModel>().items;
               final savedServices =
@@ -2380,18 +2415,19 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                             fontSize: 13,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: AppTheme.danger,
-                            size: 18,
+                        if (isEstimateItemsMod)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: AppTheme.danger,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _estimates.removeAt(index);
+                              });
+                            },
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _estimates.removeAt(index);
-                            });
-                          },
-                        ),
                       ],
                     ),
                   );
@@ -2432,71 +2468,75 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.discount_rounded,
-                            size: 16,
-                            color: AppTheme.warning,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Estimate Discount',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(
-                        width: 130,
-                        child: TextFormField(
-                          controller: _discountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          onChanged: (_) => setState(() {}),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.warning,
-                          ),
-                          decoration: InputDecoration(
-                            isDense: true,
-                            hintText: '0.0',
-                            prefixText: '₹ ',
-                            prefixStyle: const TextStyle(
+                  if (isDiscountVis) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.discount_rounded,
+                              size: 16,
                               color: AppTheme.warning,
-                              fontWeight: FontWeight.bold,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 10,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(
-                                color: AppTheme.warning.withValues(alpha: 0.4),
+                            SizedBox(width: 6),
+                            Text(
+                              'Estimate Discount',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
                               ),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(
+                          ],
+                        ),
+                        SizedBox(
+                          width: 130,
+                          child: TextFormField(
+                            controller: _discountController,
+                            readOnly: !isDiscountMod,
+                            enabled: isDiscountMod,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.warning,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: '0.0',
+                              prefixText: '₹ ',
+                              prefixStyle: const TextStyle(
                                 color: AppTheme.warning,
-                                width: 1.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: AppTheme.warning.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.warning,
+                                  width: 1.5,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                   const Divider(color: Colors.white10, height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2525,8 +2565,9 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
             ),
           ],
         ],
-      ),
-    );
+      ],
+    ),
+  );
 
     if (isMobile) {
       return Dialog.fullscreen(

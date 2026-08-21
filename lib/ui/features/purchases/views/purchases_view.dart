@@ -437,30 +437,33 @@ class _PurchasesViewState extends State<PurchasesView> {
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Purchased From (Vendor)',
-                  _vendorWidth,
-                  (delta) => _updateColumnWidth(
-                    'vendor',
-                    (_vendorWidth + delta).clamp(120.0, 450.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom'))
+                  _buildResizableHeader(
+                    'Purchased From (Vendor)',
+                    _vendorWidth,
+                    (delta) => _updateColumnWidth(
+                      'vendor',
+                      (_vendorWidth + delta).clamp(120.0, 450.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Total Amount',
-                  _amountWidth,
-                  (delta) => _updateColumnWidth(
-                    'amount',
-                    (_amountWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
+                  _buildResizableHeader(
+                    'Total Amount',
+                    _amountWidth,
+                    (delta) => _updateColumnWidth(
+                      'amount',
+                      (_amountWidth + delta).clamp(100.0, 300.0),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -503,28 +506,31 @@ class _PurchasesViewState extends State<PurchasesView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _vendorWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                pur.purchasedFrom,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('purchases', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _amountWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '₹${pur.totalAmount.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom'))
+              Container(
+                width: _vendorWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  pur.purchasedFrom,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
+              Container(
+                width: _amountWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  '₹${pur.totalAmount.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
           ],
         ),
       ),
@@ -640,6 +646,9 @@ class _PurchasesViewState extends State<PurchasesView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
+
     return AppListCard(
       index: itemIndex,
       title: 'Vendor: ${pur.purchasedFrom}',
@@ -647,8 +656,8 @@ class _PurchasesViewState extends State<PurchasesView> {
       statusBadge: _buildStatusChip(pur.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, pur, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingPurchase: pur),
-      onDelete: () => _confirmDelete(context, pur.id, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingPurchase: pur) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, pur.id, viewModel) : null,
     );
   }
 
@@ -774,32 +783,31 @@ class _PurchasesViewState extends State<PurchasesView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Purchase ID',
-              value: pur.id,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Purchased From (Vendor)',
-              value: pur.purchasedFrom,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Total Purchase Amount',
-              value: '₹${pur.totalAmount.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: pur.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: pur.notes ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (items.isNotEmpty) ...[
+            if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom') && pur.purchasedFrom.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Purchased From (Vendor)',
+                value: pur.purchasedFrom,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'totalAmount') && pur.totalAmount > 0)
+              ScaledInfoRow(
+                label: 'Total Purchase Amount',
+                value: '₹${pur.totalAmount.toStringAsFixed(2)}',
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: pur.status,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'notes') && pur.notes != null && pur.notes!.trim().isNotEmpty && pur.notes != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes',
+                value: pur.notes!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'stockInItems') && items.isNotEmpty) ...[
               SizedBox(height: 8 * scale),
               Text(
                 'Line Items (${items.length})',
@@ -818,30 +826,34 @@ class _PurchasesViewState extends State<PurchasesView> {
                     vertical: 6 * scale,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
+                    color: Colors.white.withOpacity(0.03),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        (it.itemName != null && it.itemName!.isNotEmpty)
-                            ? it.itemName!
-                            : (it.customItemName != null && it.customItemName!.isNotEmpty)
-                                ? it.customItemName!
-                                : 'Purchase Item (${it.lineId})',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12 * scale,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          (it.itemName != null && it.itemName!.isNotEmpty)
+                              ? it.itemName!
+                              : (it.customItemName != null && it.customItemName!.isNotEmpty)
+                                  ? it.customItemName!
+                                  : 'Purchase Item (${it.lineId})',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 12.5 * scale,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
+                      SizedBox(width: 8 * scale),
                       Text(
                         '${it.quantity} x ₹${it.unitPrice.toStringAsFixed(0)} = ₹${it.amount.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: AppTheme.primaryLight,
-                          fontSize: 12 * scale,
+                          fontSize: 12.5 * scale,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -849,7 +861,7 @@ class _PurchasesViewState extends State<PurchasesView> {
                 ),
               ),
             ],
-            if (pur.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('purchases', 'photo') && pur.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: pur.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
@@ -887,21 +899,23 @@ class _PurchasesViewState extends State<PurchasesView> {
                     ),
                   ],
                 ],
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, pur, viewModel);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, pur, viewModel),
-                ),
+                if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate'))
+                  ScaledActionButton(
+                    icon: Icons.copy,
+                    label: 'Duplicate',
+                    scaleFactor: scale,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _duplicate(context, pur, viewModel);
+                    },
+                  ),
+                if (UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale'))
+                  ScaledActionButton(
+                    icon: Icons.sell,
+                    label: 'Convert to Sale',
+                    scaleFactor: scale,
+                    onTap: () => _convertToSale(ctx, pur, viewModel),
+                  ),
               ],
             ),
           ],
@@ -1469,6 +1483,13 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
     final bool isNotesVis = UserPermissionService.isFieldVisible('purchases', 'notes');
     final bool isNotesMod = UserPermissionService.canModifyField('purchases', 'notes', isEdit: isEdit);
 
+    final bool isTotalVis = UserPermissionService.isFieldVisible('purchases', 'totalAmount');
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('purchases', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('purchases', 'photo', isEdit: isEdit);
+
+    final bool isStockInItemsVis = UserPermissionService.isFieldVisible('purchases', 'stockInItems');
+    final bool isStockInItemsMod = UserPermissionService.canModifyField('purchases', 'stockInItems', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
@@ -1534,17 +1555,18 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                         }).toList(),
                   ),
                 ),
-              if (isStatusVis) const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Total: ₹${_calculatedTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.success,
+              if (isStatusVis && isTotalVis) const SizedBox(width: 12),
+              if (isTotalVis)
+                Expanded(
+                  child: Text(
+                    'Total: ₹${_calculatedTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.success,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1560,163 +1582,174 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             const SizedBox(height: 12),
           ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Vendor Bill / Purchase Invoice Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
+          if (isPhotoVis) ...[
+            PhotoAttachmentWidget(
+              initialPhotoUrl: _photoUrl,
+              label: 'Vendor Bill / Purchase Invoice Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      _photoUrl = urls;
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
 
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Items Stock-In Builder',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          AppKeyboardAutocomplete(
-            controller: _searchItemController,
-            catalogItems: catalogItems,
-            hintText: 'Search or enter item name...',
-            onSelected: (PricelistItem selection) {
-              if (selection.id == -1) return;
-              setState(() {
-                _selectedCatalogItem = selection;
-                _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _priceController,
-                  decoration: InputDecoration(
-                    labelText: 'Cost Price (₹)',
-                    hintText: _selectedCatalogItem != null
-                        ? _selectedCatalogItem!.price.toStringAsFixed(0)
-                        : '0.00',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+          if (isStockInItemsVis) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Items Stock-In Builder',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _qtyController,
-                  decoration: const InputDecoration(
-                    labelText: 'Qty',
-                    hintText: '1',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _addItem,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Item'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-          // Added items list
-          if (_items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No items added yet.',
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-              ),
-            )
-          else
-            Container(
-              height: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.01),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  final String name =
-                      item.itemName ?? item.customItemName ?? 'Product';
-                  return ListTile(
-                    title: Text(name, style: const TextStyle(fontSize: 13)),
-                    subtitle: Text(
-                      '₹${item.unitPrice} x ${item.quantity}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '₹${item.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit_note_rounded,
-                            color: AppTheme.primaryLight,
-                            size: 18,
-                          ),
-                          tooltip: 'Edit item details',
-                          onPressed: () => _editItemDialog(index),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: AppTheme.danger,
-                            size: 18,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _items.removeAt(index);
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  );
+            if (isStockInItemsMod) ...[
+              AppKeyboardAutocomplete(
+                controller: _searchItemController,
+                catalogItems: catalogItems,
+                hintText: 'Search or enter item name...',
+                onSelected: (PricelistItem selection) {
+                  if (selection.id == -1) return;
+                  setState(() {
+                    _selectedCatalogItem = selection;
+                    _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
+                  });
                 },
               ),
-            ),
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _priceController,
+                      decoration: InputDecoration(
+                        labelText: 'Cost Price (₹)',
+                        hintText: _selectedCatalogItem != null
+                            ? _selectedCatalogItem!.price.toStringAsFixed(0)
+                            : '0.00',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _qtyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Qty',
+                        hintText: '1',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _addItem,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Item'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Added items list
+            if (_items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No items added yet.',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              )
+            else
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.01),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final String name =
+                        item.itemName ?? item.customItemName ?? 'Product';
+                    return ListTile(
+                      title: Text(name, style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(
+                        '₹${item.unitPrice} x ${item.quantity}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '₹${item.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (isStockInItemsMod) ...[
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_note_rounded,
+                                color: AppTheme.primaryLight,
+                                size: 18,
+                              ),
+                              tooltip: 'Edit item details',
+                              onPressed: () => _editItemDialog(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppTheme.danger,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _items.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/call_model.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/user_permission_service.dart';
 
 class CallsViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -37,14 +38,22 @@ class CallsViewModel extends ChangeNotifier {
   String get selectedAssigned => _selectedAssigned;
 
   List<String> get availableAssignedPersons {
-    final set = <String>{'All', 'Unassigned'};
+    final Map<String, String> uniqueNamesByLower = {};
+    uniqueNamesByLower['all'] = 'All';
+    uniqueNamesByLower['unassigned'] = 'Unassigned';
+
     for (final call in _calls) {
       if (call.assignedTo.trim().isNotEmpty &&
-          call.assignedTo != 'N/A') {
-        set.add(call.assignedTo.trim());
+          call.assignedTo.trim() != 'N/A') {
+        final displayName = UserPermissionService.formatStaffName(call.assignedTo);
+        if (displayName.isNotEmpty &&
+            displayName.toLowerCase() != 'unassigned' &&
+            !uniqueNamesByLower.containsKey(displayName.toLowerCase())) {
+          uniqueNamesByLower[displayName.toLowerCase()] = displayName;
+        }
       }
     }
-    return set.toList();
+    return uniqueNamesByLower.values.toList();
   }
 
   List<CallModel> get filteredCalls {
@@ -66,9 +75,12 @@ class CallsViewModel extends ChangeNotifier {
       if (_selectedAssigned == 'Unassigned') {
         matchesAssigned =
             call.assignedTo.trim().isEmpty ||
-            call.assignedTo == 'N/A';
+            call.assignedTo.trim() == 'N/A';
       } else if (_selectedAssigned != 'All') {
-        matchesAssigned = call.assignedTo.trim() == _selectedAssigned;
+        final callStaff = UserPermissionService.formatStaffName(call.assignedTo);
+        matchesAssigned =
+            callStaff.toLowerCase() == _selectedAssigned.toLowerCase() ||
+            call.assignedTo.trim().toLowerCase() == _selectedAssigned.toLowerCase();
       }
 
       return matchesSearch && matchesStatus && matchesAssigned;
@@ -80,8 +92,8 @@ class CallsViewModel extends ChangeNotifier {
     for (final call in filteredCalls) {
       final key =
           (call.assignedTo.trim().isNotEmpty &&
-              call.assignedTo != 'N/A')
-          ? 'Assigned to: ${call.assignedTo.trim()}'
+              call.assignedTo.trim() != 'N/A')
+          ? 'Assigned to: ${UserPermissionService.formatStaffName(call.assignedTo)}'
           : 'Unassigned';
       map.putIfAbsent(key, () => []).add(call);
     }

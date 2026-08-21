@@ -77,8 +77,10 @@ class ShopRepository {
   Future<void> saveUpiNamesMap(Map<String, String> names) async =>
       await _localDb.saveUpiNamesMap(names);
   List<String> getCustomServiceNames() => _localDb.getCustomServiceNames();
-  Future<void> saveCustomServiceName(String name) async =>
-      await _localDb.saveCustomServiceName(name);
+  Future<void> saveCustomServiceName(String name, {bool syncToCloud = true}) async =>
+      await _localDb.saveCustomServiceName(name, syncToCloud: syncToCloud);
+  Future<void> setCustomServicesList(List<String> services, {bool syncToCloud = false}) async =>
+      await _localDb.setCustomServicesList(services, syncToCloud: syncToCloud);
   double? getDetailPopupWidth() => _localDb.getDetailPopupWidth();
   double? getDetailPopupHeight() => _localDb.getDetailPopupHeight();
   Future<void> saveDetailPopupSize(double width, double height) async =>

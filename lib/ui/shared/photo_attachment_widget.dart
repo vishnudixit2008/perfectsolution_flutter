@@ -10,7 +10,7 @@ import 'app_photo_viewer_dialog.dart';
 class PhotoAttachmentWidget extends StatefulWidget {
   final String? initialPhotoUrl;
   final List<String>? initialPhotoUrls;
-  final ValueChanged<String?> onPhotoChanged;
+  final ValueChanged<String?>? onPhotoChanged;
   final ValueChanged<bool>? onUploadingChanged;
   final String label;
 
@@ -18,7 +18,7 @@ class PhotoAttachmentWidget extends StatefulWidget {
     super.key,
     this.initialPhotoUrl,
     this.initialPhotoUrls,
-    required this.onPhotoChanged,
+    this.onPhotoChanged,
     this.onUploadingChanged,
     this.label = 'Device / Item Photos',
   });
@@ -230,9 +230,9 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
 
   void _notifyParent() {
     if (_photoUrls.isEmpty) {
-      widget.onPhotoChanged(null);
+      widget.onPhotoChanged?.call(null);
     } else {
-      widget.onPhotoChanged(PhotoAttachmentWidget.joinPhotoUrls(_photoUrls));
+      widget.onPhotoChanged?.call(PhotoAttachmentWidget.joinPhotoUrls(_photoUrls));
     }
   }
 

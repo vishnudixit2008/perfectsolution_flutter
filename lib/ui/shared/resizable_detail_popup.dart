@@ -1,5 +1,9 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../data/repositories/shop_repository.dart';
+import '../../data/services/map_directions_service.dart';
 import '../core/app_theme.dart';
 import '../core/motion/motion.dart';
 
@@ -180,7 +184,7 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.textPrimary,
-                                  fontSize: 16 * scale,
+                                  fontSize: 17 * scale,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -191,7 +195,7 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
                                   widget.subtitle!,
                                   style: TextStyle(
                                     color: AppTheme.textSecondary,
-                                    fontSize: 11 * scale,
+                                    fontSize: 11.5 * scale,
                                   ),
                                 ),
                               ],
@@ -315,6 +319,8 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
 class ScaledInfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final Widget? valueWidget;
+  final Widget? trailing;
   final double scaleFactor;
   final double labelWidth;
 
@@ -322,6 +328,8 @@ class ScaledInfoRow extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.valueWidget,
+    this.trailing,
     required this.scaleFactor,
     this.labelWidth = 140,
   });
@@ -329,7 +337,7 @@ class ScaledInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 3 * scaleFactor),
+      padding: EdgeInsets.symmetric(vertical: 3.5 * scaleFactor),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -339,21 +347,169 @@ class ScaledInfoRow extends StatelessWidget {
               label,
               style: TextStyle(
                 color: AppTheme.textMuted,
-                fontSize: 12 * scaleFactor,
-                fontWeight: FontWeight.bold,
+                fontSize: 12.5 * scaleFactor,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 12 * scaleFactor,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: valueWidget ??
+                      Text(
+                        value,
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 12.5 * scaleFactor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                ),
+                ?trailing,
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact, beautiful inline call button for mobile devices/users.
+class InlineCallButton extends StatelessWidget {
+  final String phone;
+  final double scaleFactor;
+
+  const InlineCallButton({
+    super.key,
+    required this.phone,
+    this.scaleFactor = 1.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobileDevice = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    if (!isMobileDevice && AppleMotion.isDesktop) {
+      return const SizedBox.shrink();
+    }
+
+    final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleaned.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(left: 8 * scaleFactor),
+      child: BouncyPressable(
+        scaleFactor: 0.90,
+        onTap: () async {
+          final uri = Uri.parse('tel:$cleaned');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: 7 * scaleFactor,
+            vertical: 2 * scaleFactor,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: const Color(0xFF10B981).withValues(alpha: 0.3),
+              width: 0.8 * scaleFactor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.call_rounded,
+                size: 11 * scaleFactor,
+                color: const Color(0xFF34D399),
+              ),
+              SizedBox(width: 3.5 * scaleFactor),
+              Text(
+                'Call',
+                style: TextStyle(
+                  fontSize: 10.5 * scaleFactor,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                  color: const Color(0xFF34D399),
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact, interactive inline button to open Google Maps directions for a given address.
+class InlineDirectionsButton extends StatelessWidget {
+  final String address;
+  final double scaleFactor;
+
+  const InlineDirectionsButton({
+    super.key,
+    required this.address,
+    this.scaleFactor = 1.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cleaned = MapDirectionsService.normalizeAddress(address);
+    if (cleaned.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: EdgeInsets.only(left: 8 * scaleFactor),
+      child: Tooltip(
+        message: 'Get directions in Google Maps',
+        child: BouncyPressable(
+          scaleFactor: 0.90,
+          onTap: () => MapDirectionsService.openDirections(address),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: 7 * scaleFactor,
+              vertical: 2 * scaleFactor,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF38BDF8).withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(100),
+              border: Border.all(
+                color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                width: 0.8 * scaleFactor,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.directions_rounded,
+                  size: 11 * scaleFactor,
+                  color: const Color(0xFF38BDF8),
+                ),
+                SizedBox(width: 3.5 * scaleFactor),
+                Text(
+                  'Directions',
+                  style: TextStyle(
+                    fontSize: 10.5 * scaleFactor,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                    color: const Color(0xFF38BDF8),
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -392,7 +548,7 @@ class ScaledActionButton extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 18 * scaleFactor,
-              backgroundColor: iconWidget != null ? Colors.transparent : buttonColor.withValues(alpha: 0.1),
+              backgroundColor: buttonColor.withValues(alpha: 0.1),
               child:
                   iconWidget ??
                   Icon(icon, color: buttonColor, size: 18 * scaleFactor),
