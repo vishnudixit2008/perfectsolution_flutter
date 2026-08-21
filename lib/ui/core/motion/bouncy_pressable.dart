@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'motion_tokens.dart';
 
-/// An Apple-inspired tactile bounce wrapper that smoothly depresses on touch/click
-/// and springs back elastically on release.
+/// An Apple & Telegram-grade tactile bounce wrapper.
+///
+/// Performance Optimizations:
+/// - Uses [ScaleTransition] directly to update the RenderTransform matrix layer without widget tree rebuilds.
+/// - Encloses animating widget in a [RepaintBoundary] to isolate layer repainting from parent containers.
+/// - Zero allocations in paint cycles.
+/// - Lightweight non-blocking haptic tick on tap down.
 class BouncyPressable extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -13,6 +18,7 @@ class BouncyPressable extends StatefulWidget {
   final Curve curve;
   final MouseCursor cursor;
   final HitTestBehavior behavior;
+  final bool enableHaptics;
 
   const BouncyPressable({
     super.key,
@@ -25,6 +31,7 @@ class BouncyPressable extends StatefulWidget {
     this.curve = AppleMotion.spring,
     this.cursor = SystemMouseCursors.click,
     this.behavior = HitTestBehavior.opaque,
+    this.enableHaptics = true,
   });
 
   @override
@@ -33,8 +40,8 @@ class BouncyPressable extends StatefulWidget {
 
 class _BouncyPressableState extends State<BouncyPressable>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -64,6 +71,9 @@ class _BouncyPressableState extends State<BouncyPressable>
 
   void _handleTapDown(TapDownDetails _) {
     if (widget.onTap != null || widget.onLongPress != null) {
+      if (widget.enableHaptics) {
+        AppleMotion.triggerHapticFeedback(light: true);
+      }
       _controller.forward();
     }
   }
@@ -98,15 +108,11 @@ class _BouncyPressableState extends State<BouncyPressable>
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
         onSecondaryTap: widget.onSecondaryTap,
-        child: AnimatedBuilder(
-          animation: _scaleAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              child: child,
-            );
-          },
-          child: widget.child,
+        child: RepaintBoundary(
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: widget.child,
+          ),
         ),
       ),
     );

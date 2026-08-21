@@ -626,6 +626,14 @@ class _RequestsViewState extends State<RequestsView> {
     RequestsViewModel viewModel,
     Map<String, List<RequestOrder>> groupedRequests,
   ) {
+    final listEntries = <_RequestListItem>[];
+    for (final entry in groupedRequests.entries) {
+      listEntries.add(_RequestListItem.header(entry.key, entry.value.length));
+      for (final req in entry.value) {
+        listEntries.add(_RequestListItem.card(req));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
@@ -634,20 +642,17 @@ class _RequestsViewState extends State<RequestsView> {
         await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
         if (context.mounted) viewModel.loadRequests();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedRequests.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final req in entry.value) ...[
-                _buildMobileRequestCard(context, viewModel, req),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileRequestCard(context, viewModel, item.request!, itemIndex: index);
+        },
       ),
     );
   }
@@ -655,8 +660,9 @@ class _RequestsViewState extends State<RequestsView> {
   Widget _buildMobileRequestCard(
     BuildContext context,
     RequestsViewModel viewModel,
-    RequestOrder req,
-  ) {
+    RequestOrder req, {
+    int itemIndex = 0,
+  }) {
     final metadata = <Widget>[];
 
     if (req.mobileNo != null &&
@@ -723,6 +729,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
 
     return AppListCard(
+      index: itemIndex,
       title: req.customerName,
       statusBadge: _buildStatusChip(req.status),
       metadataRows: metadata,
@@ -1591,4 +1598,15 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
       ],
     );
   }
+}
+
+class _RequestListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final RequestOrder? request;
+
+  _RequestListItem.header(this.statusHeader, this.statusCount) : request = null;
+  _RequestListItem.card(this.request)
+      : statusHeader = null,
+        statusCount = null;
 }

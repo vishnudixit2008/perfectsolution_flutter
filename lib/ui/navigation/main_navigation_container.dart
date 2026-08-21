@@ -211,9 +211,9 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       if (context.mounted) {
         _reloadAllViewModels(context);
       }
-      // Re-check for updates after manual sync tap (isAppLaunch: false respects 1-hour skip suppression)
+      // Re-check for updates after manual sync tap (forceCheck: true guarantees instant popup if an update exists)
       if (context.mounted) {
-        await UpdateDialog.showIfNeeded(context, isAppLaunch: false);
+        await UpdateDialog.showIfNeeded(context, isAppLaunch: false, forceCheck: true);
       }
     } catch (_) {
       // Handled silently by SupabaseSyncService status updates
@@ -348,37 +348,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 12.0,
                   isDesktop ? 16.0 : 0.0,
                 ),
-                child: AnimatedSwitcher(
-                  duration: AppleMotion.medium,
-                  switchInCurve: AppleMotion.easeOut,
-                  switchOutCurve: Curves.easeInQuad,
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: AppleMotion.easeOut,
-                    );
-                    final slide = Tween<Offset>(
-                      begin: const Offset(0.018, 0),
-                      end: Offset.zero,
-                    ).animate(curved);
-                    final scale = Tween<double>(
-                      begin: 0.985,
-                      end: 1.0,
-                    ).animate(curved);
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: slide,
-                        child: ScaleTransition(
-                          scale: scale,
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(currentIndex),
-                    child: _buildActiveView(currentIndex),
+                child: _FadeScaleIndexedStack(
+                  index: currentIndex.clamp(0, _views.length - 1),
+                  children: List.generate(
+                    _views.length,
+                    (index) => _buildActiveView(index),
                   ),
                 ),
               ),
@@ -911,3 +885,103 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     );
   }
 }
+
+/// Keeps all views mounted and alive in memory while rendering a rich,
+/// liquid 380ms spring fade-scale-slide transition when switching tabs.
+class _FadeScaleIndexedStack extends StatefulWidget {
+  final int index;
+  final List<Widget> children;
+
+  const _FadeScaleIndexedStack({
+    required this.index,
+    required this.children,
+  });
+
+  @override
+  State<_FadeScaleIndexedStack> createState() => _FadeScaleIndexedStackState();
+}
+
+class _FadeScaleIndexedStackState extends State<_FadeScaleIndexedStack>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+
+    final curved = CurvedAnimation(
+      parent: _controller,
+      curve: const Cubic(0.175, 0.885, 0.32, 1.15),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.70, curve: Curves.easeOut),
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.02),
+      end: Offset.zero,
+    ).animate(curved);
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.98,
+      end: 1.0,
+    ).animate(curved);
+
+    _controller.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _FadeScaleIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _controller.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeIndex = widget.index.clamp(0, widget.children.length - 1);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: List.generate(widget.children.length, (i) {
+        final isActive = i == activeIndex;
+        if (!isActive) {
+          return Offstage(
+            offstage: true,
+            child: widget.children[i],
+          );
+        }
+
+        return FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: widget.children[i],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+

@@ -575,6 +575,14 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
   ) {
+    final listEntries = <_PurchaseListItem>[];
+    for (final entry in groupedPurchases.entries) {
+      listEntries.add(_PurchaseListItem.header(entry.key, entry.value.length));
+      for (final pur in entry.value) {
+        listEntries.add(_PurchaseListItem.card(pur));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
@@ -583,20 +591,17 @@ class _PurchasesViewState extends State<PurchasesView> {
         await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
         if (context.mounted) viewModel.loadPurchases();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedPurchases.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final pur in entry.value) ...[
-                _buildMobilePurchaseCard(context, viewModel, pur),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobilePurchaseCard(context, viewModel, item.purchase!, itemIndex: index);
+        },
       ),
     );
   }
@@ -604,8 +609,9 @@ class _PurchasesViewState extends State<PurchasesView> {
   Widget _buildMobilePurchaseCard(
     BuildContext context,
     PurchasesViewModel viewModel,
-    PurchaseOrder pur,
-  ) {
+    PurchaseOrder pur, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(pur.date);
     final metadata = <Widget>[];
 
@@ -630,6 +636,7 @@ class _PurchasesViewState extends State<PurchasesView> {
     );
 
     return AppListCard(
+      index: itemIndex,
       title: 'Vendor: ${pur.purchasedFrom}',
       subtitle: 'Order ID: ${pur.id}',
       statusBadge: _buildStatusChip(pur.status),
@@ -1786,4 +1793,15 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       ],
     );
   }
+}
+
+class _PurchaseListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final PurchaseOrder? purchase;
+
+  _PurchaseListItem.header(this.statusHeader, this.statusCount) : purchase = null;
+  _PurchaseListItem.card(this.purchase)
+      : statusHeader = null,
+        statusCount = null;
 }

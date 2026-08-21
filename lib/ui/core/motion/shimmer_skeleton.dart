@@ -86,33 +86,35 @@ class _ShimmerSkeletonState extends State<ShimmerSkeleton>
   Widget build(BuildContext context) {
     final br = widget.borderRadius ?? BorderRadius.circular(8);
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final progress = _controller.value;
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: br,
-            gradient: LinearGradient(
-              begin: Alignment(-1.5 + (progress * 3.0), -0.3),
-              end: Alignment(-0.5 + (progress * 3.0), 0.3),
-              colors: [
-                AppTheme.cardBg,
-                const Color(0xFF1F293D),
-                AppTheme.cardBg,
-              ],
-              stops: const [0.0, 0.5, 1.0],
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final progress = _controller.value;
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: br,
+              gradient: LinearGradient(
+                begin: Alignment(-1.5 + (progress * 3.0), -0.3),
+                end: Alignment(-0.5 + (progress * 3.0), 0.3),
+                colors: [
+                  AppTheme.cardBg,
+                  const Color(0xFF1F293D),
+                  AppTheme.cardBg,
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.05),
+                width: 1,
+              ),
             ),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
-            ),
-          ),
-          child: widget.child,
-        );
-      },
+            child: widget.child,
+          );
+        },
+      ),
     );
   }
 }

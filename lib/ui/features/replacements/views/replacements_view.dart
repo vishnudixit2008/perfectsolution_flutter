@@ -592,6 +592,14 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     ReplacementsViewModel viewModel,
     Map<String, List<Replacement>> groupedReplacements,
   ) {
+    final listEntries = <_ReplacementListItem>[];
+    for (final entry in groupedReplacements.entries) {
+      listEntries.add(_ReplacementListItem.header(entry.key, entry.value.length));
+      for (final repl in entry.value) {
+        listEntries.add(_ReplacementListItem.card(repl));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
@@ -600,20 +608,17 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
         if (context.mounted) viewModel.loadReplacements();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedReplacements.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final repl in entry.value) ...[
-                _buildMobileReplacementCard(context, viewModel, repl),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileReplacementCard(context, viewModel, item.replacement!, itemIndex: index);
+        },
       ),
     );
   }
@@ -621,8 +626,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   Widget _buildMobileReplacementCard(
     BuildContext context,
     ReplacementsViewModel viewModel,
-    Replacement repl,
-  ) {
+    Replacement repl, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(repl.date);
     final metadata = <Widget>[];
 
@@ -667,6 +673,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
 
     return AppListCard(
+      index: itemIndex,
       title: '#${repl.jobNo} • ${repl.item}',
       subtitle: 'Customer: ${repl.name}',
       statusBadge: _buildStatusChip(repl.status),
@@ -1620,4 +1627,15 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       ],
     );
   }
+}
+
+class _ReplacementListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final Replacement? replacement;
+
+  _ReplacementListItem.header(this.statusHeader, this.statusCount) : replacement = null;
+  _ReplacementListItem.card(this.replacement)
+      : statusHeader = null,
+        statusCount = null;
 }

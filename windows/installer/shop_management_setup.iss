@@ -2,10 +2,10 @@
 ; Designed for Windows x64
 
 #define MyAppName "Perfect Solution Shop Management"
-#define MyAppVersion "1.0.0"
-#define MyAppPublisher "Perfect Solution"
+#define MyAppVersion "1.2.7"
+#define MyAppPublisher "Perfect Solution Noida"
 #define MyAppExeName "shop_management_flutter.exe"
-#define BuildDir "..\..\build\windows\runner\Release"
+#define BuildDir "..\..\build\windows\x64\runner\Release"
 
 [Setup]
 AppId={{6B90C264-49B0-4EE3-AA35-694EEEE69E11}
@@ -16,13 +16,18 @@ DefaultDirName={autopf}\PerfectSolution\ShopManagement
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\..\build\windows\installer
-OutputBaseFilename=ShopManagement_Installer_x64
+OutputBaseFilename=PerfectSolution-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 SetupIconFile=..\runner\resources\app_icon.ico
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=Perfect Solution Management Software
+VersionInfoCopyright=Copyright (C) 2026 Perfect Solution Noida
+PrivilegesRequired=lowest
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

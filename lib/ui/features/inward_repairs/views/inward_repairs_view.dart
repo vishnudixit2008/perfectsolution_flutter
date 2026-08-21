@@ -638,6 +638,14 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     InwardRepairsViewModel viewModel,
     Map<String, List<InwardRepair>> groupedRepairs,
   ) {
+    final listEntries = <_InwardListItem>[];
+    for (final entry in groupedRepairs.entries) {
+      listEntries.add(_InwardListItem.header(entry.key, entry.value.length));
+      for (final repair in entry.value) {
+        listEntries.add(_InwardListItem.card(repair));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
@@ -646,20 +654,17 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
         if (context.mounted) viewModel.loadRepairs();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedRepairs.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final repair in entry.value) ...[
-                _buildMobileRepairCard(context, viewModel, repair),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileRepairCard(context, viewModel, item.repair!, itemIndex: index);
+        },
       ),
     );
   }
@@ -667,8 +672,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   Widget _buildMobileRepairCard(
     BuildContext context,
     InwardRepairsViewModel viewModel,
-    InwardRepair repair,
-  ) {
+    InwardRepair repair, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(repair.date);
     final metadata = <Widget>[];
 
@@ -762,6 +768,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     );
 
     return AppListCard(
+      index: itemIndex,
       title: '#${repair.jobNo} • ${repair.devices}',
       subtitle: 'Customer: ${repair.name}',
       statusBadge: _buildStatusChip(repair.status),
@@ -2585,4 +2592,15 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
       ],
     );
   }
+}
+
+class _InwardListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final InwardRepair? repair;
+
+  _InwardListItem.header(this.statusHeader, this.statusCount) : repair = null;
+  _InwardListItem.card(this.repair)
+      : statusHeader = null,
+        statusCount = null;
 }

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.perfectsolution" "\0"
-            VALUE "FileDescription", "Perfect Solution" "\0"
+            VALUE "CompanyName", "Perfect Solution Noida" "\0"
+            VALUE "FileDescription", "Perfect Solution Shop Management Software" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Perfect Solution" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.perfectsolution. All rights reserved." "\0"
-            VALUE "OriginalFilename", "Perfect Solution.exe" "\0"
-            VALUE "ProductName", "Perfect Solution" "\0"
+            VALUE "InternalName", "PerfectSolution" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Perfect Solution Noida. All rights reserved." "\0"
+            VALUE "OriginalFilename", "PerfectSolution.exe" "\0"
+            VALUE "ProductName", "Perfect Solution Shop Management" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -1022,6 +1022,14 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     Map<String, List<CallModel>> groupedCalls,
   ) {
+    final listEntries = <_CallListItem>[];
+    for (final entry in groupedCalls.entries) {
+      listEntries.add(_CallListItem.header(entry.key, entry.value.length));
+      for (final call in entry.value) {
+        listEntries.add(_CallListItem.card(call));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
@@ -1030,20 +1038,17 @@ class _CallsViewState extends State<CallsView> {
         await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
         if (context.mounted) viewModel.loadCalls();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedCalls.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final call in entry.value) ...[
-                _buildMobileCallCard(context, viewModel, call),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileCallCard(context, viewModel, item.call!, itemIndex: index);
+        },
       ),
     );
   }
@@ -1051,8 +1056,9 @@ class _CallsViewState extends State<CallsView> {
   Widget _buildMobileCallCard(
     BuildContext context,
     CallsViewModel viewModel,
-    CallModel call,
-  ) {
+    CallModel call, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(call.date);
     final metadata = <Widget>[];
 
@@ -1114,6 +1120,7 @@ class _CallsViewState extends State<CallsView> {
     );
 
     return AppListCard(
+      index: itemIndex,
       title: call.name,
       statusBadge: _buildStatusChip(call.status),
       metadataRows: metadata,
@@ -2177,4 +2184,15 @@ class _CallFormDialogState extends State<_CallFormDialog> {
       }
     }
   }
+}
+
+class _CallListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final CallModel? call;
+
+  _CallListItem.header(this.statusHeader, this.statusCount) : call = null;
+  _CallListItem.card(this.call)
+      : statusHeader = null,
+        statusCount = null;
 }
