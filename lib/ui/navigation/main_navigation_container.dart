@@ -817,23 +817,23 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   }
 }
 
-/// Lazy-loading platform-adaptive page stack.
+/// Apple-style lazy-loading page transition stack.
 ///
-/// **Why this exists**:
-/// The previous approach called `List.generate(n, buildPage)` on every build(),
-/// causing ALL 8 pages to be constructed + ALL their Consumer widgets to rebuild
-/// simultaneously on every tab switch — saturating CPU before the animation even starts.
+/// **Desktop — Apple macOS directional slide**:
+/// Incoming page glides in from the right (4% horizontal offset) while the
+/// outgoing page gently recedes to the left (2% offset). Both crossfade
+/// simultaneously. This is exactly how macOS Settings, Finder sidebars,
+/// and apps like Linear / Arc navigate between content panes.
+/// Duration: 280ms with iOS-grade easeOutExpo — snappy but clearly visible.
 ///
-/// **How this works**:
-/// - Pages are built lazily: only constructed on first visit, never again.
-/// - `TickerMode(enabled: false)` pauses all shimmer/animation tickers in hidden pages
-///   so they don't consume GPU time while invisible.
-/// - `RepaintBoundary` wraps each page so they composite independently.
-/// - The fade animation starts AFTER the first paint frame via `addPostFrameCallback`
-///   so there's zero jank on the transition's first frame.
+/// **Mobile — vertical spring slide** (unchanged):
+/// 360ms liquid spring: fade + 2.5% vertical slide + subtle scale.
 ///
-/// **Desktop**: 180ms easeOut fade-only (no GPU transform on 500+ row trees).
-/// **Mobile**: 360ms liquid spring fade + scale + slide.
+/// **Perf architecture**:
+/// - Pages built lazily (only on first visit, cached forever — no rebuilds).
+/// - `TickerMode(enabled: false)` pauses shimmers/animations in background pages.
+/// - `RepaintBoundary` isolates each page's compositor layer.
+/// - Animation fires after first paint via `addPostFrameCallback` (no first-frame jank).
 class _LazyIndexedStack extends StatefulWidget {
   final int index;
   final int count;
@@ -851,69 +851,114 @@ class _LazyIndexedStack extends StatefulWidget {
 
 class _LazyIndexedStackState extends State<_LazyIndexedStack>
     with SingleTickerProviderStateMixin {
-  // Pages that have been built at least once — keyed by index
   final Map<int, Widget> _cache = {};
   late int _activeIndex;
+  int? _previousIndex;
 
-  late final AnimationController _controller;
-  late final Animation<double> _fadeAnimation;
-  Animation<Offset>? _slideAnimation;
-  Animation<double>? _scaleAnimation;
+  late final AnimationController _ctrl;
+
+  // ── Desktop animations (incoming page) ──────────────────────────────────────
+  late Animation<double> _incomingFade;
+  late Animation<Offset> _incomingSlide;
+
+  // ── Desktop animations (outgoing page) ──────────────────────────────────────
+  late Animation<double> _outgoingFade;
+  late Animation<Offset> _outgoingSlide;
+
+  // ── Mobile animations ────────────────────────────────────────────────────────
+  Animation<Offset>? _mobileSlide;
+  Animation<double>? _mobileScale;
+  Animation<double>? _mobileFade;
+
+  // easeOutExpo — the iOS/macOS standard deceleration curve
+  static const Curve _expoOut = Cubic(0.16, 1.0, 0.3, 1.0);
 
   @override
   void initState() {
     super.initState();
     _activeIndex = widget.index;
 
-    _controller = AnimationController(
+    _ctrl = AnimationController(
       vsync: this,
       duration: AppleMotion.isDesktop
-          ? const Duration(milliseconds: 180)
+          ? const Duration(milliseconds: 280)
           : const Duration(milliseconds: 360),
     );
 
+    _setupAnimations();
+    _ctrl.value = 1.0; // start fully visible
+  }
+
+  void _setupAnimations() {
     if (AppleMotion.isDesktop) {
-      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      // ── Incoming page: glides in from the right ──────────────────────────
+      _incomingFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+        ),
       );
+      _incomingSlide = Tween<Offset>(
+        begin: const Offset(0.04, 0.0), // 4% from right
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: _ctrl, curve: _expoOut));
+
+      // ── Outgoing page: recedes gently to the left ────────────────────────
+      _outgoingFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.45, curve: Curves.easeIn),
+        ),
+      );
+      _outgoingSlide = Tween<Offset>(
+        begin: Offset.zero,
+        end: const Offset(-0.025, 0.0), // recedes 2.5% to left
+      ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInCubic));
+
+      // Set defaults so mobile fields are non-null
+      _mobileFade = _incomingFade;
     } else {
+      // ── Mobile: vertical spring slide ───────────────────────────────────
       final curved = CurvedAnimation(
-        parent: _controller,
+        parent: _ctrl,
         curve: const Cubic(0.175, 0.885, 0.32, 1.15),
       );
-      _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      _mobileFade = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
-          parent: _controller,
+          parent: _ctrl,
           curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
         ),
       );
-      _slideAnimation = Tween<Offset>(
+      _mobileSlide = Tween<Offset>(
         begin: const Offset(0.0, 0.025),
         end: Offset.zero,
       ).animate(curved);
-      _scaleAnimation = Tween<double>(begin: 0.975, end: 1.0).animate(curved);
-    }
+      _mobileScale = Tween<double>(begin: 0.975, end: 1.0).animate(curved);
 
-    // Start fully visible (no animation on first load)
-    _controller.value = 1.0;
+      // Set defaults so desktop fields are non-null
+      _incomingFade = _mobileFade!;
+      _incomingSlide = _mobileSlide!;
+      _outgoingFade = _mobileFade!;
+      _outgoingSlide = _mobileSlide!;
+    }
   }
 
   @override
   void didUpdateWidget(covariant _LazyIndexedStack oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.index != widget.index) {
+      _previousIndex = oldWidget.index;
       _activeIndex = widget.index;
-      // Wait until first frame of new page is painted, THEN fade in
-      // This prevents jank on the transition's first frame
+      // Fire after first paint so there's zero first-frame jank
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _controller.forward(from: 0.0);
+        if (mounted) _ctrl.forward(from: 0.0);
       });
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
@@ -929,24 +974,58 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
       fit: StackFit.expand,
       children: built.map((i) {
         final isActive = i == _activeIndex;
+        final isExiting = i == _previousIndex && !isActive;
+
         Widget page = RepaintBoundary(child: _buildPage(i));
+        page = TickerMode(enabled: isActive || isExiting, child: page);
 
-        // Pause all tickers (shimmers, animations) in background pages
-        page = TickerMode(enabled: isActive, child: page);
-
-        if (!isActive) {
+        if (!isActive && !isExiting) {
           return Offstage(offstage: true, child: page);
         }
 
-        // Apply transition only to active page
-        if (!AppleMotion.isDesktop && _slideAnimation != null && _scaleAnimation != null) {
-          page = ScaleTransition(
-            scale: _scaleAnimation!,
-            child: SlideTransition(position: _slideAnimation!, child: page),
+        if (AppleMotion.isDesktop) {
+          if (isExiting) {
+            // Outgoing: recede left + fade out
+            return AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, child) {
+                final t = _ctrl.value;
+                // Once animation is done, hide the exiting page
+                if (t >= 1.0) {
+                  return Offstage(offstage: true, child: child!);
+                }
+                return FadeTransition(
+                  opacity: _outgoingFade,
+                  child: SlideTransition(
+                    position: _outgoingSlide,
+                    child: child,
+                  ),
+                );
+              },
+              child: page,
+            );
+          }
+          // Incoming: glide in from right + fade in
+          return FadeTransition(
+            opacity: _incomingFade,
+            child: SlideTransition(
+              position: _incomingSlide,
+              child: page,
+            ),
           );
         }
 
-        return FadeTransition(opacity: _fadeAnimation, child: page);
+        // Mobile: vertical spring slide (only active page animates)
+        if (!isActive) {
+          return Offstage(offstage: true, child: page);
+        }
+        if (_mobileSlide != null && _mobileScale != null && _mobileFade != null) {
+          page = ScaleTransition(
+            scale: _mobileScale!,
+            child: SlideTransition(position: _mobileSlide!, child: page),
+          );
+        }
+        return FadeTransition(opacity: _mobileFade!, child: page);
       }).toList(),
     );
   }
