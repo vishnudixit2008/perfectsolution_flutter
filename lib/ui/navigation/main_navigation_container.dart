@@ -327,10 +327,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isDesktop = screenWidth >= 750;
-    final navViewModel = context.watch<NavigationViewModel>();
-    final int currentIndex = navViewModel.currentIndex;
+    final int currentIndex = context.select<NavigationViewModel, int>(
+      (vm) => vm.currentIndex,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
