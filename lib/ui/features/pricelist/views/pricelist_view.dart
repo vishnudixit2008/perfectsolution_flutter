@@ -11,7 +11,10 @@ import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_stock_badge.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
+import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import 'product_history_dialog.dart';
@@ -282,73 +285,13 @@ class _PricelistViewState extends State<PricelistView> {
   }
 
   Widget _buildEmptyState(BuildContext context, PricelistViewModel viewModel) {
-    final bool isDbEmpty = viewModel.items.isEmpty;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isDbEmpty
-                ? Icons.cloud_download_outlined
-                : Icons.inventory_2_outlined,
-            size: 64,
-            color: isDbEmpty
-                ? AppTheme.primaryLight
-                : AppTheme.textMuted.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isDbEmpty ? 'Catalog Database Empty' : 'No matching products found',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isDbEmpty
-                ? 'Import your default inventory catalog from the Excel template.'
-                : 'Try clearing your search query or filters.',
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          if (isDbEmpty) ...[
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () async {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
-                  ),
-                );
-                await viewModel.resetDatabase();
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Successfully loaded default shop inventory from Excel seed.',
-                    ),
-                    backgroundColor: AppTheme.success,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Import Default Catalog'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    final canAdd = UserPermissionService.canPerformModuleAction('pricelist', 'canAdd');
+    return AppEmptyState(
+      icon: Icons.inventory_2_outlined,
+      title: 'No Products Found',
+      message: 'No catalog items match your search or filter criteria.',
+      actionLabel: canAdd ? 'Add Product' : null,
+      onAction: canAdd ? () => _showAddEditItemDialog(context, viewModel) : null,
     );
   }
 
@@ -811,35 +754,45 @@ class _PricelistViewState extends State<PricelistView> {
       }
     });
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 120),
-      itemCount: listEntries.length,
-      itemBuilder: (context, index) {
-        final entry = listEntries[index];
-        if (entry.categoryHeader != null) {
-          return Container(
-            margin: const EdgeInsets.only(top: 8, bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppTheme.primary.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Text(
-              entry.categoryHeader!.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-                color: AppTheme.primaryLight,
-              ),
-            ),
-          );
-        }
-        return _buildMobileCardItem(context, viewModel, entry.item!, itemIndex: index);
+    return RefreshIndicator(
+      color: AppTheme.primaryLight,
+      backgroundColor: const Color(0xFF131A2E),
+      onRefresh: () async {
+        final localDb = context.read<ShopRepository>().localDb;
+        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        if (context.mounted) viewModel.loadItems();
       },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 120),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final entry = listEntries[index];
+          if (entry.categoryHeader != null) {
+            return Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.primary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                entry.categoryHeader!.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  color: AppTheme.primaryLight,
+                ),
+              ),
+            );
+          }
+          return _buildMobileCardItem(context, viewModel, entry.item!, itemIndex: index);
+        },
+      ),
     );
   }
 

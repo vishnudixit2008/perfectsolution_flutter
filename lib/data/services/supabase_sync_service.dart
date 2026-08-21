@@ -850,6 +850,10 @@ class SupabaseSyncService extends ChangeNotifier {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
         pricelistMap[item.id] = item.toJson();
       }
+      if (pricelistMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllPricelistItems(pricelistMap, clearOthers: !isDelta);
+        ShopRepository.notifyTableChanged('pricelist_items');
+      }
       // ── Step 8: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud(force: force);
 
