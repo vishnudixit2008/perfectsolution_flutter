@@ -2,7 +2,7 @@
 ; Designed for Windows x64
 
 #define MyAppName "Perfect Solution Shop Management"
-#define MyAppVersion "1.2.7"
+#define MyAppVersion "1.2.8"
 #define MyAppPublisher "Perfect Solution Noida"
 #define MyAppExeName "shop_management_flutter.exe"
 #define BuildDir "..\..\build\windows\x64\runner\Release"

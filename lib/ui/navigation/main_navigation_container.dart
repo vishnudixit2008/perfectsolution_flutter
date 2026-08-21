@@ -348,12 +348,10 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 12.0,
                   isDesktop ? 16.0 : 0.0,
                 ),
-                child: _FadeScaleIndexedStack(
+                child: _LazyIndexedStack(
                   index: currentIndex.clamp(0, _views.length - 1),
-                  children: List.generate(
-                    _views.length,
-                    (index) => _buildActiveView(index),
-                  ),
+                  count: _views.length,
+                  builder: (i) => _buildActiveView(i),
                 ),
               ),
             ),
@@ -819,83 +817,97 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   }
 }
 
-/// Platform-adaptive page transition stack.
+/// Lazy-loading platform-adaptive page stack.
 ///
-/// **Desktop**: 220ms fade-only. No SlideTransition / ScaleTransition on the full
-///   page tree. Eliminates 3-layer GPU compositing that caused jank on Windows/Mac
-///   with hundreds of mounted list rows. Pure opacity — the cheapest possible blend.
+/// **Why this exists**:
+/// The previous approach called `List.generate(n, buildPage)` on every build(),
+/// causing ALL 8 pages to be constructed + ALL their Consumer widgets to rebuild
+/// simultaneously on every tab switch — saturating CPU before the animation even starts.
 ///
-/// **Mobile**: 380ms liquid spring: fade + 2% scale + 2% slide upward.
-class _FadeScaleIndexedStack extends StatefulWidget {
+/// **How this works**:
+/// - Pages are built lazily: only constructed on first visit, never again.
+/// - `TickerMode(enabled: false)` pauses all shimmer/animation tickers in hidden pages
+///   so they don't consume GPU time while invisible.
+/// - `RepaintBoundary` wraps each page so they composite independently.
+/// - The fade animation starts AFTER the first paint frame via `addPostFrameCallback`
+///   so there's zero jank on the transition's first frame.
+///
+/// **Desktop**: 180ms easeOut fade-only (no GPU transform on 500+ row trees).
+/// **Mobile**: 360ms liquid spring fade + scale + slide.
+class _LazyIndexedStack extends StatefulWidget {
   final int index;
-  final List<Widget> children;
+  final int count;
+  final Widget Function(int) builder;
 
-  const _FadeScaleIndexedStack({
+  const _LazyIndexedStack({
     required this.index,
-    required this.children,
+    required this.count,
+    required this.builder,
   });
 
   @override
-  State<_FadeScaleIndexedStack> createState() => _FadeScaleIndexedStackState();
+  State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
 }
 
-class _FadeScaleIndexedStackState extends State<_FadeScaleIndexedStack>
+class _LazyIndexedStackState extends State<_LazyIndexedStack>
     with SingleTickerProviderStateMixin {
+  // Pages that have been built at least once — keyed by index
+  final Map<int, Widget> _cache = {};
+  late int _activeIndex;
+
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
-  // Mobile-only animations
   Animation<Offset>? _slideAnimation;
   Animation<double>? _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
+    _activeIndex = widget.index;
+
     _controller = AnimationController(
       vsync: this,
-      duration: AppleMotion.pageTransitionDuration,
+      duration: AppleMotion.isDesktop
+          ? const Duration(milliseconds: 180)
+          : const Duration(milliseconds: 360),
     );
 
     if (AppleMotion.isDesktop) {
-      // Desktop: pure fade — zero GPU compositing transform cost
       _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(
-          parent: _controller,
-          curve: Curves.easeOut,
-        ),
+        CurvedAnimation(parent: _controller, curve: Curves.easeOut),
       );
     } else {
-      // Mobile: liquid spring fade + scale + subtle upward slide
       final curved = CurvedAnimation(
         parent: _controller,
         curve: const Cubic(0.175, 0.885, 0.32, 1.15),
       );
-
       _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(
           parent: _controller,
-          curve: const Interval(0.0, 0.70, curve: Curves.easeOut),
+          curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
         ),
       );
-
       _slideAnimation = Tween<Offset>(
-        begin: const Offset(0.0, 0.02),
+        begin: const Offset(0.0, 0.025),
         end: Offset.zero,
       ).animate(curved);
-
-      _scaleAnimation = Tween<double>(
-        begin: 0.98,
-        end: 1.0,
-      ).animate(curved);
+      _scaleAnimation = Tween<double>(begin: 0.975, end: 1.0).animate(curved);
     }
 
+    // Start fully visible (no animation on first load)
     _controller.value = 1.0;
   }
 
   @override
-  void didUpdateWidget(covariant _FadeScaleIndexedStack oldWidget) {
+  void didUpdateWidget(covariant _LazyIndexedStack oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.index != widget.index) {
-      _controller.forward(from: 0.0);
+      _activeIndex = widget.index;
+      // Wait until first frame of new page is painted, THEN fade in
+      // This prevents jank on the transition's first frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _controller.forward(from: 0.0);
+      });
     }
   }
 
@@ -905,42 +917,41 @@ class _FadeScaleIndexedStackState extends State<_FadeScaleIndexedStack>
     super.dispose();
   }
 
+  Widget _buildPage(int i) {
+    return _cache.putIfAbsent(i, () => widget.builder(i));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final activeIndex = widget.index.clamp(0, widget.children.length - 1);
+    final built = <int>{..._cache.keys, _activeIndex};
 
     return Stack(
       fit: StackFit.expand,
-      children: List.generate(widget.children.length, (i) {
-        final isActive = i == activeIndex;
+      children: built.map((i) {
+        final isActive = i == _activeIndex;
+        Widget page = RepaintBoundary(child: _buildPage(i));
+
+        // Pause all tickers (shimmers, animations) in background pages
+        page = TickerMode(enabled: isActive, child: page);
+
         if (!isActive) {
-          return Offstage(
-            offstage: true,
-            child: widget.children[i],
-          );
+          return Offstage(offstage: true, child: page);
         }
 
-        Widget view = widget.children[i];
-
-        if (!AppleMotion.isDesktop) {
-          // Mobile: apply scale + slide on top of fade
-          view = ScaleTransition(
+        // Apply transition only to active page
+        if (!AppleMotion.isDesktop && _slideAnimation != null && _scaleAnimation != null) {
+          page = ScaleTransition(
             scale: _scaleAnimation!,
-            child: SlideTransition(
-              position: _slideAnimation!,
-              child: view,
-            ),
+            child: SlideTransition(position: _slideAnimation!, child: page),
           );
         }
 
-        return FadeTransition(
-          opacity: _fadeAnimation,
-          child: view,
-        );
-      }),
+        return FadeTransition(opacity: _fadeAnimation, child: page);
+      }).toList(),
     );
   }
 }
+
 
 /// Desktop sidebar nav item with a single AnimationController per item.
 /// Updates only via [didUpdateWidget] — zero parent tree rebuild cost.
