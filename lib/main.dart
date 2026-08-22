@@ -12,6 +12,7 @@ import 'data/services/local_database_service.dart';
 import 'data/services/ui_preferences_service.dart';
 import 'data/services/user_permission_service.dart';
 import 'data/services/kiosk_overlay_helper.dart';
+import 'data/services/auto_update_service.dart';
 import 'ui/shared/status_management_dialog.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/icon_registry.dart';
@@ -74,6 +75,7 @@ void main(List<String> args) async {
       providers: [
         Provider<ShopRepository>.value(value: repository),
         ChangeNotifierProvider.value(value: SupabaseSyncService.instance),
+        ChangeNotifierProvider.value(value: AutoUpdateService.instance),
         ChangeNotifierProvider(create: (context) => AuthViewModel()),
         ChangeNotifierProvider(
           create: (context) => PricelistViewModel(repository: repository),

@@ -470,6 +470,21 @@ class AppUser {
       });
     }
 
+    Map<String, Map<String, FieldPermission>> finalFields = {};
+    for (var m in modules) {
+      final defaultFields = moduleFields[m] ?? {};
+      final userFields = parsedFields[m] ?? {};
+      final Map<String, FieldPermission> fMap = {};
+      for (var fKey in defaultFields.keys) {
+        if (userFields.containsKey(fKey)) {
+          fMap[fKey] = userFields[fKey]!;
+        } else {
+          fMap[fKey] = FieldPermission.allTrue();
+        }
+      }
+      finalFields[m] = fMap;
+    }
+
     // 4. Status Visibility Access
     final rawStatusVis = json['statusVisibilityAccess'] ?? json['status_visibility_access'];
     Map<String, List<String>> parsedStatusVis = {};
@@ -546,7 +561,7 @@ class AppUser {
       pageAccess: parsedPageAccess,
       actionAccess: Map<String, bool>.from(json['actionAccess'] ?? json['action_access'] ?? {}),
       pageActionAccess: finalPageActions,
-      fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
+      fieldAccess: finalFields,
       statusVisibilityAccess:
           parsedStatusVis.isEmpty ? _defaultStatusAccess() : parsedStatusVis,
       statusSelectableAccess:

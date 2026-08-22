@@ -19,6 +19,7 @@ import '../services/user_permission_service.dart';
 import '../repositories/shop_repository.dart';
 import '../../ui/shared/status_management_dialog.dart';
 import 'ui_preferences_service.dart';
+import 'auto_update_service.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
@@ -288,6 +289,10 @@ class SupabaseSyncService extends ChangeNotifier {
           callback: (payload) {
             final table = payload.table;
             if (kDebugMode) print('Realtime change event on table: $table');
+            if (table == 'app_versions') {
+              AutoUpdateService.instance.checkForUpdates(force: true);
+              return;
+            }
             pendingTables.add(table);
             _debounceTimer?.cancel();
             _debounceTimer = Timer(const Duration(milliseconds: 250), () async {
@@ -928,6 +933,9 @@ class SupabaseSyncService extends ChangeNotifier {
         if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] is Map) {
           await StatusManagementService.loadFromDefaultStatusesMap(settingsMap['shop_default_statuses']);
         }
+        if (settingsMap.containsKey('shop_status_colors') && settingsMap['shop_status_colors'] is Map) {
+          await StatusManagementService.loadFromStatusColorsMap(settingsMap['shop_status_colors']);
+        }
 
         if (settingsMap.containsKey('custom_services_list') && settingsMap['custom_services_list'] is List) {
           final cloudList = (settingsMap['custom_services_list'] as List).map((e) => e.toString()).toList();
@@ -1272,6 +1280,8 @@ class SupabaseSyncService extends ChangeNotifier {
               await StatusManagementService.loadFromCustomStatusesMap(value);
             } else if (key == 'shop_default_statuses' && value is Map) {
               await StatusManagementService.loadFromDefaultStatusesMap(value);
+            } else if (key == 'shop_status_colors' && value is Map) {
+              await StatusManagementService.loadFromStatusColorsMap(value);
             } else if (key == 'custom_services_list' && value is List) {
               final cloudList = List<String>.from(value.map((e) => e.toString()));
               final localList = localDb.getCustomServiceNames();

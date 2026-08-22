@@ -163,6 +163,7 @@ class _CallsViewState extends State<CallsView> {
               (c.mobileNo?.toLowerCase().contains(query) ?? false) ||
               (c.query?.toLowerCase().contains(query) ?? false) ||
               (c.address?.toLowerCase().contains(query) ?? false) ||
+              (c.status.toLowerCase().contains(query)) ||
               (c.assignedTo.toLowerCase().contains(query)) ||
               UserPermissionService.formatStaffName(c.assignedTo)
                   .toLowerCase()
@@ -181,12 +182,7 @@ class _CallsViewState extends State<CallsView> {
                     _selectedAssigned.trim().toLowerCase();
           }
 
-          if (_selectedStatus == 'All') {
-            return matchesSearch && matchesAssigned;
-          }
-          return matchesSearch &&
-              matchesAssigned &&
-              c.status.toLowerCase() == _selectedStatus.toLowerCase();
+          return matchesSearch && matchesAssigned;
         }).toList();
 
         // Sort by ID descending (newest calls first)
@@ -247,202 +243,14 @@ class _CallsViewState extends State<CallsView> {
                 ],
               ),
 
-              // Search & Filters
+              // Search Bar
               if (isDesktop)
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppAnimatedSearchBar(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        onClear: () => setState(() {}),
-                        hintText: 'Search customer, mobile, query, staff...',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Status Filter Button
-                    Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedStatus != 'All'
-                            ? AppTheme.primary.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _selectedStatus != 'All'
-                              ? AppTheme.primaryLight.withValues(alpha: 0.4)
-                              : Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedStatus,
-                          isDense: true,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 12.5,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          dropdownColor: const Color(0xFF131A2E),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: AppTheme.textMuted,
-                          ),
-                          selectedItemBuilder: (context) {
-                            return _allStatuses.map((status) {
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Status: ',
-                                    style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: status != 'All'
-                                          ? AppTheme.primaryLight
-                                          : AppTheme.textPrimary,
-                                      fontSize: 12,
-                                      fontWeight: status != 'All'
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList();
-                          },
-                          items: _allStatuses.map((status) {
-                            return DropdownMenuItem<String>(
-                              value: status,
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedStatus = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    if (!isOnlyAssignedRestricted) ...[
-                      const SizedBox(width: 10),
-                      // Assigned Staff Filter Button
-                      Container(
-                        height: 40,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: _selectedAssigned != 'All'
-                              ? AppTheme.primary.withValues(alpha: 0.15)
-                              : Colors.white.withValues(alpha: 0.02),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _selectedAssigned != 'All'
-                                ? AppTheme.primaryLight.withValues(alpha: 0.4)
-                                : Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedAssigned,
-                            isDense: true,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 12.5,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            dropdownColor: const Color(0xFF131A2E),
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: _selectedAssigned != 'All'
-                                  ? AppTheme.primaryLight
-                                  : AppTheme.textMuted,
-                            ),
-                            selectedItemBuilder: (context) {
-                              return viewModel.availableAssignedPersons.map((displayName) {
-                                return Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.person_search_rounded,
-                                      size: 15,
-                                      color: _selectedAssigned != 'All'
-                                          ? AppTheme.primaryLight
-                                          : AppTheme.textMuted,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    const Text(
-                                      'Staff: ',
-                                      style: TextStyle(
-                                        color: AppTheme.textMuted,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 90),
-                                      child: Text(
-                                        displayName,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: _selectedAssigned != 'All'
-                                              ? AppTheme.primaryLight
-                                              : AppTheme.textPrimary,
-                                          fontSize: 12,
-                                          fontWeight: _selectedAssigned != 'All'
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList();
-                            },
-                            items: viewModel.availableAssignedPersons.map((displayName) {
-                              return DropdownMenuItem<String>(
-                                value: displayName,
-                                child: Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedAssigned = val;
-                                });
-                                viewModel.setSelectedAssigned(val);
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search by customer, mobile, query, staff, status...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -624,73 +432,77 @@ class _CallsViewState extends State<CallsView> {
     final Color color = _getStatusColor(status);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+        color: Colors.white.withValues(alpha: 0.02),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: color.withValues(alpha: 0.38),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                status.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: color,
+                  shadows: [
+                    Shadow(color: color, offset: const Offset(0.12, 0)),
+                    Shadow(color: color, offset: const Offset(-0.12, 0)),
+                  ],
+                ),
+              ),
+              if (status.trim().toLowerCase() != 'complete' &&
+                  status.trim().toLowerCase() != 'completed' &&
+                  status.trim().toLowerCase() != 'confirmed') ...[
+                const SizedBox(width: 7),
+                Text(
+                  '·',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  '$count ${count == 1 ? 'Call' : 'Calls'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    shadows: [
+                      Shadow(color: color, offset: const Offset(0.12, 0)),
+                      Shadow(color: color, offset: const Offset(-0.12, 0)),
+                    ],
+                  ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Call' : 'Calls'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('calls', status);
   }
 
   Widget _buildEmptyState() {
@@ -708,13 +520,6 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     Map<String, List<CallModel>> groupedCalls,
   ) {
-    final double totalWidth =
-        _dateWidth +
-        _nameWidth +
-        _mobileWidth +
-        _queryWidth +
-        _assignedWidth;
-
     final listEntries = <_CallListItem>[];
     for (final entry in groupedCalls.entries) {
       listEntries.add(_CallListItem.header(entry.key, entry.value.length));
@@ -723,6 +528,9 @@ class _CallsViewState extends State<CallsView> {
       }
     }
 
+    final bool isOnlyAssignedRestricted =
+        UserPermissionService.isOnlyAssignedRestricted('calls');
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -730,109 +538,94 @@ class _CallsViewState extends State<CallsView> {
         borderRadius: 12,
       ),
       clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isOnlyAssignedRestricted =
-              UserPermissionService.isOnlyAssignedRestricted('calls');
-          final double tableWidth = constraints.maxWidth > totalWidth
-              ? constraints.maxWidth
-              : totalWidth;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
-              child: Column(
-                children: [
-                  // Table Headers (Status column removed - grouped under status headers)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        if (UserPermissionService.isFieldVisible('calls', 'date'))
-                          _buildResizableHeader(
-                            'Date',
-                            _dateWidth,
-                            (delta) => _updateColumnWidth(
-                              'date',
-                              (_dateWidth + delta).clamp(80.0, 200.0),
-                            ),
-                          ),
-                        if (UserPermissionService.isFieldVisible('calls', 'name'))
-                          _buildResizableHeader(
-                            'Customer Name',
-                            _nameWidth,
-                            (delta) => _updateColumnWidth(
-                              'name',
-                              (_nameWidth + delta).clamp(120.0, 400.0),
-                            ),
-                          ),
-                        if (UserPermissionService.isFieldVisible('calls', 'mobileNo'))
-                          _buildResizableHeader(
-                            'Mobile',
-                            _mobileWidth,
-                            (delta) => _updateColumnWidth(
-                              'mobile',
-                              (_mobileWidth + delta).clamp(100.0, 300.0),
-                            ),
-                          ),
-                        if (UserPermissionService.isFieldVisible('calls', 'query'))
-                          _buildResizableHeader(
-                            'Query',
-                            _queryWidth,
-                            (delta) => _updateColumnWidth(
-                              'query',
-                              (_queryWidth + delta).clamp(120.0, 500.0),
-                            ),
-                          ),
-                        if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
-                          _buildResizableHeader(
-                            'Assigned To',
-                            _assignedWidth,
-                            (delta) => _updateColumnWidth(
-                              'assigned',
-                              (_assignedWidth + delta).clamp(120.0, 400.0),
-                            ),
-                            onTapDown: !isOnlyAssignedRestricted
-                                ? (details) => _showAssignedFilterMenu(
-                                      context,
-                                      viewModel,
-                                      details.globalPosition,
-                                    )
-                                : null,
-                            isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Scrollable Body grouped by Status (Virtualized ListView.builder)
-                  Expanded(
-                    child: ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      itemCount: listEntries.length,
-                      itemBuilder: (context, index) {
-                        final item = listEntries[index];
-                        if (item.statusHeader != null) {
-                          return _buildStatusSectionHeader(
-                            item.statusHeader!,
-                            item.statusCount!,
-                          );
-                        }
-                        return _buildDesktopTableRow(context, viewModel, item.call!);
-                      },
-                    ),
-                  ),
-                ],
+      child: Column(
+        children: [
+          // Table Headers (Status column removed - grouped under status headers)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.02),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
               ),
             ),
-          );
-        },
+            child: Row(
+              children: [
+                if (UserPermissionService.isFieldVisible('calls', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'name'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(120.0, 400.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'mobileNo'))
+                  _buildResizableHeader(
+                    'Mobile',
+                    _mobileWidth,
+                    (delta) => _updateColumnWidth(
+                      'mobile',
+                      (_mobileWidth + delta).clamp(100.0, 300.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'query'))
+                  _buildResizableHeader(
+                    'Query',
+                    _queryWidth,
+                    (delta) => _updateColumnWidth(
+                      'query',
+                      (_queryWidth + delta).clamp(120.0, 500.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
+                  _buildResizableHeader(
+                    'Assigned To',
+                    _assignedWidth,
+                    (delta) => _updateColumnWidth(
+                      'assigned',
+                      (_assignedWidth + delta).clamp(120.0, 400.0),
+                    ),
+                    onTapDown: !isOnlyAssignedRestricted
+                        ? (details) => _showAssignedFilterMenu(
+                              context,
+                              viewModel,
+                              details.globalPosition,
+                            )
+                        : null,
+                    isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
+                  ),
+              ],
+            ),
+          ),
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 24),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.call!);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -864,7 +657,7 @@ class _CallsViewState extends State<CallsView> {
             if (UserPermissionService.isFieldVisible('calls', 'name'))
               Container(
                 width: _nameWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(
                   call.name,
                   maxLines: 1,
@@ -875,13 +668,13 @@ class _CallsViewState extends State<CallsView> {
             if (UserPermissionService.isFieldVisible('calls', 'mobileNo'))
               Container(
                 width: _mobileWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(call.mobileNo ?? '-'),
               ),
             if (UserPermissionService.isFieldVisible('calls', 'query'))
               Container(
                 width: _queryWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(
                   call.query ?? '-',
                   maxLines: 1,
@@ -891,7 +684,7 @@ class _CallsViewState extends State<CallsView> {
             if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
               Container(
                 width: _assignedWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(
                   UserPermissionService.formatStaffName(call.assignedTo),
                   style: const TextStyle(
@@ -1228,29 +1021,13 @@ class _CallsViewState extends State<CallsView> {
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor;
-    switch (status.toLowerCase()) {
-      case 'complete':
-        chipColor = AppTheme.success;
-        break;
-      case 'pre-complete':
-        chipColor = const Color(0xFF2196F3);
-        break;
-      case 'pending payment':
-        chipColor = const Color(0xFFFF9800);
-        break;
-      case 'pending':
-        chipColor = AppTheme.warning;
-        break;
-      default:
-        chipColor = AppTheme.textMuted;
-    }
+    final chipColor = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: chipColor.withValues(alpha: 0.2)),
+        color: chipColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3)),
       ),
       child: Text(
         status,
@@ -1995,33 +1772,34 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               if (isEstimateVis && isStatusVis) const SizedBox(width: 16),
               if (isStatusVis)
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF131A2E),
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: _buildInputDecoration('Status'),
-                    onChanged: isStatusMod
-                        ? (val) {
-                            if (val != null) {
-                              setState(() {
-                                _status = val;
-                              });
-                            }
-                          }
-                        : null,
-                    items:
-                        (() {
-                          final list =
-                              UserPermissionService.getAllowedSelectableStatuses(
-                            'calls',
-                          );
-                          final List<String> selectableList = List.from(list);
-                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                            selectableList.insert(0, _status);
-                          }
-                          return selectableList;
-                        })().map((st) {
+                  child: Builder(
+                    builder: (context) {
+                      final list = UserPermissionService.getAllowedSelectableStatuses('calls');
+                      final List<String> selectableList = List.from(list);
+                      final match = selectableList.firstWhere(
+                        (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
+                        orElse: () => '',
+                      );
+                      final effectiveStatus = match.isNotEmpty ? match : _status;
+                      if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
+                        selectableList.insert(0, effectiveStatus);
+                      }
+                      return DropdownButtonFormField<String>(
+                        value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF131A2E),
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: _buildInputDecoration('Status'),
+                        onChanged: isStatusMod
+                            ? (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _status = val;
+                                  });
+                                }
+                              }
+                            : null,
+                        items: selectableList.map((st) {
                           return DropdownMenuItem<String>(
                             value: st,
                             child: Text(
@@ -2031,6 +1809,8 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                             ),
                           );
                         }).toList(),
+                      );
+                    },
                   ),
                 ),
             ],

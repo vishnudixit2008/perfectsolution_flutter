@@ -688,57 +688,71 @@ class _SalesViewState extends State<SalesView> {
     final Color color = _getStatusColor(status);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+        color: Colors.white.withValues(alpha: 0.02),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: color.withValues(alpha: 0.38),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                status.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: color,
+                  shadows: [
+                    Shadow(color: color, offset: const Offset(0.12, 0)),
+                    Shadow(color: color, offset: const Offset(-0.12, 0)),
+                  ],
+                ),
+              ),
+              if (status.trim().toLowerCase() != 'complete' &&
+                  status.trim().toLowerCase() != 'completed' &&
+                  status.trim().toLowerCase() != 'confirmed') ...[
+                const SizedBox(width: 7),
+                Text(
+                  '·',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  '$count ${count == 1 ? 'Invoice' : 'Invoices'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    shadows: [
+                      Shadow(color: color, offset: const Offset(0.12, 0)),
+                      Shadow(color: color, offset: const Offset(-0.12, 0)),
+                    ],
+                  ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Invoice' : 'Invoices'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1151,17 +1165,7 @@ class _SalesViewState extends State<SalesView> {
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete') || s == 'confirmed') {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('sales', status);
   }
 
   Widget _buildStatusChip(String status) {
@@ -1929,54 +1933,41 @@ class _SalesViewState extends State<SalesView> {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                       ),
-                      child: DropdownButton<String>(
-                        value: (() {
-                          final current = cartVM.editingOrderStatus ?? 'Confirmed';
+                      child: Builder(
+                        builder: (context) {
                           final allowed = UserPermissionService.getAllowedSelectableStatuses('sales');
-                          if (allowed.isEmpty) return current;
-                          final match = allowed.firstWhere(
+                          final List<String> selectableList = List.from(allowed);
+                          final current = cartVM.editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
+                          final match = selectableList.firstWhere(
                             (s) => s.trim().toLowerCase() == current.trim().toLowerCase(),
-                            orElse: () => allowed.first,
+                            orElse: () => '',
                           );
-                          return match;
-                        })(),
-                        underline: const SizedBox(),
-                        dropdownColor: const Color(0xFF131A2E),
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                        items: (() {
-                          final list = UserPermissionService.getAllowedSelectableStatuses(
-                            'sales',
-                            allAvailableStatuses: ['Confirmed', 'Pending'],
-                          );
-                          final current = cartVM.editingOrderStatus ?? 'Confirmed';
-                          final Set<String> seen = {};
-                          final List<String> cleanList = [];
+                          final effectiveStatus = match.isNotEmpty ? match : current;
+                          if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
+                            selectableList.insert(0, effectiveStatus);
+                          }
 
-                          for (final s in list) {
-                            final normalized = s.trim().toLowerCase() == 'pending' ? 'Pending' : (s.trim().toLowerCase() == 'confirmed' ? 'Confirmed' : s);
-                            if (seen.add(normalized.toLowerCase())) {
-                              cleanList.add(normalized);
-                            }
-                          }
-                          final currentNormalized = current.trim().toLowerCase() == 'pending' ? 'Pending' : (current.trim().toLowerCase() == 'confirmed' ? 'Confirmed' : current);
-                          if (currentNormalized.isNotEmpty && !seen.contains(currentNormalized.toLowerCase())) {
-                            cleanList.insert(0, currentNormalized);
-                          }
-                          return cleanList;
-                        })().map((st) {
-                          return DropdownMenuItem<String>(value: st, child: Text(st));
-                        }).toList(),
-                        onChanged: UserPermissionService.canModifyField('sales', 'orderStatus', isEdit: true)
-                            ? (val) {
-                                if (val != null) {
-                                  cartVM.setEditingOrderStatus(val);
-                                }
-                              }
-                            : null,
+                          return DropdownButton<String>(
+                            value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                            underline: const SizedBox(),
+                            dropdownColor: const Color(0xFF131A2E),
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            items: selectableList.map((st) {
+                              return DropdownMenuItem<String>(value: st, child: Text(st));
+                            }).toList(),
+                            onChanged: UserPermissionService.canModifyField('sales', 'orderStatus', isEdit: true)
+                                ? (val) {
+                                    if (val != null) {
+                                      cartVM.setEditingOrderStatus(val);
+                                    }
+                                  }
+                                : null,
+                          );
+                        },
                       ),
                     ),
                   ],

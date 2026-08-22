@@ -23,6 +23,7 @@ import '../features/dashboard/view_models/recent_sales_view_model.dart';
 import '../features/sales/view_models/sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
+import '../shared/components/desktop_update_progress_widget.dart';
 import '../shared/update_dialog.dart';
 import '../features/settings/views/upi_qr_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -34,6 +35,7 @@ import '../features/auth/view_models/auth_view_model.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
+import 'package:shop_management_flutter/data/services/auto_update_service.dart';
 
 class MainNavigationContainer extends StatefulWidget {
   const MainNavigationContainer({super.key});
@@ -53,6 +55,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   @override
   void initState() {
     super.initState();
+    AutoUpdateService.instance.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Cold app launch: always check for update and bypass 1-hour skip suppression
       UpdateDialog.showIfNeeded(context, isAppLaunch: true);
@@ -705,6 +708,9 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
               },
             ),
           ),
+
+          // Background Auto-Update Progress / Action Widget (Desktop Only)
+          const DesktopUpdateProgressWidget(),
 
           // Footer / User info
           const Divider(color: Colors.white10, height: 1),

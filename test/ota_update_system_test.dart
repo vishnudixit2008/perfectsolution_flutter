@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shop_management_flutter/data/models/sale_item.dart';
 import 'package:shop_management_flutter/data/services/app_update_downloader.dart';
+import 'package:shop_management_flutter/data/services/auto_update_service.dart';
 import 'package:shop_management_flutter/data/services/update_check_service.dart';
+import 'package:shop_management_flutter/ui/shared/components/desktop_update_progress_widget.dart';
 import 'package:shop_management_flutter/ui/shared/update_dialog.dart';
 
 void main() {
@@ -118,6 +121,23 @@ void main() {
       expect(find.text('MANDATORY UPDATE REQUIRED'), findsOneWidget);
       expect(find.text('Update Now (Required)'), findsOneWidget);
       expect(find.text('Skip for Now'), findsNothing);
+    });
+
+    testWidgets('DesktopUpdateProgressWidget does not render when idle', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AutoUpdateService>.value(
+            value: AutoUpdateService.instance,
+            child: const Scaffold(
+              body: DesktopUpdateProgressWidget(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Downloading Update'), findsNothing);
+      expect(find.textContaining('UPDATE READY'), findsNothing);
     });
   });
 

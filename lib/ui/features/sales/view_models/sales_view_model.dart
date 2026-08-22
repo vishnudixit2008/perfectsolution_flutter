@@ -5,6 +5,7 @@ import '../../../../data/models/sale.dart';
 import '../../../../data/models/sale_item.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/smart_search_utils.dart';
+import '../../../shared/status_management_dialog.dart';
 
 class SalesViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -310,7 +311,8 @@ class SalesViewModel extends ChangeNotifier {
       final int invoiceNo =
           _editingInvoiceNo ?? _repository.getNextInvoiceNo();
       final DateTime saleDate = _editingSaleDate ?? DateTime.now();
-      final String orderStatus = _editingOrderStatus ?? 'PENDING';
+      final String orderStatus =
+          _editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
 
       final List<SaleItem> finalItems = _cartItems.map((item) {
         return item.copyWith(invoiceNo: invoiceNo);

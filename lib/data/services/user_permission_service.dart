@@ -296,11 +296,14 @@ class UserPermissionService {
       await Supabase.instance.client.from('app_users').upsert({
         ...cloudPayload,
         'only_assigned_access': user.onlyAssignedAccess,
-      });
+      }).timeout(const Duration(seconds: 4));
     } catch (_) {
       // Fallback: upsert using base payload where nested configs are embedded in page_action_access
       try {
-        await Supabase.instance.client.from('app_users').upsert(cloudPayload);
+        await Supabase.instance.client
+            .from('app_users')
+            .upsert(cloudPayload)
+            .timeout(const Duration(seconds: 4));
       } catch (e) {
         debugPrint('Cloud save user fallback failed: $e');
       }
@@ -317,7 +320,8 @@ class UserPermissionService {
       await Supabase.instance.client
           .from('app_users')
           .delete()
-          .eq('email', cleanEmail);
+          .eq('email', cleanEmail)
+          .timeout(const Duration(seconds: 4));
     } catch (_) {}
   }
 

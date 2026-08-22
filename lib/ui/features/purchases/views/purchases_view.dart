@@ -16,6 +16,7 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_animated_search_bar.dart';
 import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
@@ -213,42 +214,12 @@ class _PurchasesViewState extends State<PurchasesView> {
 
               // Search Bar
               if (isDesktop)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.03),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search ID, vendor, status, notes...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppTheme.textMuted,
-                        size: 20,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                  ),
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search ID, vendor, status, notes...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -320,79 +291,77 @@ class _PurchasesViewState extends State<PurchasesView> {
     final Color color = _getStatusColor(status);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+        color: Colors.white.withValues(alpha: 0.02),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: color.withValues(alpha: 0.38),
+              width: 0.8,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                status.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: color,
+                  shadows: [
+                    Shadow(color: color, offset: const Offset(0.12, 0)),
+                    Shadow(color: color, offset: const Offset(-0.12, 0)),
+                  ],
+                ),
+              ),
+              if (status.trim().toLowerCase() != 'complete' &&
+                  status.trim().toLowerCase() != 'completed' &&
+                  status.trim().toLowerCase() != 'confirmed') ...[
+                const SizedBox(width: 7),
+                Text(
+                  '·',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  '$count ${count == 1 ? 'Purchase' : 'Purchases'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    shadows: [
+                      Shadow(color: color, offset: const Offset(0.12, 0)),
+                      Shadow(color: color, offset: const Offset(-0.12, 0)),
+                    ],
+                  ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Purchase' : 'Purchases'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') {
-      return const Color(0xFFCA8A04); // Dull Yellow
-    }
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') ||
-        s.contains('pre complete') ||
-        s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) {
-      return const Color(0xFFEF4444);
-    }
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('purchases', status);
   }
 
   Widget _buildEmptyState() {
@@ -515,7 +484,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom'))
               Container(
                 width: _vendorWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(
                   pur.purchasedFrom,
                   maxLines: 1,
@@ -525,7 +494,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
               Container(
                 width: _amountWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Text(
                   '₹${pur.totalAmount.toStringAsFixed(0)}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
@@ -662,20 +631,13 @@ class _PurchasesViewState extends State<PurchasesView> {
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor = AppTheme.warning;
-    final lower = status.toLowerCase();
-    if (lower.contains('confirm')) {
-      chipColor = AppTheme.success;
-    } else {
-      chipColor = AppTheme.warning;
-    }
-
+    final chipColor = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.12),
+        color: chipColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: chipColor.withOpacity(0.3), width: 1),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         status,
@@ -1524,26 +1486,27 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             children: [
               if (isStatusVis)
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Order Status'),
-                    dropdownColor: const Color(0xFF131A2E),
-                    onChanged: isStatusMod ? (val) {
-                      if (val != null) setState(() => _status = val);
-                    } : null,
-                    items:
-                        (() {
-                          final list =
-                              UserPermissionService.getAllowedSelectableStatuses(
-                            'purchases',
-                          );
-                          final List<String> selectableList = List.from(list);
-                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                            selectableList.insert(0, _status);
-                          }
-                          return selectableList;
-                        })().map((st) {
+                  child: Builder(
+                    builder: (context) {
+                      final list = UserPermissionService.getAllowedSelectableStatuses('purchases');
+                      final List<String> selectableList = List.from(list);
+                      final match = selectableList.firstWhere(
+                        (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
+                        orElse: () => '',
+                      );
+                      final effectiveStatus = match.isNotEmpty ? match : _status;
+                      if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
+                        selectableList.insert(0, effectiveStatus);
+                      }
+                      return DropdownButtonFormField<String>(
+                        value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'Order Status'),
+                        dropdownColor: const Color(0xFF131A2E),
+                        onChanged: isStatusMod ? (val) {
+                          if (val != null) setState(() => _status = val);
+                        } : null,
+                        items: selectableList.map((st) {
                           return DropdownMenuItem(
                             value: st,
                             child: Text(
@@ -1553,6 +1516,8 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                             ),
                           );
                         }).toList(),
+                      );
+                    },
                   ),
                 ),
               if (isStatusVis && isTotalVis) const SizedBox(width: 12),

@@ -703,9 +703,10 @@ class _PricelistViewState extends State<PricelistView> {
   }
 
   Widget _buildCategorySectionHeader(String category, [int totalQty = 0]) {
+    const Color color = AppTheme.primaryLight;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.02),
         border: Border(
@@ -716,12 +717,13 @@ class _PricelistViewState extends State<PricelistView> {
       child: Align(
         alignment: Alignment.centerLeft,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
+            color: AppTheme.primary.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(7),
             border: Border.all(
-              color: AppTheme.primary.withValues(alpha: 0.3),
+              color: AppTheme.primary.withValues(alpha: 0.38),
+              width: 0.8,
             ),
           ),
           child: Row(
@@ -730,29 +732,37 @@ class _PricelistViewState extends State<PricelistView> {
               Text(
                 category.toUpperCase(),
                 style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: AppTheme.primaryLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                  color: color,
+                  shadows: [
+                    Shadow(color: color, offset: Offset(0.12, 0)),
+                    Shadow(color: color, offset: Offset(-0.12, 0)),
+                  ],
                 ),
               ),
               if (totalQty > 0) ...[
-                const SizedBox(width: 8),
-                Container(
-                  width: 3,
-                  height: 3,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.primaryLight,
+                const SizedBox(width: 7),
+                const Text(
+                  '·',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Text(
                   '$totalQty ${totalQty == 1 ? 'unit' : 'units'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryLight.withValues(alpha: 0.85),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    shadows: [
+                      Shadow(color: color, offset: Offset(0.12, 0)),
+                      Shadow(color: color, offset: Offset(-0.12, 0)),
+                    ],
                   ),
                 ),
               ],

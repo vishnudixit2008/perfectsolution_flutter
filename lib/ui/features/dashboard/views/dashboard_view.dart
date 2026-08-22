@@ -7,6 +7,7 @@ import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/recent_sales_view_model.dart';
 import '../../../../data/models/sale.dart';
 import '../../../../data/services/pdf_invoice_helper.dart';
+import '../../../shared/status_management_dialog.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -516,19 +517,18 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildStatusChip(String status) {
-    final bool isConfirmed = status == 'Confirmed';
+    final chipColor = StatusManagementService.getStatusColor('sales', status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isConfirmed
-            ? AppTheme.success.withOpacity(0.12)
-            : AppTheme.warning.withOpacity(0.12),
+        color: chipColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         status,
         style: TextStyle(
-          color: isConfirmed ? AppTheme.success : AppTheme.warning,
+          color: chipColor,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
