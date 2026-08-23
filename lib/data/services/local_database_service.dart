@@ -657,10 +657,11 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    if (sale.orderStatus == 'Confirmed') return []; // Already confirmed
+    final normalized = sale.orderStatus.trim().toLowerCase();
+    if (normalized == 'confirmed' || normalized == 'complete' || normalized == 'completed') return []; // Already confirmed
 
-    // 1. Mark sale as Confirmed
-    final updatedSale = sale.copyWith(orderStatus: 'Confirmed');
+    // 1. Mark sale as Complete
+    final updatedSale = sale.copyWith(orderStatus: 'Complete');
     await _salesBox.put(invoiceNo, updatedSale.toJson());
 
     // 2. Deduct quantities from stock for all product lines
@@ -709,10 +710,11 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    if (sale.orderStatus == 'PENDING') return []; // Already pending
+    final normalized = sale.orderStatus.trim().toLowerCase();
+    if (normalized == 'pending') return []; // Already pending
 
-    // 1. Mark sale as PENDING
-    final updatedSale = sale.copyWith(orderStatus: 'PENDING');
+    // 1. Mark sale as Pending
+    final updatedSale = sale.copyWith(orderStatus: 'Pending');
     await _salesBox.put(invoiceNo, updatedSale.toJson());
 
     // 2. Add quantities back to stock for all product lines (revert deduction)
@@ -762,8 +764,9 @@ class LocalDatabaseService {
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
 
-    // Revert stock deduction if order was already confirmed
-    if (sale.orderStatus == 'Confirmed') {
+    // Revert stock deduction if order was already completed/confirmed
+    final normStatus = sale.orderStatus.trim().toLowerCase();
+    if (normStatus == 'confirmed' || normStatus == 'complete' || normStatus == 'completed') {
       final items = getSaleItems(invoiceNo);
       for (var item in items) {
         if (item.lineType == 'Product' && item.itemId != null) {

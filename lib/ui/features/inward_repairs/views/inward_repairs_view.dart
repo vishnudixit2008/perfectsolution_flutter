@@ -302,22 +302,35 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       grouped[status] = [];
     }
 
-    // Assign repairs to status groups
+    // Assign repairs strictly to configured status groups
     for (final repair in repairs) {
       final statusName = repair.status.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(repair);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+        // Map unconfigured status strictly to default status from Status Manager
+        final defaultStatus = StatusManagementService.getDefaultStatus('inward');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(repair);
         }
-        grouped[statusName]!.add(repair);
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dateComp = b.date.compareTo(a.date);
+        if (dateComp != 0) return dateComp;
+        return b.jobNo.compareTo(a.jobNo);
+      });
     }
 
     // Only keep status groups that have entries
@@ -356,7 +369,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 status.toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: color,
                   shadows: [
@@ -373,7 +386,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                   '·',
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
@@ -382,7 +395,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                   '$count ${count == 1 ? 'Job' : 'Jobs'}',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: color,
                     shadows: [
                       Shadow(color: color, offset: const Offset(0.12, 0)),
@@ -1990,12 +2003,9 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                       final List<String> selectableList = List.from(list);
                       final match = selectableList.firstWhere(
                         (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
-                        orElse: () => '',
+                        orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Repairing',
                       );
-                      final effectiveStatus = match.isNotEmpty ? match : _status;
-                      if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
-                        selectableList.insert(0, effectiveStatus);
-                      }
+                      final effectiveStatus = match;
                       return DropdownButtonFormField<String>(
                         value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                         isExpanded: true,

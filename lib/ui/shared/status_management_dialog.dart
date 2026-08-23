@@ -59,6 +59,26 @@ class StatusManagementService {
         _cache.remove('inward');
       }
     }
+
+    final List? salesStored = box.get('$prefix${_statusListKeyPrefix}sales') ?? box.get('${_statusListKeyPrefix}sales');
+    if (salesStored != null) {
+      final List<String> list = List<String>.from(salesStored);
+      final int origLen = list.length;
+      final bool hasComplete = list.any((s) => s.trim().toLowerCase() == 'complete' || s.trim().toLowerCase() == 'completed');
+      if (hasComplete) {
+        list.removeWhere((s) => s.trim().toLowerCase() == 'confirmed');
+      } else {
+        for (int i = 0; i < list.length; i++) {
+          if (list[i].trim().toLowerCase() == 'confirmed') {
+            list[i] = 'Complete';
+          }
+        }
+      }
+      if (list.length != origLen) {
+        await box.put('$prefix${_statusListKeyPrefix}sales', list);
+        _cache.remove('sales');
+      }
+    }
   }
 
   static Box? _getBoxSafe() {
@@ -436,21 +456,43 @@ class StatusManagementService {
       }
     }
 
+    if (moduleKey == 'sales') {
+      final int initialLen = list.length;
+      final bool hasComplete = list.any((s) => s.trim().toLowerCase() == 'complete' || s.trim().toLowerCase() == 'completed');
+      if (hasComplete) {
+        list.removeWhere((s) => s.trim().toLowerCase() == 'confirmed');
+      } else {
+        for (int i = 0; i < list.length; i++) {
+          if (list[i].trim().toLowerCase() == 'confirmed') {
+            list[i] = 'Complete';
+          }
+        }
+      }
+      if (list.length != initialLen && box != null) {
+        box.put('$prefix$_statusListKeyPrefix$moduleKey', list);
+      }
+    }
+
     _cache[moduleKey] = list;
     return List<String>.from(list);
+  }
+
+  static int _normalizeStatusIndex(String moduleKey, List<String> orderList, String status) {
+    final clean = status.toLowerCase().trim();
+    int idx = orderList.indexWhere((s) => s.toLowerCase() == clean);
+    if (idx != -1) return idx;
+    if (clean == 'confirmed') {
+      idx = orderList.indexWhere((s) => s.toLowerCase() == 'complete' || s.toLowerCase() == 'completed');
+      if (idx != -1) return idx;
+    }
+    return 9999;
   }
 
   /// Fast comparison using the cache — never scans the database.
   static int compareStatuses(String moduleKey, String statusA, String statusB) {
     final orderList = getStatuses(moduleKey);
-    final indexA = orderList.indexWhere(
-      (s) => s.toLowerCase() == statusA.toLowerCase().trim(),
-    );
-    final indexB = orderList.indexWhere(
-      (s) => s.toLowerCase() == statusB.toLowerCase().trim(),
-    );
-    final posA = indexA == -1 ? 9999 : indexA;
-    final posB = indexB == -1 ? 9999 : indexB;
+    final posA = _normalizeStatusIndex(moduleKey, orderList, statusA);
+    final posB = _normalizeStatusIndex(moduleKey, orderList, statusB);
     return posA.compareTo(posB);
   }
 
@@ -1524,7 +1566,7 @@ class _StatusColorPickerDialogState extends State<_StatusColorPickerDialog> {
                                       widget.statusName.toUpperCase(),
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w800,
                                         color: _selectedColor,
                                       ),
                                     ),
@@ -1536,7 +1578,7 @@ class _StatusColorPickerDialogState extends State<_StatusColorPickerDialog> {
                                         '· 3 Jobs',
                                         style: TextStyle(
                                           fontSize: 11,
-                                          fontWeight: FontWeight.w900,
+                                          fontWeight: FontWeight.w800,
                                           color: _selectedColor,
                                         ),
                                       ),

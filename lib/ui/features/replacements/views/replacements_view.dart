@@ -284,19 +284,31 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
     for (final repl in replacements) {
       final statusName = repl.status.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(repl);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+        final defaultStatus = StatusManagementService.getDefaultStatus('replacements');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(repl);
         }
-        grouped[statusName]!.add(repl);
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dateComp = b.date.compareTo(a.date);
+        if (dateComp != 0) return dateComp;
+        return b.jobNo.compareTo(a.jobNo);
+      });
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
@@ -334,7 +346,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                 status.toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: color,
                   shadows: [
@@ -351,7 +363,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                   '·',
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
@@ -360,7 +372,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                   '$count ${count == 1 ? 'Replacement' : 'Replacements'}',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: color,
                     shadows: [
                       Shadow(color: color, offset: const Offset(0.12, 0)),
@@ -1535,12 +1547,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                 final List<String> selectableList = List.from(list);
                 final match = selectableList.firstWhere(
                   (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
-                  orElse: () => '',
+                  orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
                 );
-                final effectiveStatus = match.isNotEmpty ? match : _status;
-                if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
-                  selectableList.insert(0, effectiveStatus);
-                }
+                final effectiveStatus = match;
                 return DropdownButtonFormField<String>(
                   value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                   isExpanded: true,

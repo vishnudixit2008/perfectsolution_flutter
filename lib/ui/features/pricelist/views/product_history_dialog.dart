@@ -592,7 +592,10 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
   void _showSaleDetailsModal(
       BuildContext context, Sale sale, List<SaleItem> items) {
     final formattedDate = DateFormat('dd/MM/yy hh:mm a').format(sale.saleDate);
-    final isPending = sale.orderStatus == 'PENDING';
+    final normalizedStatus = sale.orderStatus.trim().toLowerCase();
+    final bool isComplete = normalizedStatus == 'complete' ||
+        normalizedStatus == 'completed' ||
+        normalizedStatus == 'confirmed';
 
     showDialog(
       context: context,
@@ -636,14 +639,14 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: isPending
-                                ? AppTheme.warning.withOpacity(0.15)
-                                : AppTheme.success.withOpacity(0.15),
+                            color: isComplete
+                                ? AppTheme.success.withOpacity(0.15)
+                                : AppTheme.warning.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: isPending
-                                  ? AppTheme.warning.withOpacity(0.3)
-                                  : AppTheme.success.withOpacity(0.3),
+                              color: isComplete
+                                  ? AppTheme.success.withOpacity(0.3)
+                                  : AppTheme.warning.withOpacity(0.3),
                             ),
                           ),
                           child: Text(
@@ -651,9 +654,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: isPending
-                                  ? AppTheme.warning
-                                  : AppTheme.success,
+                              color: isComplete
+                                  ? AppTheme.success
+                                  : AppTheme.warning,
                             ),
                           ),
                         ),

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import '../core/motion/motion.dart';
@@ -57,13 +59,15 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     super.initState();
     AutoUpdateService.instance.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Cold app launch: always check for update and bypass 1-hour skip suppression
-      UpdateDialog.showIfNeeded(context, isAppLaunch: true);
+      // Mobile / Android update check (desktop is handled by AutoUpdateService in background)
+      if (!kIsWeb && Platform.isAndroid) {
+        UpdateDialog.showIfNeeded(context, isAppLaunch: true);
+      }
       _setupKioskBroadcastListener();
     });
-    // Check for app updates every 1 hour while the app is kept running
+    // Check for app updates every 1 hour while mobile app is kept running
     _updateCheckTimer = Timer.periodic(const Duration(hours: 1), (_) {
-      if (mounted) {
+      if (mounted && !kIsWeb && Platform.isAndroid) {
         UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
     });

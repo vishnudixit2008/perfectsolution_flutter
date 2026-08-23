@@ -665,19 +665,43 @@ class _SalesViewState extends State<SalesView> {
 
     for (final sale in sales) {
       final statusName = sale.orderStatus.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(sale);
-      } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+      } else if (statusName.toLowerCase() == 'confirmed') {
+        // Unify legacy Confirmed into Complete
+        final completeKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == 'complete' || k.trim().toLowerCase() == 'completed',
+          orElse: () => '',
+        );
+        if (completeKey.isNotEmpty) {
+          grouped[completeKey]!.add(sale);
+        } else if (configuredStatuses.isNotEmpty) {
+          grouped[configuredStatuses.last]!.add(sale);
         }
-        grouped[statusName]!.add(sale);
+      } else {
+        // Strictly restrict to configured statuses in Status Manager modal
+        final defaultStatus = StatusManagementService.getDefaultStatus('sales');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(sale);
+        }
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dateComp = b.saleDate.compareTo(a.saleDate);
+        if (dateComp != 0) return dateComp;
+        return b.invoiceNo.compareTo(a.invoiceNo);
+      });
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
@@ -715,7 +739,7 @@ class _SalesViewState extends State<SalesView> {
                 status.toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: color,
                   shadows: [
@@ -732,7 +756,7 @@ class _SalesViewState extends State<SalesView> {
                   '·',
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
@@ -741,7 +765,7 @@ class _SalesViewState extends State<SalesView> {
                   '$count ${count == 1 ? 'Invoice' : 'Invoices'}',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: color,
                     shadows: [
                       Shadow(color: color, offset: const Offset(0.12, 0)),
@@ -1937,15 +1961,13 @@ class _SalesViewState extends State<SalesView> {
                         builder: (context) {
                           final allowed = UserPermissionService.getAllowedSelectableStatuses('sales');
                           final List<String> selectableList = List.from(allowed);
-                          final current = cartVM.editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
+                          final current = (cartVM.editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales')).trim();
                           final match = selectableList.firstWhere(
-                            (s) => s.trim().toLowerCase() == current.trim().toLowerCase(),
-                            orElse: () => '',
+                            (s) => s.trim().toLowerCase() == current.toLowerCase() ||
+                                   (current.toLowerCase() == 'confirmed' && (s.trim().toLowerCase() == 'complete' || s.trim().toLowerCase() == 'completed')),
+                            orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
                           );
-                          final effectiveStatus = match.isNotEmpty ? match : current;
-                          if (effectiveStatus.isNotEmpty && !selectableList.contains(effectiveStatus)) {
-                            selectableList.insert(0, effectiveStatus);
-                          }
+                          final effectiveStatus = match;
 
                           return DropdownButton<String>(
                             value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
@@ -2208,7 +2230,10 @@ class _SalesViewState extends State<SalesView> {
     showDialog(
       context: context,
       builder: (context) {
-        final isPending = sale.orderStatus == 'PENDING';
+        final normalizedStatus = sale.orderStatus.trim().toLowerCase();
+        final bool isComplete = normalizedStatus == 'complete' ||
+            normalizedStatus == 'completed' ||
+            normalizedStatus == 'confirmed';
         final bool isMobile = MediaQuery.of(context).size.width < 600;
 
         return Dialog(
@@ -2524,7 +2549,7 @@ class _SalesViewState extends State<SalesView> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (isPending &&
+                    if (!isComplete &&
                         UserPermissionService.canPerformModuleAction(
                             'sales', 'canVerifyStock'))
                       ElevatedButton.icon(
@@ -2539,7 +2564,7 @@ class _SalesViewState extends State<SalesView> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Invoice #${sale.invoiceNo} confirmed. Stock levels updated.',
+                                    'Invoice #${sale.invoiceNo} marked as complete. Stock levels updated.',
                                   ),
                                   backgroundColor: AppTheme.success,
                                 ),
@@ -2548,13 +2573,13 @@ class _SalesViewState extends State<SalesView> {
                           }
                         },
                         icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text('Verify & Deduct Stock'),
+                        label: const Text('Mark as Complete'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       )
-                    else if (!isPending)
+                    else if (isComplete)
                       ElevatedButton.icon(
                         onPressed: () async {
                           final success = await viewModel.setSaleStatusPending(
@@ -2567,7 +2592,7 @@ class _SalesViewState extends State<SalesView> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Invoice #${sale.invoiceNo} marked as pending.',
+                                    'Invoice #${sale.invoiceNo} reverted to pending.',
                                   ),
                                   backgroundColor: AppTheme.warning,
                                 ),
@@ -2576,7 +2601,7 @@ class _SalesViewState extends State<SalesView> {
                           }
                         },
                         icon: const Icon(Icons.history_rounded),
-                        label: const Text('Mark as Pending'),
+                        label: const Text('Revert to Pending'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.warning.withValues(
                             alpha: 0.2,

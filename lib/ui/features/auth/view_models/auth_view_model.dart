@@ -374,10 +374,15 @@ class AuthViewModel extends ChangeNotifier {
 
 
 
-      // ── Mobile / macOS: Try native GoogleSignIn SDK first ─────────────────────
+      // ── Mobile / iOS / Android: Try native GoogleSignIn SDK first ─────────────
       if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
         try {
           final GoogleSignIn googleSignIn = GoogleSignIn(
+            serverClientId:
+                '277669825525-190ehfo8er1ncq76tugtpuih0u1kue3c.apps.googleusercontent.com',
+            clientId: defaultTargetPlatform == TargetPlatform.iOS
+                ? '277669825525-190ehfo8er1ncq76tugtpuih0u1kue3c.apps.googleusercontent.com'
+                : null,
             scopes: ['email', 'profile'],
           );
 
@@ -387,38 +392,43 @@ class AuthViewModel extends ChangeNotifier {
 
           final googleUser = await googleSignIn.signIn();
 
-          if (googleUser != null) {
-            final googleAuth = await googleUser.authentication;
-            final idToken = googleAuth.idToken;
-            final accessToken = googleAuth.accessToken;
+          if (googleUser == null) {
+            // User dismissed/canceled the native Google account picker
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
 
-            if (idToken != null) {
-              final res = await Supabase.instance.client.auth.signInWithIdToken(
-                provider: OAuthProvider.google,
-                idToken: idToken,
-                accessToken: accessToken,
-              );
+          final googleAuth = await googleUser.authentication;
+          final idToken = googleAuth.idToken;
+          final accessToken = googleAuth.accessToken;
 
-              if (res.user != null && res.user!.email != null) {
-                final userEmail = res.user!.email!.toLowerCase().trim();
-                final isAuth =
-                    await UserPermissionService.isAuthorizedUserAsync(userEmail);
-                if (isAuth) {
-                  await UserPermissionService.setCurrentUser(userEmail);
-                  await _updateRememberMeSession(userEmail, rememberMe);
-                  _isAuthenticated = true;
-                  _isLoading = false;
-                  _errorMessage = null;
-                  notifyListeners();
-                  return true;
-                } else {
-                  await Supabase.instance.client.auth.signOut();
-                  _errorMessage =
-                      'Access Denied: Your account ($userEmail) is not permitted to use this app.';
-                  _isLoading = false;
-                  notifyListeners();
-                  return false;
-                }
+          if (idToken != null) {
+            final res = await Supabase.instance.client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+
+            if (res.user != null && res.user!.email != null) {
+              final userEmail = res.user!.email!.toLowerCase().trim();
+              final isAuth =
+                  await UserPermissionService.isAuthorizedUserAsync(userEmail);
+              if (isAuth) {
+                await UserPermissionService.setCurrentUser(userEmail);
+                await _updateRememberMeSession(userEmail, rememberMe);
+                _isAuthenticated = true;
+                _isLoading = false;
+                _errorMessage = null;
+                notifyListeners();
+                return true;
+              } else {
+                await Supabase.instance.client.auth.signOut();
+                _errorMessage =
+                    'Access Denied: Your account ($userEmail) is not permitted to use this app.';
+                _isLoading = false;
+                notifyListeners();
+                return false;
               }
             }
           }

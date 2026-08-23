@@ -65,10 +65,13 @@ class _DashboardViewState extends State<DashboardView> {
             .fold(0.0, (sum, s) => sum + s.totalAmount);
 
         final int pendingCount = sales
-            .where((s) => s.orderStatus == 'PENDING')
+            .where((s) => s.orderStatus.trim().toLowerCase() == 'pending')
             .length;
         final int confirmedCount = sales
-            .where((s) => s.orderStatus == 'Confirmed')
+            .where((s) {
+              final norm = s.orderStatus.trim().toLowerCase();
+              return norm == 'confirmed' || norm == 'complete' || norm == 'completed';
+            })
             .length;
 
         return SingleChildScrollView(
@@ -543,7 +546,10 @@ class _DashboardViewState extends State<DashboardView> {
     Sale sale,
   ) {
     final items = viewModel.getSaleItems(sale.invoiceNo);
-    final isPending = sale.orderStatus == 'PENDING';
+    final normalizedStatus = sale.orderStatus.trim().toLowerCase();
+    final bool isComplete = normalizedStatus == 'complete' ||
+        normalizedStatus == 'completed' ||
+        normalizedStatus == 'confirmed';
 
     showModalBottomSheet(
       context: context,
@@ -805,7 +811,7 @@ class _DashboardViewState extends State<DashboardView> {
                       ),
                     ),
                   ),
-                  if (isPending) ...[
+                  if (!isComplete) ...[
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
@@ -821,7 +827,7 @@ class _DashboardViewState extends State<DashboardView> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Order #${sale.invoiceNo} verified. Stock deducted.',
+                                    'Invoice #${sale.invoiceNo} marked as complete. Stock deducted.',
                                   ),
                                   backgroundColor: AppTheme.success,
                                 ),
@@ -830,7 +836,7 @@ class _DashboardViewState extends State<DashboardView> {
                           }
                         },
                         icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text('Verify & Deduct'),
+                        label: const Text('Mark as Complete'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
                           padding: const EdgeInsets.symmetric(vertical: 16),

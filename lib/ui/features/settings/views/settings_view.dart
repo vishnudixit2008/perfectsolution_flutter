@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
@@ -11,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
+import 'package:shop_management_flutter/data/services/auto_update_service.dart';
 import 'package:shop_management_flutter/ui/shared/update_dialog.dart';
 import 'user_management_view.dart';
 
@@ -176,7 +179,11 @@ class _SettingsViewState extends State<SettingsView> {
                               duration: Duration(seconds: 1),
                             ),
                           );
-                          await UpdateDialog.showIfNeeded(context, forceCheck: true);
+                          if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) {
+                            await AutoUpdateService.instance.checkForUpdates(force: true);
+                          } else {
+                            await UpdateDialog.showIfNeeded(context, forceCheck: true);
+                          }
                         },
                         icon: const Icon(Icons.sync_rounded, size: 14),
                         label: const Text('Check for Updates', style: TextStyle(fontSize: 12)),

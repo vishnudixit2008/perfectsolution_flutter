@@ -733,7 +733,7 @@ class _PricelistViewState extends State<PricelistView> {
                 category.toUpperCase(),
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w800,
                   letterSpacing: 0.6,
                   color: color,
                   shadows: [
@@ -748,7 +748,7 @@ class _PricelistViewState extends State<PricelistView> {
                   '·',
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
@@ -757,7 +757,7 @@ class _PricelistViewState extends State<PricelistView> {
                   '$totalQty ${totalQty == 1 ? 'unit' : 'units'}',
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                     color: color,
                     shadows: [
                       Shadow(color: color, offset: Offset(0.12, 0)),

@@ -275,4 +275,17 @@ class AppUpdateDownloader {
 
     return await getTemporaryDirectory();
   }
+
+  /// Returns the expected local [File] for a given [version] and [downloadUrl].
+  /// Use this to check if a previous session already downloaded the update,
+  /// so we can skip re-downloading and go straight to readyToRelaunch.
+  static Future<File> resolveLocalFile({
+    required String version,
+    required String downloadUrl,
+  }) async {
+    final extension = _getFileExtension(downloadUrl);
+    final targetDir = await _getTargetDirectory();
+    final localFileName = 'PerfectSolution_v${version}_update$extension';
+    return File('${targetDir.path}/$localFileName');
+  }
 }

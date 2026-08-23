@@ -23,6 +23,10 @@ class UpdateDialog extends StatefulWidget {
     bool isAppLaunch = false,
     bool forceCheck = false,
   }) async {
+    // Desktop (Windows & macOS) uses silent background download + sidebar "Relaunch & Update" widget
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) {
+      return;
+    }
     final updateStatus = await UpdateCheckService.checkForUpdates(
       isAppLaunch: isAppLaunch,
       forceCheck: forceCheck,
