@@ -323,6 +323,7 @@ class ScaledInfoRow extends StatelessWidget {
   final Widget? trailing;
   final double scaleFactor;
   final double labelWidth;
+  final CrossAxisAlignment crossAxisAlignment;
 
   const ScaledInfoRow({
     super.key,
@@ -331,15 +332,16 @@ class ScaledInfoRow extends StatelessWidget {
     this.valueWidget,
     this.trailing,
     required this.scaleFactor,
-    this.labelWidth = 140,
+    this.labelWidth = 160,
+    this.crossAxisAlignment = CrossAxisAlignment.center,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 3.5 * scaleFactor),
+      padding: EdgeInsets.symmetric(vertical: 4.0 * scaleFactor),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: crossAxisAlignment,
         children: [
           SizedBox(
             width: labelWidth * scaleFactor,

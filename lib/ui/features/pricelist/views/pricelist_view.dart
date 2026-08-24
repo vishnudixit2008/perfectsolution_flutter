@@ -13,6 +13,7 @@ import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
@@ -703,73 +704,12 @@ class _PricelistViewState extends State<PricelistView> {
   }
 
   Widget _buildCategorySectionHeader(String category, [int totalQty = 0]) {
-    const Color color = AppTheme.primaryLight;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: AppTheme.primary.withValues(alpha: 0.38),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                category.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: color,
-                  shadows: [
-                    Shadow(color: color, offset: Offset(0.12, 0)),
-                    Shadow(color: color, offset: Offset(-0.12, 0)),
-                  ],
-                ),
-              ),
-              if (totalQty > 0) ...[
-                const SizedBox(width: 7),
-                const Text(
-                  '·',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  '$totalQty ${totalQty == 1 ? 'unit' : 'units'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                    shadows: [
-                      Shadow(color: color, offset: Offset(0.12, 0)),
-                      Shadow(color: color, offset: Offset(-0.12, 0)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return AppStatusSectionHeader(
+      title: category,
+      count: totalQty,
+      singularLabel: 'unit',
+      pluralLabel: 'units',
+      color: AppTheme.primaryLight,
     );
   }
 
@@ -1583,9 +1523,6 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
   final priceController = TextEditingController(
     text: existingItem?.price.toString() ?? '',
   );
-  final stockController = TextEditingController(
-    text: existingItem?.stockQty.toString() ?? '0',
-  );
   String? photoUrl = existingItem?.photo;
   bool isPhotoUploading = false;
 
@@ -1620,7 +1557,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                     ? 'General'
                     : selectedCategory!.trim(),
                 price: double.tryParse(priceController.text) ?? 0.0,
-                stockQty: int.tryParse(stockController.text) ?? 0,
+                stockQty: existingItem?.stockQty ?? 0,
                 openingStock: existingItem?.openingStock ?? 0,
                 itemDescription: descController.text.trim().isEmpty
                     ? null
@@ -1656,9 +1593,6 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
 
           final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'price');
           final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'price', isEdit: isEdit);
-
-          final bool isStockQtyVis = UserPermissionService.isFieldVisible('pricelist', 'stockQty');
-          final bool isStockQtyMod = UserPermissionService.canModifyField('pricelist', 'stockQty', isEdit: isEdit);
 
           final bool isDescVis = UserPermissionService.isFieldVisible('pricelist', 'itemDescription');
           final bool isDescMod = UserPermissionService.canModifyField('pricelist', 'itemDescription', isEdit: isEdit);
@@ -1696,54 +1630,36 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                     child: _CategoryDropdown(
                       categories: viewModel.categories,
                       selectedCategory: selectedCategory,
-                      onChanged: (val) => setDialogState(() => selectedCategory = val),
+                      onChanged: (val) => selectedCategory = val,
                     ),
                   ),
                   const SizedBox(height: 12),
                 ],
 
-                Row(
-                  children: [
-                    if (isPriceVis)
-                      Expanded(
-                        child: TextFormField(
-                          controller: priceController,
-                          readOnly: !isPriceMod,
-                          enabled: isPriceMod,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Base Price (₹) *',
-                            hintText: 'e.g. 350',
-                          ),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Enter price';
-                            }
-                            if (double.tryParse(val.trim()) == null) {
-                              return 'Invalid price';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    if (isPriceVis && isStockQtyVis) const SizedBox(width: 12),
-                    if (isStockQtyVis)
-                      Expanded(
-                        child: TextFormField(
-                          controller: stockController,
-                          readOnly: !isStockQtyMod,
-                          enabled: isStockQtyMod,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Stock Qty',
-                            hintText: 'e.g. 10',
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                if (isPriceVis) ...[
+                  TextFormField(
+                    controller: priceController,
+                    readOnly: !isPriceMod,
+                    enabled: isPriceMod,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Base Price (₹) *',
+                      hintText: 'e.g. 350',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Enter price';
+                      }
+                      if (double.tryParse(val.trim()) == null) {
+                        return 'Invalid price';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const SizedBox(height: 12),
 
                 if (isDescVis) ...[
@@ -2008,7 +1924,11 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedCategory != widget.selectedCategory) {
       if (_textController.text != (widget.selectedCategory ?? '')) {
-        _textController.text = widget.selectedCategory ?? '';
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _textController.text != (widget.selectedCategory ?? '')) {
+            _textController.text = widget.selectedCategory ?? '';
+          }
+        });
       }
     }
   }

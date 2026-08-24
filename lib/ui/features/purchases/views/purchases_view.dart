@@ -18,6 +18,8 @@ import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/components/app_animated_search_bar.dart';
 import '../../../shared/components/app_keyboard_autocomplete.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -41,6 +43,7 @@ class _PurchasesViewState extends State<PurchasesView> {
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _vendorWidth = 220.0;
+  double _itemsWidth = 280.0;
   double _amountWidth = 150.0;
   // ignore: unused_field
   double _statusWidth = 140.0;
@@ -51,6 +54,8 @@ class _PurchasesViewState extends State<PurchasesView> {
         UiPreferencesService.getColumnWidth('purchases', 'date') ?? 120.0;
     _vendorWidth =
         UiPreferencesService.getColumnWidth('purchases', 'vendor') ?? 220.0;
+    _itemsWidth =
+        UiPreferencesService.getColumnWidth('purchases', 'items') ?? 280.0;
     _amountWidth =
         UiPreferencesService.getColumnWidth('purchases', 'amount') ?? 150.0;
     _statusWidth =
@@ -68,6 +73,9 @@ class _PurchasesViewState extends State<PurchasesView> {
           break;
         case 'vendor':
           _vendorWidth = newWidth;
+          break;
+        case 'items':
+          _itemsWidth = newWidth;
           break;
         case 'amount':
           _amountWidth = newWidth;
@@ -300,75 +308,12 @@ class _PurchasesViewState extends State<PurchasesView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: color.withValues(alpha: 0.38),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: color,
-                  shadows: [
-                    Shadow(color: color, offset: const Offset(0.12, 0)),
-                    Shadow(color: color, offset: const Offset(-0.12, 0)),
-                  ],
-                ),
-              ),
-              if (status.trim().toLowerCase() != 'complete' &&
-                  status.trim().toLowerCase() != 'completed' &&
-                  status.trim().toLowerCase() != 'confirmed') ...[
-                const SizedBox(width: 7),
-                Text(
-                  '·',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  '$count ${count == 1 ? 'Purchase' : 'Purchases'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                    shadows: [
-                      Shadow(color: color, offset: const Offset(0.12, 0)),
-                      Shadow(color: color, offset: const Offset(-0.12, 0)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Purchase',
+      pluralLabel: 'Purchases',
+      color: _getStatusColor(status),
     );
   }
 
@@ -436,6 +381,15 @@ class _PurchasesViewState extends State<PurchasesView> {
                       (_vendorWidth + delta).clamp(120.0, 450.0),
                     ),
                   ),
+                if (UserPermissionService.isFieldVisible('purchases', 'stockInItems'))
+                  _buildResizableHeader(
+                    'Items',
+                    _itemsWidth,
+                    (delta) => _updateColumnWidth(
+                      'items',
+                      (_itemsWidth + delta).clamp(150.0, 600.0),
+                    ),
+                  ),
                 if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
                   _buildResizableHeader(
                     'Total Amount',
@@ -501,6 +455,33 @@ class _PurchasesViewState extends State<PurchasesView> {
                   pur.purchasedFrom,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'stockInItems'))
+              Container(
+                width: _itemsWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                alignment: Alignment.centerLeft,
+                child: Builder(
+                  builder: (context) {
+                    final items = viewModel.getPurchaseItems(pur.id);
+                    final String itemsSummary = items.isNotEmpty
+                        ? items
+                            .map((i) =>
+                                '${i.itemName ?? i.customItemName ?? "Item"} (${i.quantity})')
+                            .join(', ')
+                        : '-';
+
+                    return Text(
+                      itemsSummary,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
                 ),
               ),
             if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
@@ -626,6 +607,30 @@ class _PurchasesViewState extends State<PurchasesView> {
         ],
       ),
     );
+
+    if (UserPermissionService.isFieldVisible('purchases', 'stockInItems')) {
+      final items = viewModel.getPurchaseItems(pur.id);
+      if (items.isNotEmpty) {
+        final itemsSummary = items
+            .map((i) =>
+                '${i.itemName ?? i.customItemName ?? "Item"} (${i.quantity})')
+            .join(', ');
+        metadata.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Items: $itemsSummary',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+    }
 
     final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
     final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
@@ -762,24 +767,33 @@ class _PurchasesViewState extends State<PurchasesView> {
                 label: 'Purchased From (Vendor)',
                 value: pur.purchasedFrom,
                 scaleFactor: scale,
+                labelWidth: 195,
               ),
             if (UserPermissionService.isFieldVisible('purchases', 'totalAmount') && pur.totalAmount > 0)
               ScaledInfoRow(
                 label: 'Total Purchase Amount',
                 value: '₹${pur.totalAmount.toStringAsFixed(2)}',
                 scaleFactor: scale,
+                labelWidth: 195,
               ),
             if (UserPermissionService.isFieldVisible('purchases', 'status'))
               ScaledInfoRow(
                 label: 'Status',
                 value: pur.status,
+                valueWidget: AppStatusChip(
+                  status: pur.status,
+                  moduleKey: 'purchases',
+                  scaleFactor: scale,
+                ),
                 scaleFactor: scale,
+                labelWidth: 195,
               ),
             if (UserPermissionService.isFieldVisible('purchases', 'notes') && pur.notes != null && pur.notes!.trim().isNotEmpty && pur.notes != 'N/A')
               ScaledInfoRow(
                 label: 'Notes',
                 value: pur.notes!,
                 scaleFactor: scale,
+                labelWidth: 195,
               ),
             if (UserPermissionService.isFieldVisible('purchases', 'stockInItems') && items.isNotEmpty) ...[
               SizedBox(height: 8 * scale),
@@ -837,107 +851,165 @@ class _PurchasesViewState extends State<PurchasesView> {
             ],
             if (UserPermissionService.isFieldVisible('purchases', 'photo') && pur.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: pur.photoList),
-            SizedBox(height: 12 * scale),
-            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
-            SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                if (UserPermissionService.canPerformModuleAction('purchases', 'canManageStatus')) ...[
-                  if (pur.status == 'PENDING') ...[
+            if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate') ||
+                UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale')) ...[
+              SizedBox(height: 12 * scale),
+              Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+              SizedBox(height: 12 * scale),
+              Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate'))
                     ScaledActionButton(
-                      icon: Icons.check_circle,
-                      label: 'Confirm Stock In',
+                      icon: Icons.copy,
+                      label: 'Duplicate',
                       scaleFactor: scale,
-                      onTap: () async {
+                      onTap: () {
                         Navigator.pop(ctx);
-                        await viewModel.confirmPurchase(pur.id);
-                        if (context.mounted) {
-                          context.read<PricelistViewModel>().loadItems();
-                        }
+                        _duplicate(context, pur, viewModel);
                       },
                     ),
-                  ] else ...[
+                  if (UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale'))
                     ScaledActionButton(
-                      icon: Icons.undo,
-                      label: 'Revert to Pending',
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
                       scaleFactor: scale,
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        await viewModel.revertPurchaseToPending(pur.id);
-                        if (context.mounted) {
-                          context.read<PricelistViewModel>().loadItems();
-                        }
-                      },
+                      onTap: () => _convertToSale(ctx, pur, viewModel),
                     ),
-                  ],
                 ],
-                if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate'))
-                  ScaledActionButton(
-                    icon: Icons.copy,
-                    label: 'Duplicate',
-                    scaleFactor: scale,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _duplicate(context, pur, viewModel);
-                    },
-                  ),
-                if (UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale'))
-                  ScaledActionButton(
-                    icon: Icons.sell,
-                    label: 'Convert to Sale',
-                    scaleFactor: scale,
-                    onTap: () => _convertToSale(ctx, pur, viewModel),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ],
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canManageStatus = UserPermissionService.canPerformModuleAction('purchases', 'canManageStatus');
         final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
         final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
-        if (!canEdit && !canDelete) return const SizedBox.shrink();
+        final isConfirmed = pur.status.toUpperCase() == 'CONFIRMED';
 
-        return Row(
+        if (!canManageStatus && !canEdit && !canDelete) return const SizedBox.shrink();
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (canEdit)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
+            if (canManageStatus) ...[
+              if (!isConfirmed)
+                ElevatedButton.icon(
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    _showAddEditDialog(context, existingPurchase: pur);
+                    await viewModel.confirmPurchase(pur.id);
+                    if (context.mounted) {
+                      context.read<PricelistViewModel>().loadItems();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Purchase order ${pur.id} confirmed and stocked in.',
+                          ),
+                          backgroundColor: AppTheme.success,
+                        ),
+                      );
+                    }
                   },
-                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryLight,
-                    side: BorderSide(
-                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                  icon: Icon(Icons.check_circle_rounded, size: 18 * scale),
+                  label: Text(
+                    'Confirm & Stock In',
+                    style: TextStyle(
+                      fontSize: 13.5 * scale,
+                      fontWeight: FontWeight.bold,
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.success,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12 * scale),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await viewModel.revertPurchaseToPending(pur.id);
+                    if (context.mounted) {
+                      context.read<PricelistViewModel>().loadItems();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Purchase order ${pur.id} reverted to pending.',
+                          ),
+                          backgroundColor: AppTheme.warning,
+                        ),
+                      );
+                    }
+                  },
+                  icon: Icon(Icons.history_rounded, size: 18 * scale),
+                  label: Text(
+                    'Revert to Pending',
+                    style: TextStyle(
+                      fontSize: 13.5 * scale,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
+                    foregroundColor: AppTheme.warning,
+                    side: BorderSide(
+                      color: AppTheme.warning.withValues(alpha: 0.4),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12 * scale),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-            if (canEdit && canDelete) SizedBox(width: 12 * scale),
-            if (canDelete)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _confirmDelete(context, pur.id, viewModel);
-                  },
-                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.danger,
-                    side: BorderSide(
-                      color: AppTheme.danger.withValues(alpha: 0.3),
+              if (canEdit || canDelete) SizedBox(height: 10 * scale),
+            ],
+            if (canEdit || canDelete)
+              Row(
+                children: [
+                  if (canEdit)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showAddEditDialog(context, existingPurchase: pur);
+                        },
+                        icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                        label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryLight,
+                          side: BorderSide(
+                            color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                        ),
+                      ),
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
-                  ),
-                ),
+                  if (canEdit && canDelete) SizedBox(width: 12 * scale),
+                  if (canDelete)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _confirmDelete(context, pur.id, viewModel);
+                        },
+                        icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                        label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.danger,
+                          side: BorderSide(
+                            color: AppTheme.danger.withValues(alpha: 0.3),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                        ),
+                      ),
+                    ),
+                ],
               ),
           ],
         );
@@ -1359,8 +1431,13 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                 final newQty = int.tryParse(editQtyController.text.trim()) ?? item.quantity;
 
                 if (newName.isNotEmpty && newQty > 0) {
+                  final pricelistVM = context.read<PricelistViewModel>();
+                  final match = pricelistVM.items
+                      .where((p) => p.itemName.trim().toLowerCase() == newName.toLowerCase())
+                      .firstOrNull;
                   setState(() {
                     _items[index] = item.copyWith(
+                      itemId: match?.id ?? item.itemId,
                       itemName: newName,
                       customItemName: newName,
                       unitPrice: newPrice,
@@ -1417,8 +1494,24 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       photo: _photoUrl,
     );
 
+    final catalog = context.read<PricelistViewModel>().items;
     final List<PurchaseOrderItem> finalItems = _items.map((item) {
-      return item.copyWith(purchaseId: id);
+      int? resolvedId = item.itemId;
+      if (resolvedId == null) {
+        final target = (item.itemName ?? item.customItemName ?? '').trim().toLowerCase();
+        if (target.isNotEmpty) {
+          final match = catalog
+              .where((p) => p.itemName.trim().toLowerCase() == target)
+              .firstOrNull;
+          if (match != null) {
+            resolvedId = match.id;
+          }
+        }
+      }
+      return item.copyWith(
+        purchaseId: id,
+        itemId: resolvedId,
+      );
     }).toList();
 
     await viewModel.savePurchase(order, finalItems);
@@ -1596,11 +1689,20 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                 controller: _searchItemController,
                 catalogItems: catalogItems,
                 hintText: 'Search or enter item name...',
+                allowNewItem: true,
                 onSelected: (PricelistItem selection) {
-                  if (selection.id == -1) return;
                   setState(() {
-                    _selectedCatalogItem = selection;
-                    _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
+                    if (selection.id == -1) {
+                      _selectedCatalogItem = null;
+                      _searchItemController.text = selection.itemName;
+                      _priceController.clear();
+                    } else {
+                      _selectedCatalogItem = selection;
+                      _priceController.text =
+                          selection.price > 0
+                              ? selection.price.toStringAsFixed(0)
+                              : '';
+                    }
                   });
                 },
               ),

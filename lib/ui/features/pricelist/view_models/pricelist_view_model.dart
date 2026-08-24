@@ -145,8 +145,7 @@ class PricelistViewModel extends ChangeNotifier {
 
   // Generate next sequential integer ID
   int getNextId() {
-    if (_items.isEmpty) return 1;
-    int maxId = 0;
+    int maxId = _repository.getNextPricelistId() - 1;
     for (var item in _items) {
       if (item.id > maxId) maxId = item.id;
     }

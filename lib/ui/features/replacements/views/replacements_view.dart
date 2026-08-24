@@ -16,6 +16,8 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -316,75 +318,12 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: color.withValues(alpha: 0.38),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: color,
-                  shadows: [
-                    Shadow(color: color, offset: const Offset(0.12, 0)),
-                    Shadow(color: color, offset: const Offset(-0.12, 0)),
-                  ],
-                ),
-              ),
-              if (status.trim().toLowerCase() != 'complete' &&
-                  status.trim().toLowerCase() != 'completed' &&
-                  status.trim().toLowerCase() != 'confirmed') ...[
-                const SizedBox(width: 7),
-                Text(
-                  '·',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  '$count ${count == 1 ? 'Replacement' : 'Replacements'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                    shadows: [
-                      Shadow(color: color, offset: const Offset(0.12, 0)),
-                      Shadow(color: color, offset: const Offset(-0.12, 0)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Replacement',
+      pluralLabel: 'Replacements',
+      color: _getStatusColor(status),
     );
   }
 
@@ -856,6 +795,11 @@ class _ReplacementsViewState extends State<ReplacementsView> {
               ScaledInfoRow(
                 label: 'Status',
                 value: repl.status,
+                valueWidget: AppStatusChip(
+                  status: repl.status,
+                  moduleKey: 'replacements',
+                  scaleFactor: scale,
+                ),
                 scaleFactor: scale,
               ),
             if (UserPermissionService.isFieldVisible('replacements', 'photo') && repl.photoList.isNotEmpty)

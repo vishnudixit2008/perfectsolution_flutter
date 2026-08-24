@@ -11,6 +11,7 @@ import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/pdf_invoice_helper.dart';
 import '../../../core/app_theme.dart';
 import '../../../shared/components/app_stock_badge.dart';
+import '../../../shared/components/app_status_chip.dart';
 
 class ProductHistoryDialog extends StatefulWidget {
   final PricelistItem product;
@@ -592,10 +593,6 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
   void _showSaleDetailsModal(
       BuildContext context, Sale sale, List<SaleItem> items) {
     final formattedDate = DateFormat('dd/MM/yy hh:mm a').format(sale.saleDate);
-    final normalizedStatus = sale.orderStatus.trim().toLowerCase();
-    final bool isComplete = normalizedStatus == 'complete' ||
-        normalizedStatus == 'completed' ||
-        normalizedStatus == 'confirmed';
 
     showDialog(
       context: context,
@@ -635,30 +632,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isComplete
-                                ? AppTheme.success.withOpacity(0.15)
-                                : AppTheme.warning.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isComplete
-                                  ? AppTheme.success.withOpacity(0.3)
-                                  : AppTheme.warning.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            sale.orderStatus,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isComplete
-                                  ? AppTheme.success
-                                  : AppTheme.warning,
-                            ),
-                          ),
+                        AppStatusChip(
+                          status: sale.orderStatus,
+                          moduleKey: 'sales',
                         ),
                       ],
                     ),
@@ -888,7 +864,6 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
       BuildContext context, PurchaseOrder purchase, List<PurchaseOrderItem> items) {
     final formattedDate =
         DateFormat('dd MMM yyyy, hh:mm a').format(purchase.date);
-    final isPending = purchase.status == 'PENDING';
 
     showDialog(
       context: context,
@@ -928,30 +903,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isPending
-                                ? AppTheme.warning.withOpacity(0.15)
-                                : AppTheme.success.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isPending
-                                  ? AppTheme.warning.withOpacity(0.3)
-                                  : AppTheme.success.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            purchase.status,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isPending
-                                  ? AppTheme.warning
-                                  : AppTheme.success,
-                            ),
-                          ),
+                        AppStatusChip(
+                          status: purchase.status,
+                          moduleKey: 'purchases',
                         ),
                       ],
                     ),

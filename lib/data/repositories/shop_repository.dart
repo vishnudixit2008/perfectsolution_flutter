@@ -35,6 +35,7 @@ class ShopRepository {
 
   // Pricelist
   List<PricelistItem> getPricelist() => _localDb.getPricelist();
+  int getNextPricelistId() => _localDb.getNextPricelistId();
   Future<void> savePricelistItem(PricelistItem item) async {
     await _localDb.savePricelistItem(item);
     await SupabaseSyncService.instance.pushRecordToCloud(
@@ -112,7 +113,7 @@ class ShopRepository {
   List<SaleItem> getSaleItems(int invoiceNo) =>
       _localDb.getSaleItems(invoiceNo);
   Future<void> saveSale(Sale sale, List<SaleItem> items) async {
-    await _localDb.saveSale(sale, items);
+    final updatedProducts = await _localDb.saveSale(sale, items);
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
@@ -124,6 +125,13 @@ class ShopRepository {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'sale_items',
         item.toJson(),
+        localDb: _localDb,
+      );
+    }
+    for (final p in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        p.toJson(),
         localDb: _localDb,
       );
     }
@@ -139,11 +147,13 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
+      localDb: _localDb,
     );
     for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         p.toJson(),
+        localDb: _localDb,
       );
     }
     return true;
@@ -159,11 +169,13 @@ class ShopRepository {
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
+      localDb: _localDb,
     );
     for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
         p.toJson(),
+        localDb: _localDb,
       );
     }
     return true;
@@ -175,14 +187,22 @@ class ShopRepository {
   }
 
   Future<bool> deleteSale(int invoiceNo) async {
-    final res = await _localDb.deleteSale(invoiceNo);
+    final updatedProducts = await _localDb.deleteSale(invoiceNo);
     await SupabaseSyncService.instance.deleteRecordFromCloud(
       'sales',
       'invoice_no',
       invoiceNo,
       localDb: _localDb,
     );
-    return res;
+    await SupabaseSyncService.instance.deleteSaleItemsForInvoice(invoiceNo);
+    for (final p in updatedProducts) {
+      await SupabaseSyncService.instance.pushRecordToCloud(
+        'pricelist',
+        p.toJson(),
+        localDb: _localDb,
+      );
+    }
+    return true;
   }
 
   // Calls

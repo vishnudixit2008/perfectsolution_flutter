@@ -19,6 +19,8 @@ import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
 import '../../../shared/components/app_keyboard_autocomplete.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -339,75 +341,12 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: color.withValues(alpha: 0.38),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: color,
-                  shadows: [
-                    Shadow(color: color, offset: const Offset(0.12, 0)),
-                    Shadow(color: color, offset: const Offset(-0.12, 0)),
-                  ],
-                ),
-              ),
-              if (status.trim().toLowerCase() != 'complete' &&
-                  status.trim().toLowerCase() != 'completed' &&
-                  status.trim().toLowerCase() != 'confirmed') ...[
-                const SizedBox(width: 7),
-                Text(
-                  '·',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  '$count ${count == 1 ? 'Job' : 'Jobs'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                    shadows: [
-                      Shadow(color: color, offset: const Offset(0.12, 0)),
-                      Shadow(color: color, offset: const Offset(-0.12, 0)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Job',
+      pluralLabel: 'Jobs',
+      color: _getStatusColor(status),
     );
   }
 
@@ -901,6 +840,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                 label: 'Customer Name',
                 value: repair.name,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'mobileNo') && repair.mobileNo != null && repair.mobileNo!.trim().isNotEmpty && repair.mobileNo != 'N/A')
               ScaledInfoRow(
@@ -911,36 +851,47 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                   scaleFactor: scale,
                 ),
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'devices') && repair.devices.trim().isNotEmpty)
               ScaledInfoRow(
                 label: 'Devices / Model',
                 value: repair.devices,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'query') && repair.query != null && repair.query!.trim().isNotEmpty && repair.query != 'N/A')
               ScaledInfoRow(
                 label: 'Problem Reported',
                 value: repair.query!,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'purchasedFrom') && repair.purchasedFrom != null && repair.purchasedFrom!.trim().isNotEmpty && repair.purchasedFrom != 'N/A')
               ScaledInfoRow(
                 label: 'Purchased From',
                 value: repair.purchasedFrom!,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'notes') && repair.notes != null && repair.notes!.trim().isNotEmpty && repair.notes != 'N/A')
               ScaledInfoRow(
                 label: 'Notes / Diagnostics',
                 value: repair.notes!,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'status'))
               ScaledInfoRow(
                 label: 'Status',
                 value: repair.status,
+                valueWidget: AppStatusChip(
+                  status: repair.status,
+                  moduleKey: 'inward',
+                  scaleFactor: scale,
+                ),
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('inward', 'status') && (repair.status.trim().toLowerCase() == 'completed' || repair.status.trim().toLowerCase() == 'delivered' || repair.completionDate != null)) ...[
               Builder(
@@ -1064,27 +1015,27 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     ),
                     child: Column(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Items Subtotal',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12 * scale,
-                              ),
-                            ),
-                            Text(
-                              '₹${subtotal.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontSize: 12.5 * scale,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
                         if (discount > 0) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Items Subtotal',
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12 * scale,
+                                ),
+                              ),
+                              Text(
+                                '₹${subtotal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 12.5 * scale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                           SizedBox(height: 4 * scale),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1106,14 +1057,14 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                               ),
                             ],
                           ),
-                        ],
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 4 * scale),
-                          child: Divider(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            height: 1,
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4 * scale),
+                            child: Divider(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              height: 1,
+                            ),
                           ),
-                        ),
+                        ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1443,6 +1394,7 @@ Perfect Solution''';
       (sum, item) => sum + item.totalAmount,
     );
 
+    final catalogItems = context.read<ShopRepository>().getPricelist();
     final List<Map<String, dynamic>> itemsList = estimateItems.map((est) {
       double price = 0.0;
       if (est.lineType == 'Service') {
@@ -1474,8 +1426,19 @@ Perfect Solution''';
                       ? est.notes!
                       : '${est.lineType} Repair Service (${repair.devices})'));
 
+      int? resolvedItemId = est.itemId;
+      if (resolvedItemId == null && est.lineType == 'Product') {
+        final target = desc.trim().toLowerCase();
+        final match = catalogItems
+            .where((c) => c.itemName.trim().toLowerCase() == target)
+            .firstOrNull;
+        if (match != null) {
+          resolvedItemId = match.id;
+        }
+      }
+
       return {
-        'itemId': est.itemId,
+        'itemId': resolvedItemId,
         'lineType': est.lineType,
         'itemDescription': desc,
         'quantity': est.quantity > 0 ? est.quantity : 1,
@@ -1640,6 +1603,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   final _estPriceController = TextEditingController();
   final _estQtyController = TextEditingController();
   TextEditingController? _activeAutocompleteController;
+  int? _selectedEstItemId;
   String _estType = 'Product'; // Product, Service
 
   @override
@@ -1726,11 +1690,44 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     final int jobNo = widget.existingRepair?.jobNo ?? 0;
     final double total = price * qty;
 
+    int? resolvedItemId = _selectedEstItemId;
+    if (_estType == 'Product') {
+      final catalog = context.read<ShopRepository>().getPricelist();
+      if (resolvedItemId != null) {
+        final exists = catalog.any((p) => p.id == resolvedItemId);
+        if (!exists) resolvedItemId = null;
+      }
+
+      if (resolvedItemId == null) {
+        final target = name.trim().toLowerCase();
+        final match = catalog
+            .where((p) => p.itemName.trim().toLowerCase() == target)
+            .firstOrNull;
+        if (match != null) {
+          resolvedItemId = match.id;
+        }
+      }
+
+      if (resolvedItemId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              '⚠️ Custom items are not allowed under "Product". Please select a valid product from the dropdown list, or switch to the "Service" tab for custom items.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     final newItem = InwardEstimateItem(
       lineId:
           'est_${DateTime.now().microsecondsSinceEpoch}_${_estimates.length}',
       jobNo: jobNo,
       lineType: _estType,
+      itemId: resolvedItemId,
       itemName: name,
       quantity: qty,
       unitPrice: _estType == 'Product' ? price : 0.0,
@@ -1748,6 +1745,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
       _estItemNameController.clear();
       _estPriceController.clear();
       _estQtyController.clear();
+      _selectedEstItemId = null;
       if (_activeAutocompleteController != null) {
         _activeAutocompleteController!.text = '';
       }
@@ -2159,6 +2157,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                                     onTap: () {
                                       setState(() {
                                         _estType = type;
+                                        _selectedEstItemId = null;
                                         _estItemNameController.clear();
                                         _estPriceController.clear();
                                         _activeAutocompleteController?.clear();
@@ -2218,8 +2217,9 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                         ? AppKeyboardAutocomplete(
                             controller: _estItemNameController,
                             catalogItems: catalogItems,
-                            hintText: 'Search product...',
+                            hintText: 'Select product from catalog...',
                             onSelected: (PricelistItem selection) {
+                              _selectedEstItemId = selection.id;
                               _estItemNameController.text = selection.itemName;
                               _estPriceController.text =
                                   selection.price.toStringAsFixed(0);

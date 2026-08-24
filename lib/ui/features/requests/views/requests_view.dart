@@ -16,6 +16,8 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -325,75 +327,12 @@ class _RequestsViewState extends State<RequestsView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.02),
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(
-              color: color.withValues(alpha: 0.38),
-              width: 0.8,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
-                  color: color,
-                  shadows: [
-                    Shadow(color: color, offset: const Offset(0.12, 0)),
-                    Shadow(color: color, offset: const Offset(-0.12, 0)),
-                  ],
-                ),
-              ),
-              if (status.trim().toLowerCase() != 'complete' &&
-                  status.trim().toLowerCase() != 'completed' &&
-                  status.trim().toLowerCase() != 'confirmed') ...[
-                const SizedBox(width: 7),
-                Text(
-                  '·',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  '$count ${count == 1 ? 'Request' : 'Requests'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                    shadows: [
-                      Shadow(color: color, offset: const Offset(0.12, 0)),
-                      Shadow(color: color, offset: const Offset(-0.12, 0)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Request',
+      pluralLabel: 'Requests',
+      color: _getStatusColor(status),
     );
   }
 
@@ -837,6 +776,7 @@ class _RequestsViewState extends State<RequestsView> {
                 label: 'Customer Name',
                 value: req.customerName,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'mobileNo') && req.mobileNo != null && req.mobileNo!.trim().isNotEmpty && req.mobileNo != 'N/A')
               ScaledInfoRow(
@@ -847,42 +787,54 @@ class _RequestsViewState extends State<RequestsView> {
                   scaleFactor: scale,
                 ),
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'item') && req.item.trim().isNotEmpty)
               ScaledInfoRow(
                 label: 'Requested Item',
                 value: req.item,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'advance') && req.advance > 0)
               ScaledInfoRow(
                 label: 'Advance Paid',
                 value: '₹${req.advance.toStringAsFixed(2)}',
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'totalAmount') && req.totalAmount > 0)
               ScaledInfoRow(
                 label: 'Total Estimated Price',
                 value: '₹${req.totalAmount.toStringAsFixed(2)}',
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'dealerName') && req.dealerName != null && req.dealerName!.trim().isNotEmpty && req.dealerName != 'N/A')
               ScaledInfoRow(
                 label: 'Dealer Name / Vendor',
                 value: req.dealerName!,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'status'))
               ScaledInfoRow(
                 label: 'Status',
                 value: req.status,
+                valueWidget: AppStatusChip(
+                  status: req.status,
+                  moduleKey: 'requests',
+                  scaleFactor: scale,
+                ),
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'estimate') && req.estimate != null && req.estimate!.trim().isNotEmpty && req.estimate != 'N/A')
               ScaledInfoRow(
                 label: 'Notes',
                 value: req.estimate!,
                 scaleFactor: scale,
+                labelWidth: 175,
               ),
             if (UserPermissionService.isFieldVisible('requests', 'photo') && req.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: req.photoList),

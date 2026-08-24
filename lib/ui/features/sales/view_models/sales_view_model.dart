@@ -157,10 +157,25 @@ class SalesViewModel extends ChangeNotifier {
   }) {
     final int qty = quantity > 0 ? quantity : 1;
     final double effectivePrice = customPrice ?? itemPrice;
+
+    int? resolvedItemId = itemId;
+    if (resolvedItemId == null && lineType == 'Product') {
+      final target = itemDescription.trim().toLowerCase();
+      if (target.isNotEmpty) {
+        final match = _repository
+            .getPricelist()
+            .where((p) => p.itemName.trim().toLowerCase() == target)
+            .firstOrNull;
+        if (match != null) {
+          resolvedItemId = match.id;
+        }
+      }
+    }
+
     final newItem = SaleItem(
       id: '${lineType.toLowerCase()}_${DateTime.now().microsecondsSinceEpoch}_${_cartItems.length}_${_cartItems.hashCode}',
       invoiceNo: 0,
-      itemId: itemId,
+      itemId: resolvedItemId,
       lineType: lineType,
       itemDescription: itemDescription,
       quantity: qty,
@@ -314,8 +329,24 @@ class SalesViewModel extends ChangeNotifier {
       final String orderStatus =
           _editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
 
+      final List<PricelistItem> catalog = _repository.getPricelist();
       final List<SaleItem> finalItems = _cartItems.map((item) {
-        return item.copyWith(invoiceNo: invoiceNo);
+        int? resolvedId = item.itemId;
+        if (resolvedId == null && item.lineType == 'Product') {
+          final target = (item.itemDescription ?? '').trim().toLowerCase();
+          if (target.isNotEmpty) {
+            final match = catalog
+                .where((p) => p.itemName.trim().toLowerCase() == target)
+                .firstOrNull;
+            if (match != null) {
+              resolvedId = match.id;
+            }
+          }
+        }
+        return item.copyWith(
+          invoiceNo: invoiceNo,
+          itemId: resolvedId,
+        );
       }).toList();
 
       final sale = Sale(

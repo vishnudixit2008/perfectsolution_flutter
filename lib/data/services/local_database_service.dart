@@ -287,6 +287,18 @@ class LocalDatabaseService {
     return items;
   }
 
+  int getNextPricelistId() {
+    if (_pricelistBox.isEmpty) return 1;
+    int maxId = 0;
+    for (var key in _pricelistBox.keys) {
+      final int? id = key is int ? key : int.tryParse(key.toString());
+      if (id != null && id > maxId) {
+        maxId = id;
+      }
+    }
+    return maxId + 1;
+  }
+
   Future<void> savePricelistItem(PricelistItem item) async {
     await _pricelistBox.put(item.id, item.toJson());
   }
@@ -644,11 +656,121 @@ class LocalDatabaseService {
         .toList();
   }
 
-  Future<void> saveSale(Sale sale, List<SaleItem> items) async {
-    await _salesBox.put(sale.invoiceNo, sale.toJson());
+  // Lookup product from pricelist box by id or fallback name
+  PricelistItem? _findPricelistProduct(dynamic itemId, String? fallbackName) {
+    dynamic rawProduct;
+    if (itemId != null) {
+      rawProduct = _pricelistBox.get(itemId) ??
+          _pricelistBox.get(itemId.toString()) ??
+          _pricelistBox.get(int.tryParse(itemId.toString()));
+    }
+    if (rawProduct == null && fallbackName != null) {
+      final target = fallbackName.trim().toLowerCase();
+      if (target.isNotEmpty) {
+        for (var key in _pricelistBox.keys) {
+          final raw = _pricelistBox.get(key);
+          if (raw != null) {
+            final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
+            if (p.itemName.trim().toLowerCase() == target) {
+              rawProduct = raw;
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (rawProduct != null) {
+      return PricelistItem.fromJson(Map<String, dynamic>.from(rawProduct));
+    }
+    return null;
+  }
 
-    final itemsJson = items.map((item) => item.toJson()).toList();
+  bool _isSaleConfirmed(String status) {
+    final s = status.trim().toLowerCase();
+    return s == 'confirmed' || s == 'complete' || s == 'completed';
+  }
+
+  Future<List<PricelistItem>> _adjustStockForSale(
+    List<SaleItem> items, {
+    required bool isDeducting,
+  }) async {
+    final List<PricelistItem> updatedProducts = [];
+
+    for (var item in items) {
+      if (item.lineType == 'Product') {
+        final product = _findPricelistProduct(
+          item.itemId,
+          item.itemDescription,
+        );
+
+        if (product != null) {
+          final updatedProduct = product.copyWith(
+            stockQty: isDeducting
+                ? (product.stockQty - item.quantity)
+                : (product.stockQty + item.quantity),
+          );
+          await _pricelistBox.put(product.id, updatedProduct.toJson());
+          updatedProducts.add(updatedProduct);
+        }
+      }
+    }
+
+    return updatedProducts;
+  }
+
+  Future<List<PricelistItem>> saveSale(Sale sale, List<SaleItem> items) async {
+    final List<PricelistItem> updatedProducts = [];
+    final rawExisting = _salesBox.get(sale.invoiceNo);
+
+    // Resolve and backfill any missing itemId on Product line items before saving
+    final resolvedItems = items.map((item) {
+      if (item.lineType == 'Product' && item.itemId == null) {
+        final product = _findPricelistProduct(
+          null,
+          item.itemDescription,
+        );
+        if (product != null) {
+          return item.copyWith(itemId: product.id);
+        }
+      }
+      return item;
+    }).toList();
+
+    if (rawExisting != null) {
+      final existing = Sale.fromJson(Map<String, dynamic>.from(rawExisting));
+      final wasConfirmed = _isSaleConfirmed(existing.orderStatus);
+      final nowConfirmed = _isSaleConfirmed(sale.orderStatus);
+
+      if (!wasConfirmed && nowConfirmed) {
+        // Transitioned from pending to complete/confirmed — deduct stock
+        final res = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res);
+      } else if (wasConfirmed && !nowConfirmed) {
+        // Reverted from complete/confirmed to pending — restore stock
+        final oldItems = getSaleItems(sale.invoiceNo);
+        final res = await _adjustStockForSale(oldItems, isDeducting: false);
+        updatedProducts.addAll(res);
+      } else if (wasConfirmed && nowConfirmed) {
+        // Was confirmed, still confirmed but items or quantities may have changed — re-adjust
+        final oldItems = getSaleItems(sale.invoiceNo);
+        final res1 = await _adjustStockForSale(oldItems, isDeducting: false);
+        final res2 = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res1);
+        updatedProducts.addAll(res2);
+      }
+    } else {
+      // New sale
+      if (_isSaleConfirmed(sale.orderStatus)) {
+        final res = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res);
+      }
+    }
+
+    await _salesBox.put(sale.invoiceNo, sale.toJson());
+    final itemsJson = resolvedItems.map((item) => item.toJson()).toList();
     await _saleItemsBox.put(sale.invoiceNo, itemsJson);
+
+    return updatedProducts;
   }
 
   // Confirm order and deduct inventory
@@ -657,8 +779,7 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    final normalized = sale.orderStatus.trim().toLowerCase();
-    if (normalized == 'confirmed' || normalized == 'complete' || normalized == 'completed') return []; // Already confirmed
+    if (_isSaleConfirmed(sale.orderStatus)) return []; // Already confirmed
 
     // 1. Mark sale as Complete
     final updatedSale = sale.copyWith(orderStatus: 'Complete');
@@ -666,42 +787,7 @@ class LocalDatabaseService {
 
     // 2. Deduct quantities from stock for all product lines
     final items = getSaleItems(invoiceNo);
-    final List<PricelistItem> updatedProducts = [];
-
-    for (var item in items) {
-      if (item.lineType == 'Product') {
-        dynamic rawProduct;
-        if (item.itemId != null) {
-          rawProduct = _pricelistBox.get(item.itemId);
-        }
-        if (rawProduct == null) {
-          final targetDesc = (item.itemDescription ?? '').trim().toLowerCase();
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetDesc) {
-                rawProduct = raw;
-                break;
-              }
-            }
-          }
-        }
-
-        if (rawProduct != null) {
-          final product = PricelistItem.fromJson(
-            Map<String, dynamic>.from(rawProduct),
-          );
-          final updatedProduct = product.copyWith(
-            stockQty: product.stockQty - item.quantity,
-          );
-          await _pricelistBox.put(product.id, updatedProduct.toJson());
-          updatedProducts.add(updatedProduct);
-        }
-      }
-    }
-
-    return updatedProducts;
+    return await _adjustStockForSale(items, isDeducting: true);
   }
 
   // Revert order status to PENDING and add back the deducted stock quantities
@@ -710,8 +796,7 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    final normalized = sale.orderStatus.trim().toLowerCase();
-    if (normalized == 'pending') return []; // Already pending
+    if (!_isSaleConfirmed(sale.orderStatus)) return []; // Already pending
 
     // 1. Mark sale as Pending
     final updatedSale = sale.copyWith(orderStatus: 'Pending');
@@ -719,75 +804,28 @@ class LocalDatabaseService {
 
     // 2. Add quantities back to stock for all product lines (revert deduction)
     final items = getSaleItems(invoiceNo);
-    final List<PricelistItem> updatedProducts = [];
-
-    for (var item in items) {
-      if (item.lineType == 'Product') {
-        dynamic rawProduct;
-        if (item.itemId != null) {
-          rawProduct = _pricelistBox.get(item.itemId);
-        }
-        if (rawProduct == null) {
-          final targetDesc = (item.itemDescription ?? '').trim().toLowerCase();
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetDesc) {
-                rawProduct = raw;
-                break;
-              }
-            }
-          }
-        }
-
-        if (rawProduct != null) {
-          final product = PricelistItem.fromJson(
-            Map<String, dynamic>.from(rawProduct),
-          );
-          final updatedProduct = product.copyWith(
-            stockQty: product.stockQty + item.quantity,
-          );
-          await _pricelistBox.put(product.id, updatedProduct.toJson());
-          updatedProducts.add(updatedProduct);
-        }
-      }
-    }
-
-    return updatedProducts;
+    return await _adjustStockForSale(items, isDeducting: false);
   }
 
   // Delete sale records and revert stock if it was already confirmed
-  Future<bool> deleteSale(int invoiceNo) async {
+  Future<List<PricelistItem>> deleteSale(int invoiceNo) async {
     final rawSale = _salesBox.get(invoiceNo);
-    if (rawSale == null) return false;
+    if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
+    final List<PricelistItem> restoredProducts = [];
 
     // Revert stock deduction if order was already completed/confirmed
-    final normStatus = sale.orderStatus.trim().toLowerCase();
-    if (normStatus == 'confirmed' || normStatus == 'complete' || normStatus == 'completed') {
+    if (_isSaleConfirmed(sale.orderStatus)) {
       final items = getSaleItems(invoiceNo);
-      for (var item in items) {
-        if (item.lineType == 'Product' && item.itemId != null) {
-          final rawProduct = _pricelistBox.get(item.itemId);
-          if (rawProduct != null) {
-            final product = PricelistItem.fromJson(
-              Map<String, dynamic>.from(rawProduct),
-            );
-            final updatedProduct = product.copyWith(
-              stockQty: product.stockQty + item.quantity,
-            );
-            await _pricelistBox.put(product.id, updatedProduct.toJson());
-          }
-        }
-      }
+      final res = await _adjustStockForSale(items, isDeducting: false);
+      restoredProducts.addAll(res);
     }
 
     // Delete from boxes
     await _salesBox.delete(invoiceNo);
     await _saleItemsBox.delete(invoiceNo);
-    return true;
+    return restoredProducts;
   }
 
   // --- Calls Methods ---
@@ -1145,7 +1183,8 @@ class LocalDatabaseService {
         updatedProducts.addAll(res);
       } else if (wasConfirmed && !nowConfirmed) {
         // Reverted from complete/confirmed — remove stock
-        final res = await _adjustStockForPurchase(items, isAdding: false);
+        final oldItems = getPurchaseOrderItems(order.id);
+        final res = await _adjustStockForPurchase(oldItems, isAdding: false);
         updatedProducts.addAll(res);
       } else if (wasConfirmed && nowConfirmed) {
         // Was confirmed, still confirmed but items may have changed — re-adjust
@@ -1219,37 +1258,12 @@ class LocalDatabaseService {
     final List<PricelistItem> updatedProducts = [];
 
     for (var item in items) {
-      dynamic rawProd;
+      final prod = _findPricelistProduct(
+        item.itemId,
+        item.itemName ?? item.customItemName,
+      );
 
-      // 1. Direct lookup by itemId (check int, string, and parsed int representation)
-      if (item.itemId != null) {
-        rawProd = _pricelistBox.get(item.itemId) ??
-            _pricelistBox.get(item.itemId.toString()) ??
-            _pricelistBox.get(int.tryParse(item.itemId.toString()));
-      }
-
-      // 2. Fallback: Lookup by item name (itemName or customItemName) case-insensitively
-      if (rawProd == null) {
-        final targetName = (item.itemName ?? item.customItemName ?? '').trim().toLowerCase();
-        if (targetName.isNotEmpty) {
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetName) {
-                rawProd = raw;
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      // 3. If product is found, adjust stock quantity!
-      if (rawProd != null) {
-        final prod = PricelistItem.fromJson(
-          Map<String, dynamic>.from(rawProd),
-        );
+      if (prod != null) {
         final updated = prod.copyWith(
           stockQty: isAdding
               ? (prod.stockQty + item.quantity)
