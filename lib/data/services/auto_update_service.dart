@@ -73,6 +73,11 @@ class AutoUpdateService extends ChangeNotifier {
       return;
     }
 
+    // In debug mode (VS Code / flutter run), skip automatic background downloads to avoid interrupting development
+    if (kDebugMode && !force) {
+      return;
+    }
+
     if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isAndroid)) {
       _setStatus(AutoUpdateStatus.checking);
       try {
@@ -215,14 +220,27 @@ class AutoUpdateService extends ChangeNotifier {
     return await AppUpdateDownloader.launchInstaller(file);
   }
 
+  String _resolveTargetAppPath() {
+    final exePath = Platform.resolvedExecutable;
+    final appIdx = exePath.indexOf('.app');
+    if (appIdx != -1) {
+      final runningAppPath = exePath.substring(0, appIdx + 4);
+      // If not running directly from a read-only DMG volume, replace the running bundle
+      if (!runningAppPath.startsWith('/Volumes/')) {
+        return runningAppPath;
+      }
+    }
+    return '/Applications/Perfect Solution.app';
+  }
+
   // ---------------------------------------------------------------------------
-  // macOS: in-place update entirely from Dart – no bash script, no Finder.
+  // macOS: detached background shell script handles replacement after process exit
   // ---------------------------------------------------------------------------
   Future<bool> _performMacosUpdate(String dmgPath) async {
     try {
       final mountDir = '/tmp/ps_updater_mnt_${DateTime.now().millisecondsSinceEpoch}';
 
-      // Step 1: Silently detach any stale DMG mounts from previous attempts (run in parallel)
+      // Step 1: Silently detach any stale DMG mounts from previous attempts
       _installStatus = 'Preparing...';
       notifyListeners();
       await Future.wait([
@@ -238,8 +256,6 @@ class AutoUpdateService extends ChangeNotifier {
       ]);
 
       // Step 2: Create dedicated mountpoint and attach DMG silently.
-      // -noverify skips the slow CRC checksum (~5–8 s) — the file was already
-      // verified at download time, so skipping it is safe and fast.
       _installStatus = 'Mounting update package...';
       notifyListeners();
       await Directory(mountDir).create(recursive: true);
@@ -278,38 +294,62 @@ class AutoUpdateService extends ChangeNotifier {
       }
       if (kDebugMode) print('Found app in DMG: $appInDmg');
 
-      // Step 4: Remove old bundle and copy new one using ditto (preserves code signing)
-      _installStatus = 'Installing update...';
+      final destApp = _resolveTargetAppPath();
+      if (kDebugMode) print('Target macOS app path for update: $destApp');
+
+      // Step 4: Write a detached updater script that executes immediately once this app process exits.
+      // Doing the replacement outside the running app process guarantees no file-lock errors.
+      _installStatus = 'Installing & Relaunching...';
       notifyListeners();
-      const destApp = '/Applications/Perfect Solution.app';
-      await Process.run('/bin/rm', ['-rf', destApp], runInShell: false);
-      final dittoResult = await Process.run(
-        '/usr/bin/ditto',
-        [appInDmg, destApp],
+
+      final scriptPath = '/tmp/ps_updater_${DateTime.now().millisecondsSinceEpoch}.sh';
+      final scriptFile = File(scriptPath);
+      final currentPid = pid;
+
+      final scriptContent = '''#!/bin/bash
+PID=$currentPid
+MOUNT_DIR="$mountDir"
+DMG_PATH="$dmgPath"
+APP_IN_DMG="$appInDmg"
+DEST_APP="$destApp"
+
+# 1. Wait for old Flutter process to fully terminate
+while kill -0 \$PID 2>/dev/null; do
+  sleep 0.15
+done
+sleep 0.2
+
+# 2. Replace the application bundle
+rm -rf "\$DEST_APP"
+/usr/bin/ditto "\$APP_IN_DMG" "\$DEST_APP"
+
+# 3. Strip quarantine so Gatekeeper permits execution
+/usr/bin/xattr -cr "\$DEST_APP" 2>/dev/null
+
+# 4. Detach DMG & remove temp mount
+/usr/bin/hdiutil detach "\$MOUNT_DIR" -force -quiet 2>/dev/null
+rm -rf "\$MOUNT_DIR"
+rm -f "\$DMG_PATH"
+
+# 5. Relaunch the new application and bring to foreground
+/usr/bin/open -n -a "\$DEST_APP" 2>/dev/null || /usr/bin/open "\$DEST_APP"
+
+# 6. Self cleanup
+rm -f "\$0"
+''';
+
+      await scriptFile.writeAsString(scriptContent);
+      await Process.run('/bin/chmod', ['+x', scriptPath], runInShell: false);
+
+      // Launch the script completely detached
+      await Process.start(
+        '/bin/bash',
+        [scriptPath],
+        mode: ProcessStartMode.detached,
         runInShell: false,
       );
-      if (kDebugMode) {
-        print('ditto exit: ${dittoResult.exitCode}');
-        print('ditto stderr: ${dittoResult.stderr}');
-      }
 
-      // Step 5: Strip quarantine so Gatekeeper doesn't block the new build
-      await Process.run('/usr/bin/xattr', ['-cr', destApp], runInShell: false);
-
-      // Step 6: Detach DMG, delete mount dir, delete downloaded file (in parallel)
-      _installStatus = 'Relaunching...';
-      notifyListeners();
-      await Future.wait([
-        Process.run('/usr/bin/hdiutil', ['detach', mountDir, '-force', '-quiet'],
-            runInShell: false),
-        Directory(mountDir).delete(recursive: true).catchError((_) => Directory(mountDir)),
-        File(dmgPath).delete().catchError((_) => File(dmgPath)),
-      ]);
-
-      // Step 7: Launch updated app, then exit this process
-      await Process.start('/usr/bin/open', ['-n', destApp],
-          mode: ProcessStartMode.detached, runInShell: false);
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 200));
       exit(0);
     } catch (e) {
       if (kDebugMode) print('macOS in-place update error: $e');
@@ -320,63 +360,54 @@ class AutoUpdateService extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // Windows: silent update via a minimal detached PowerShell script.
-  // PowerShell is used (not cmd) because it can be started completely hidden
-  // with -WindowStyle Hidden, ensuring no console window ever flashes for users.
+  // Windows: silent update via a detached batch script for universal reliability.
   // ---------------------------------------------------------------------------
   Future<bool> _performWindowsUpdate(String installerPath) async {
     try {
-      _installStatus = 'Installing update...';
+      _installStatus = 'Installing & Relaunching...';
       notifyListeners();
       final tempDir = await getTemporaryDirectory();
-      final scriptFile = File('${tempDir.path}\\ps_updater.ps1');
+      final scriptFile = File('${tempDir.path}\\ps_win_updater_${DateTime.now().millisecondsSinceEpoch}.bat');
       final currentExe = Platform.resolvedExecutable;
       final currentPid = pid;
 
-      // Build the exe path to relaunch after the installer finishes.
-      // In production, the Inno Setup installer overwrites the exe in-place,
-      // so we relaunch from the same path. In debug mode (dart.exe / flutter),
-      // we fall back to the registered %ProgramFiles% install location.
       final String relaunchExe;
       if (currentExe.toLowerCase().contains('flutter_tools') ||
           currentExe.toLowerCase().endsWith('dart.exe')) {
-        relaunchExe = r'$env:ProgramFiles\Perfect Solution\Perfect Solution.exe';
+        relaunchExe = r'%ProgramFiles%\Perfect Solution\Perfect Solution.exe';
       } else {
-        relaunchExe = currentExe.replaceAll(r'\', r'\\');
+        relaunchExe = currentExe;
       }
 
-      // PowerShell script – runs entirely in the background, no window shown.
-      // Timeouts are kept minimal:
-      //   1s before kill  – Flutter exit(0) needs ~400ms, 1s is comfortable
-      //   1s after kill   – OS needs time to release file handles on the exe
-      //   1s after install – registry writes / shortcuts settle before relaunch
-      final scriptContent = '''
-Start-Sleep -Seconds 1
-Stop-Process -Id $currentPid -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
-Start-Process -FilePath "$installerPath" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/SP-", "/NORESTART", "/CLOSEAPPLICATIONS", "/FORCECLOSEAPPLICATIONS" -Wait -WindowStyle Hidden
-Start-Sleep -Seconds 1
-\$exe = "$relaunchExe"
-if (Test-Path \$exe) { Start-Process -FilePath \$exe }
-Remove-Item -Path "$installerPath" -Force -ErrorAction SilentlyContinue
+      final scriptContent = '''@echo off
+setlocal enabledelayedexpansion
+timeout /t 1 /nobreak >nul
+taskkill /F /PID $currentPid >nul 2>&1
+timeout /t 1 /nobreak >nul
+start /wait "" "$installerPath" /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS
+timeout /t 1 /nobreak >nul
+if exist "$relaunchExe" (
+    start "" "$relaunchExe"
+) else if exist "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe" (
+    start "" "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe"
+) else if exist "%LOCALAPPDATA%\\Programs\\Perfect Solution\\Perfect Solution.exe" (
+    start "" "%LOCALAPPDATA%\\Programs\\Perfect Solution\\Perfect Solution.exe"
+)
+del /f /q "$installerPath" >nul 2>&1
+del /f /q "%~f0" >nul 2>&1
 ''';
 
       await scriptFile.writeAsString(scriptContent);
 
-      // Launch PowerShell completely hidden – no window, no flicker
+      // Launch batch file completely detached with cmd /c
       await Process.start(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-WindowStyle', 'Hidden',
-          '-ExecutionPolicy', 'Bypass',
-          '-File', scriptFile.path,
-        ],
+        'cmd.exe',
+        ['/c', scriptFile.path],
         mode: ProcessStartMode.detached,
         runInShell: false,
       );
-      await Future.delayed(const Duration(milliseconds: 400));
+
+      await Future.delayed(const Duration(milliseconds: 200));
       exit(0);
     } catch (e) {
       if (kDebugMode) print('Windows in-place update error: $e');
