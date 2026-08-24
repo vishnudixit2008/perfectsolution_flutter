@@ -113,18 +113,6 @@ jobs:
           Write-Host "=== Final Release Directory Contents ==="
           Get-ChildItem $releaseDir | Select-Object Name
 
-      - name: Download VC++ Redistributable Installer
-        shell: powershell
-        run: |
-          $url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
-          $out = "vc_redist.x64.exe"
-          Write-Host "Downloading VC++ Redistributable from $url ..."
-          Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing
-          if (Test-Path $out) {
-            Write-Host "Downloaded: $((Get-Item $out).Length) bytes"
-          } else {
-            throw "Failed to download VC++ Redistributable"
-          }
 
       - name: Package Windows Installer
         shell: powershell
@@ -141,21 +129,21 @@ jobs:
           Add-Content  -Path $iss -Value 'DefaultDirName={autopf}\Perfect Solution'
           Add-Content  -Path $iss -Value "DefaultGroupName=Perfect Solution"
           Add-Content  -Path $iss -Value 'UninstallDisplayIcon={app}\shop_management_flutter.exe'
-          Add-Content  -Path $iss -Value "Compression=lzma2/ultra64"
+          Add-Content  -Path $iss -Value "Compression=lzma2/normal"
           Add-Content  -Path $iss -Value "SolidCompression=yes"
           Add-Content  -Path $iss -Value "OutputDir=."
           Add-Content  -Path $iss -Value "OutputBaseFilename=PerfectSolution-Setup"
           Add-Content  -Path $iss -Value "ArchitecturesInstallIn64BitMode=x64"
           Add-Content  -Path $iss -Value "ArchitecturesAllowed=x64"
           Add-Content  -Path $iss -Value "MinVersion=10.0"
-          Add-Content  -Path $iss -Value "PrivilegesRequired=admin"
+          Add-Content  -Path $iss -Value "PrivilegesRequired=lowest"
+          Add-Content  -Path $iss -Value "PrivilegesRequiredOverridesAllowed=commandline"
           Add-Content  -Path $iss -Value "CloseApplications=yes"
           Add-Content  -Path $iss -Value "RestartApplications=no"
           Add-Content  -Path $iss -Value ""
 
           Add-Content  -Path $iss -Value "[Files]"
           Add-Content  -Path $iss -Value 'Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs'
-          Add-Content  -Path $iss -Value 'Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall'
           Add-Content  -Path $iss -Value ""
 
           Add-Content  -Path $iss -Value "[Icons]"
@@ -168,17 +156,7 @@ jobs:
           Add-Content  -Path $iss -Value ""
 
           Add-Content  -Path $iss -Value "[Run]"
-          Add-Content  -Path $iss -Value 'Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /passive /norestart"; StatusMsg: "Installing Visual C++ Redistributable Prerequisites..."; Flags: waituntilterminated; Check: NeedsVCRedist'
           Add-Content  -Path $iss -Value 'Filename: "{app}\shop_management_flutter.exe"; Description: "{cm:LaunchProgram,Perfect Solution}"; Flags: nowait postinstall skipifsilent'
-          Add-Content  -Path $iss -Value ""
-
-          Add-Content  -Path $iss -Value "[Code]"
-          Add-Content  -Path $iss -Value "function NeedsVCRedist: Boolean;"
-          Add-Content  -Path $iss -Value "var"
-          Add-Content  -Path $iss -Value "  Installed: Cardinal;"
-          Add-Content  -Path $iss -Value "begin"
-          Add-Content  -Path $iss -Value "  Result := not (RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) and (Installed = 1));"
-          Add-Content  -Path $iss -Value "end;"
 
           Write-Host "=== Generated installer.iss ==="
           Get-Content $iss

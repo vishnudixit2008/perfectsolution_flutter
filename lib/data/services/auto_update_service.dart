@@ -270,17 +270,24 @@ class AutoUpdateService extends ChangeNotifier {
         print('hdiutil attach stderr: ${attachResult.stderr}');
       }
 
-      // Step 3: Find the .app bundle inside the mounted DMG
+      // Step 3: Find the .app bundle inside the mounted DMG.
+      // CRITICAL: We MUST use followLinks: false and recursive: false so it does NOT follow
+      // the "Applications -> /Applications" symlink created by create-dmg into the system's /Applications folder.
       String? appInDmg;
-      try {
-        await for (final entity in Directory(mountDir).list(recursive: true)) {
-          if (entity is Directory && entity.path.endsWith('.app')) {
-            appInDmg = entity.path;
-            break;
+      final directAppPath = '$mountDir/Perfect Solution.app';
+      if (Directory(directAppPath).existsSync() && !FileSystemEntity.isLinkSync(directAppPath)) {
+        appInDmg = directAppPath;
+      } else {
+        try {
+          await for (final entity in Directory(mountDir).list(recursive: false, followLinks: false)) {
+            if (entity is Directory && entity.path.endsWith('.app') && !FileSystemEntity.isLinkSync(entity.path)) {
+              appInDmg = entity.path;
+              break;
+            }
           }
+        } catch (e) {
+          if (kDebugMode) print('Error finding .app in DMG: $e');
         }
-      } catch (e) {
-        if (kDebugMode) print('Error finding .app in DMG: $e');
       }
 
       if (appInDmg == null || !Directory(appInDmg).existsSync()) {
@@ -332,7 +339,7 @@ rm -rf "\$MOUNT_DIR"
 rm -f "\$DMG_PATH"
 
 # 5. Relaunch the new application and bring to foreground
-/usr/bin/open -n -a "\$DEST_APP" 2>/dev/null || /usr/bin/open "\$DEST_APP"
+/usr/bin/open -n "\$DEST_APP" 2>/dev/null || /usr/bin/open "\$DEST_APP"
 
 # 6. Self cleanup
 rm -f "\$0"
@@ -381,17 +388,16 @@ rm -f "\$0"
 
       final scriptContent = '''@echo off
 setlocal enabledelayedexpansion
-timeout /t 1 /nobreak >nul
 taskkill /F /PID $currentPid >nul 2>&1
-timeout /t 1 /nobreak >nul
 start /wait "" "$installerPath" /VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS
-timeout /t 1 /nobreak >nul
 if exist "$relaunchExe" (
     start "" "$relaunchExe"
-) else if exist "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe" (
-    start "" "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe"
 ) else if exist "%LOCALAPPDATA%\\Programs\\Perfect Solution\\Perfect Solution.exe" (
     start "" "%LOCALAPPDATA%\\Programs\\Perfect Solution\\Perfect Solution.exe"
+) else if exist "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe" (
+    start "" "%ProgramFiles%\\Perfect Solution\\Perfect Solution.exe"
+) else if exist "%ProgramFiles(x86)%\\Perfect Solution\\Perfect Solution.exe" (
+    start "" "%ProgramFiles(x86)%\\Perfect Solution\\Perfect Solution.exe"
 )
 del /f /q "$installerPath" >nul 2>&1
 del /f /q "%~f0" >nul 2>&1
