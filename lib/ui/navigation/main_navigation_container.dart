@@ -76,9 +76,28 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   void _setupKioskBroadcastListener() {
     KioskBroadcastService.instance.init();
 
+    // Check if there is an unhandled pending QR payload from cold start
+    if (KioskBroadcastService.instance.latestPendingQrPayload != null) {
+      final pending = KioskBroadcastService.instance.latestPendingQrPayload!;
+      KioskBroadcastService.instance.clearPendingQr();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!UiPreferencesService.isKioskMode() && !pending.isDirectPush) return;
+        final timeout = UiPreferencesService.getKioskTimeoutSeconds();
+        _openKioskQrModal(
+          amount: pending.amount,
+          invoiceNo: pending.invoiceNo,
+          customerName: pending.customerName,
+          autoCloseSeconds: timeout,
+          upiId: pending.upiId,
+          upiName: pending.upiName,
+        );
+      });
+    }
+
     _kioskShowSubscription = KioskBroadcastService.instance.onShowQr.listen((payload) {
       if (!mounted) return;
-      if (!UiPreferencesService.isKioskMode()) return;
+      if (!UiPreferencesService.isKioskMode() && !payload.isDirectPush) return;
 
       // Bring Android app to front over other apps if minimized
       KioskOverlayHelper.bringAppToFront();

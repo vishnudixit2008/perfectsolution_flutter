@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../data/models/call_model.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/services/fcm_push_sender_service.dart';
 
 class CallsViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -134,9 +135,13 @@ class CallsViewModel extends ChangeNotifier {
     return _repository.getNextCallId();
   }
 
-  Future<void> saveCall(CallModel call) async {
+  Future<void> saveCall(CallModel call, {bool isNew = true}) async {
     await _repository.saveCall(call);
     await loadCalls();
+
+    if (isNew && call.assignedTo.trim().isNotEmpty && call.assignedTo.trim() != 'N/A') {
+      unawaited(FcmPushSenderService.instance.sendCallAssignmentPush(call));
+    }
   }
 
   Future<void> deleteCall(int id) async {

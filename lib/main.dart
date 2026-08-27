@@ -30,6 +30,10 @@ import 'ui/features/purchases/view_models/purchases_view_model.dart';
 import 'ui/features/auth/view_models/auth_view_model.dart';
 import 'ui/features/auth/views/login_view.dart';
 import 'ui/navigation/navigation_view_model.dart';
+import 'data/services/fcm_service.dart';
+import 'ui/features/permissions/views/permissions_gate_view.dart';
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +51,9 @@ void main(List<String> args) async {
   await GoogleDriveUploadService.init();
   // This also calls Supabase.initialize() internally
   await SupabaseSyncService.instance.init(localDb);
+
+  // Initialize Firebase Cloud Messaging & Full Screen Alerts
+  await FcmService.instance.init(key: rootNavigatorKey);
 
   // If Kiosk Mode is active on Android, keep WebSocket alive with foreground service
   if (UiPreferencesService.isKioskMode()) {
@@ -200,26 +207,29 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Perfect Solution',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.themeData,
-      home: Consumer<AuthViewModel>(
-        builder: (context, authViewModel, _) {
-          if (!authViewModel.isAuthenticated) {
-            return const LoginView();
-          }
+      home: PermissionsGateView(
+        child: Consumer<AuthViewModel>(
+          builder: (context, authViewModel, _) {
+            if (!authViewModel.isAuthenticated) {
+              return const LoginView();
+            }
 
-          // Secondary Security Gate: Ensure user is authorized in active permissions
-          final userEmail = authViewModel.currentUser.email;
-          if (!UserPermissionService.isAuthorizedUser(userEmail)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              authViewModel.logout();
-            });
-            return const LoginView();
-          }
+            // Secondary Security Gate: Ensure user is authorized in active permissions
+            final userEmail = authViewModel.currentUser.email;
+            if (!UserPermissionService.isAuthorizedUser(userEmail)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                authViewModel.logout();
+              });
+              return const LoginView();
+            }
 
-          return const MainNavigationContainer();
-        },
+            return const MainNavigationContainer();
+          },
+        ),
       ),
     );
   }

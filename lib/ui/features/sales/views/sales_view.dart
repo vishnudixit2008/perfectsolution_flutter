@@ -1157,9 +1157,6 @@ class _SalesViewState extends State<SalesView> {
           title: cartVM.isEditing
               ? 'Edit Invoice #${cartVM.editingInvoiceNo}'
               : 'Create Invoice',
-          subtitle: cartVM.isEditing
-              ? 'Update line items, rates, customer info, or order status.'
-              : 'Search catalog, override prices, and confirm checkout.',
           onBack: () {
             cartVM.clearCart();
             _clearLocalForm();
@@ -1235,7 +1232,7 @@ class _SalesViewState extends State<SalesView> {
       index: 0,
       child: Container(
         height: height,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: AppTheme.glassCardDecoration(
           color: Colors.white.withValues(alpha: 0.02),
           borderRadius: 12,
@@ -1249,20 +1246,20 @@ class _SalesViewState extends State<SalesView> {
                 const Icon(
                   Icons.receipt_rounded,
                   color: AppTheme.primaryLight,
-                  size: 20,
+                  size: 18,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Invoice #${viewModel.currentOrNextInvoiceNo}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryLight,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Builder(
               builder: (context) {
                 final bool isMobile = MediaQuery.of(context).size.width < 600;
@@ -1630,7 +1627,7 @@ class _SalesViewState extends State<SalesView> {
     return StaggeredSlideFade(
       index: 1,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: AppTheme.glassCardDecoration(
           color: Colors.white.withValues(alpha: 0.02),
           borderRadius: 12,
@@ -1639,59 +1636,25 @@ class _SalesViewState extends State<SalesView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const Row(
                 children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.assignment_turned_in_rounded,
-                        color: AppTheme.primaryLight,
-                        size: 20,
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Checkout Summary',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    Icons.assignment_turned_in_rounded,
+                    color: AppTheme.primaryLight,
+                    size: 18,
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: AppTheme.primaryLight.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.tag_rounded,
-                          size: 13,
-                          color: AppTheme.primaryLight,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Invoice #${cartVM.currentOrNextInvoiceNo}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryLight,
-                          ),
-                        ),
-                      ],
+                  SizedBox(width: 8),
+                  Text(
+                    'Checkout Summary',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               if (isDateVis) ...[
                 DateTimePickerField(
@@ -1701,18 +1664,18 @@ class _SalesViewState extends State<SalesView> {
                   isVisible: isDateVis,
                   canEdit: isDateMod,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
               ],
 
               const Text(
                 'Customer Information',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: AppTheme.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               TextFormField(
                 controller: _customerNameController,
                 decoration: const InputDecoration(
@@ -1721,7 +1684,7 @@ class _SalesViewState extends State<SalesView> {
                 ),
                 onChanged: (val) => cartVM.setCustomerName(val),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _customerPhoneController,
                 decoration: const InputDecoration(
@@ -1731,17 +1694,17 @@ class _SalesViewState extends State<SalesView> {
                 keyboardType: TextInputType.phone,
                 onChanged: (val) => cartVM.setCustomerNumber(val),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               const Text(
                 'Calculations & Adjustments',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: AppTheme.textPrimary,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   Expanded(
@@ -1761,7 +1724,7 @@ class _SalesViewState extends State<SalesView> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: TextFormField(
                       controller: _advanceController,
@@ -1781,7 +1744,7 @@ class _SalesViewState extends State<SalesView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
               // Animated Payment Mode Segmented Chips
               Column(
@@ -1791,11 +1754,11 @@ class _SalesViewState extends State<SalesView> {
                     'Payment Mode',
                     style: TextStyle(
                       color: AppTheme.textSecondary,
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       for (final mode in [
@@ -1813,12 +1776,12 @@ class _SalesViewState extends State<SalesView> {
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               curve: AppleMotion.easeOut,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               decoration: BoxDecoration(
                                 color: cartVM.paymentMode == mode.$1
                                     ? AppTheme.primary
                                     : Colors.white.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: cartVM.paymentMode == mode.$1
                                       ? AppTheme.primaryLight
@@ -1839,12 +1802,12 @@ class _SalesViewState extends State<SalesView> {
                                 children: [
                                   Icon(
                                     mode.$2,
-                                    size: 16,
+                                    size: 15,
                                     color: cartVM.paymentMode == mode.$1
                                         ? Colors.white
                                         : AppTheme.textMuted,
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 5),
                                   Text(
                                     mode.$1,
                                     style: TextStyle(
@@ -1868,16 +1831,16 @@ class _SalesViewState extends State<SalesView> {
                 ],
               ),
               if (cartVM.isEditing && UserPermissionService.isFieldVisible('sales', 'orderStatus')) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Order Status:',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(6),
@@ -1902,7 +1865,7 @@ class _SalesViewState extends State<SalesView> {
                             style: const TextStyle(
                               color: AppTheme.textPrimary,
                               fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                              fontSize: 12.5,
                             ),
                             items: selectableList.map((st) {
                               return DropdownMenuItem<String>(value: st, child: Text(st));
@@ -1922,14 +1885,14 @@ class _SalesViewState extends State<SalesView> {
                 ),
               ],
 
-              const Divider(color: Colors.white10, height: 28),
+              const Divider(color: Colors.white10, height: 16),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Subtotal',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
                   ),
                   RollingNumberTicker(
                     value: cartVM.subtotal,
@@ -1937,20 +1900,20 @@ class _SalesViewState extends State<SalesView> {
                     decimalDigits: 2,
                     style: const TextStyle(
                       color: AppTheme.textPrimary,
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
               if (cartVM.discount > 0) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Discount Applied',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
                     ),
                     RollingNumberTicker(
                       value: cartVM.discount,
@@ -1958,7 +1921,7 @@ class _SalesViewState extends State<SalesView> {
                       decimalDigits: 2,
                       style: const TextStyle(
                         color: AppTheme.danger,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1966,13 +1929,13 @@ class _SalesViewState extends State<SalesView> {
                 ),
               ],
               if (cartVM.advance > 0) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       'Advance Paid',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12.5),
                     ),
                     RollingNumberTicker(
                       value: cartVM.advance,
@@ -1980,18 +1943,18 @@ class _SalesViewState extends State<SalesView> {
                       decimalDigits: 2,
                       style: const TextStyle(
                         color: AppTheme.success,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // Glowing Total Payable Card
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -2001,15 +1964,15 @@ class _SalesViewState extends State<SalesView> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: AppTheme.primaryLight.withValues(alpha: 0.35),
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: AppTheme.primary.withValues(alpha: 0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -2022,17 +1985,17 @@ class _SalesViewState extends State<SalesView> {
                         const Text(
                           'TOTAL PAYABLE',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textSecondary,
                             letterSpacing: 0.8,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           '${cartVM.cartItems.length} item${cartVM.cartItems.length == 1 ? '' : 's'} in cart',
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             color: AppTheme.textMuted,
                           ),
                         ),
@@ -2043,7 +2006,7 @@ class _SalesViewState extends State<SalesView> {
                       prefix: '₹',
                       decimalDigits: 2,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.success,
                         letterSpacing: -0.5,
@@ -2052,7 +2015,7 @@ class _SalesViewState extends State<SalesView> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
 
               // Confirm Checkout / Update Invoice
               BouncyPressable(

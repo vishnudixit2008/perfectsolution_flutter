@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'fcm_push_sender_service.dart';
 
 class KioskBroadcastPayload {
   final double amount;
@@ -8,6 +9,7 @@ class KioskBroadcastPayload {
   final String? customerName;
   final String? upiId;
   final String? upiName;
+  final bool isDirectPush;
 
   KioskBroadcastPayload({
     required this.amount,
@@ -15,6 +17,7 @@ class KioskBroadcastPayload {
     this.customerName,
     this.upiId,
     this.upiName,
+    this.isDirectPush = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -34,6 +37,7 @@ class KioskBroadcastPayload {
       customerName: json['customerName'] as String?,
       upiId: json['upiId'] as String?,
       upiName: json['upiName'] as String?,
+      isDirectPush: false,
     );
   }
 }
@@ -55,10 +59,39 @@ class KioskBroadcastService {
       _activeUpiChangedController.stream;
 
   bool _isSubscribed = false;
+  bool _isInitializing = false;
+  KioskBroadcastPayload? latestPendingQrPayload;
+
+  /// Displays the QR code locally on this kiosk device without rebroadcasting
+  void showLocalQr({
+    required double amount,
+    String? invoiceNo,
+    String? customerName,
+    String? upiId,
+    String? upiName,
+    bool isDirectPush = true,
+  }) {
+    final payload = KioskBroadcastPayload(
+      amount: amount,
+      invoiceNo: invoiceNo,
+      customerName: customerName,
+      upiId: upiId,
+      upiName: upiName,
+      isDirectPush: isDirectPush,
+    );
+    latestPendingQrPayload = payload;
+    _showQrController.add(payload);
+    debugPrint('KioskBroadcastService: Displaying local QR for amount ₹$amount, upi: $upiId');
+  }
+
+  void clearPendingQr() {
+    latestPendingQrPayload = null;
+  }
 
   /// Initialize and subscribe to the real-time Supabase WebSocket broadcast channel
   void init() {
-    if (_isSubscribed) return;
+    if (_isSubscribed || _isInitializing) return;
+    _isInitializing = true;
 
     try {
       final supabase = Supabase.instance.client;
@@ -104,13 +137,17 @@ class KioskBroadcastService {
       _channel!.subscribe((status, [error]) {
         if (status == RealtimeSubscribeStatus.subscribed) {
           _isSubscribed = true;
+          _isInitializing = false;
           debugPrint('KioskBroadcastService: Subscribed to kiosk_payment_broadcast channel');
-        } else {
-          debugPrint('KioskBroadcastService: Subscription status: $status, error: $error');
+        } else if (status == RealtimeSubscribeStatus.channelError || status == RealtimeSubscribeStatus.closed) {
+          _isSubscribed = false;
+          _isInitializing = false;
+          debugPrint('KioskBroadcastService: Subscription status: $status');
         }
       });
     } catch (e) {
-      debugPrint('KioskBroadcastService init error (Supabase might not be initialized): $e');
+      _isInitializing = false;
+      debugPrint('KioskBroadcastService init error: $e');
     }
   }
 
@@ -162,6 +199,15 @@ class KioskBroadcastService {
         event: 'SHOW_QR',
         payload: payload.toJson(),
       );
+
+      // Also send high-priority FCM push to wake sleeping / locked kiosk devices
+      unawaited(FcmPushSenderService.instance.sendKioskQrPush(
+        upiId: upiId ?? '',
+        amount: amount,
+        customerName: customerName,
+        note: invoiceNo,
+      ));
+
       debugPrint('KioskBroadcastService: Sent SHOW_QR payload for amount ₹$amount, upi: $upiId');
       return true;
     } catch (e) {

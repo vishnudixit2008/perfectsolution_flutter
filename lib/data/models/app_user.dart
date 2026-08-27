@@ -227,6 +227,7 @@ class AppUser {
       'query': 'Customer Complaint / Issue',
       'estimateItems': 'Repair Cost Estimates',
       'discount': 'Estimate Discount',
+      'advance': 'Advance Paid',
       'purchasedFrom': 'Purchased Store Info',
       'status': 'Job Status',
       'notes': 'Internal Repair Notes',

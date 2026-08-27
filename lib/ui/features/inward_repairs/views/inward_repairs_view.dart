@@ -118,9 +118,19 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     final String name = prefill['name'] ?? prefill['customerName'] ?? '';
     final String mobile =
         prefill['mobileNo'] ?? prefill['customerNumber'] ?? '';
+    final String? devices = prefill['devices'] ?? prefill['item'];
+    final String? query = prefill['query'];
+    final double? advance = (prefill['advance'] as num?)?.toDouble();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAddEditDialog(context, prefillName: name, prefillMobile: mobile);
+      _showAddEditDialog(
+        context,
+        prefillName: name,
+        prefillMobile: mobile,
+        prefillDevices: devices,
+        prefillQuery: query,
+        prefillAdvance: advance,
+      );
     });
   }
 
@@ -685,9 +695,25 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         0.0,
         (sum, item) => sum + item.totalAmount,
       );
-      final double netEstTotal = (estSubtotal - repair.discount) < 0
+      final double netEstTotal =
+          (estSubtotal - repair.discount - repair.advance) < 0
           ? 0.0
-          : (estSubtotal - repair.discount);
+          : (estSubtotal - repair.discount - repair.advance);
+
+      String estimateDetails =
+          'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)}';
+      final detailsSuffix = <String>[];
+      if (repair.discount > 0) {
+        detailsSuffix.add('Disc. ₹${repair.discount.toStringAsFixed(0)}');
+      }
+      if (UserPermissionService.isFieldVisible('inward', 'advance') &&
+          repair.advance > 0) {
+        detailsSuffix.add('Adv. ₹${repair.advance.toStringAsFixed(0)}');
+      }
+      if (detailsSuffix.isNotEmpty) {
+        estimateDetails += ' (${detailsSuffix.join(', ')})';
+      }
+
       if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
       metadata.add(
         Row(
@@ -700,13 +726,38 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
             const SizedBox(width: 4),
             Expanded(
               child: Text(
-                repair.discount > 0
-                    ? 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)} (Disc. ₹${repair.discount.toStringAsFixed(0)})'
-                    : 'Estimate: ${estItems.length} item(s) • ₹${netEstTotal.toStringAsFixed(0)}',
+                estimateDetails,
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.primaryLight,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (UserPermissionService.isFieldVisible('inward', 'advance') &&
+        repair.advance > 0) {
+      if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
+      metadata.add(
+        Row(
+          children: [
+            const Icon(
+              Icons.payments_rounded,
+              size: 12,
+              color: AppTheme.success,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'Advance Paid: ₹${repair.advance.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.success,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1000,9 +1051,10 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     (s, i) => s + i.totalAmount,
                   );
                   final double discount = repair.discount;
-                  final double netTotal = (subtotal - discount) < 0
+                  final double advance = repair.advance;
+                  final double netTotal = (subtotal - discount - advance) < 0
                       ? 0.0
-                      : (subtotal - discount);
+                      : (subtotal - discount - advance);
                   return Container(
                     padding: EdgeInsets.all(10 * scale),
                     margin: EdgeInsets.only(top: 4 * scale),
@@ -1015,7 +1067,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                     ),
                     child: Column(
                       children: [
-                        if (discount > 0) ...[
+                        if (discount > 0 || advance > 0) ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -1036,27 +1088,52 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
                               ),
                             ],
                           ),
-                          SizedBox(height: 4 * scale),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Discount',
-                                style: TextStyle(
-                                  color: AppTheme.warning,
-                                  fontSize: 12 * scale,
+                          if (discount > 0) ...[
+                            SizedBox(height: 4 * scale),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Discount',
+                                  style: TextStyle(
+                                    color: AppTheme.warning,
+                                    fontSize: 12 * scale,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                '- ₹${discount.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: AppTheme.warning,
-                                  fontSize: 12.5 * scale,
-                                  fontWeight: FontWeight.w600,
+                                Text(
+                                  '- ₹${discount.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: AppTheme.warning,
+                                    fontSize: 12.5 * scale,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
+                          if (UserPermissionService.isFieldVisible('inward', 'advance') && advance > 0) ...[
+                            SizedBox(height: 4 * scale),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Advance Paid',
+                                  style: TextStyle(
+                                    color: AppTheme.success,
+                                    fontSize: 12 * scale,
+                                  ),
+                                ),
+                                Text(
+                                  '- ₹${advance.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: AppTheme.success,
+                                    fontSize: 12.5 * scale,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           Padding(
                             padding: EdgeInsets.symmetric(vertical: 4 * scale),
                             child: Divider(
@@ -1210,6 +1287,13 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
     InwardRepair? existingRepair,
     String? prefillName,
     String? prefillMobile,
+    String? prefillDevices,
+    String? prefillQuery,
+    String? prefillPurchasedFrom,
+    String? prefillNotes,
+    String? prefillStatus,
+    double? prefillAdvance,
+    List<InwardEstimateItem>? prefillEstimates,
   }) {
     final isEdit = existingRepair != null;
     final actionKey = isEdit ? 'canEdit' : 'canAdd';
@@ -1234,6 +1318,13 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         existingRepair: existingRepair,
         prefillName: prefillName,
         prefillMobile: prefillMobile,
+        prefillDevices: prefillDevices,
+        prefillQuery: prefillQuery,
+        prefillPurchasedFrom: prefillPurchasedFrom,
+        prefillNotes: prefillNotes,
+        prefillStatus: prefillStatus,
+        prefillAdvance: prefillAdvance,
+        prefillEstimates: prefillEstimates,
       ),
     );
   }
@@ -1376,6 +1467,7 @@ Perfect Solution''';
         prefillPurchasedFrom: repair.purchasedFrom,
         prefillNotes: repair.notes,
         prefillStatus: repair.status,
+        prefillAdvance: repair.advance,
       ),
     );
   }
@@ -1466,6 +1558,7 @@ Perfect Solution''';
         'estimateItems': itemsList,
         'totalAmount': estTotal,
         'discount': repair.discount,
+        'advance': repair.advance,
       },
     );
   }
@@ -1488,6 +1581,7 @@ Perfect Solution''';
         'purchasedFrom': repair.name,
         'mobileNo': repair.mobileNo,
         'item': '${repair.devices} - repair job #${repair.jobNo}',
+        'advance': repair.advance,
       },
     );
   }
@@ -1545,6 +1639,7 @@ class _InwardRepairFormDialog extends StatefulWidget {
   final String? prefillPurchasedFrom;
   final String? prefillNotes;
   final String? prefillStatus;
+  final double? prefillAdvance;
   final List<InwardEstimateItem>? prefillEstimates;
 
   const _InwardRepairFormDialog({
@@ -1556,6 +1651,7 @@ class _InwardRepairFormDialog extends StatefulWidget {
     this.prefillPurchasedFrom,
     this.prefillNotes,
     this.prefillStatus,
+    this.prefillAdvance,
     // ignore: unused_element_parameter
     this.prefillEstimates,
   });
@@ -1576,6 +1672,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   late final TextEditingController _purchasedFromController;
   late final TextEditingController _notesController;
   final TextEditingController _discountController = TextEditingController();
+  final TextEditingController _advanceController = TextEditingController();
   late String _status;
   late DateTime? _completionDate;
   String? _photoUrl;
@@ -1591,10 +1688,15 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     return double.tryParse(_discountController.text.trim()) ?? 0.0;
   }
 
+  double get _enteredAdvance {
+    return double.tryParse(_advanceController.text.trim()) ?? 0.0;
+  }
+
   double get _estimatesNetTotal {
     final sub = _estimatesSubtotal;
     final disc = _enteredDiscount;
-    final net = sub - disc;
+    final adv = _enteredAdvance;
+    final net = sub - disc - adv;
     return net < 0.0 ? 0.0 : net;
   }
 
@@ -1635,6 +1737,13 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     } else {
       _discountController.clear();
     }
+    if (r != null && r.advance > 0) {
+      _advanceController.text = r.advance.toStringAsFixed(2);
+    } else if (widget.prefillAdvance != null && widget.prefillAdvance! > 0) {
+      _advanceController.text = widget.prefillAdvance!.toStringAsFixed(2);
+    } else {
+      _advanceController.clear();
+    }
     _photoUrl = r?.photo;
     _status =
         r?.status ??
@@ -1666,6 +1775,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     _purchasedFromController.dispose();
     _notesController.dispose();
     _discountController.dispose();
+    _advanceController.dispose();
     _estItemNameController.dispose();
     _estPriceController.dispose();
     _estQtyController.dispose();
@@ -1803,6 +1913,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
           : null,
       photo: _photoUrl,
       discount: _enteredDiscount,
+      advance: _enteredAdvance,
     );
 
     final List<InwardEstimateItem> finalEstimates = _estimates.map((item) {
@@ -1883,6 +1994,8 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
     final bool isEstimateItemsMod = UserPermissionService.canModifyField('inward', 'estimateItems', isEdit: isEdit);
     final bool isDiscountVis = UserPermissionService.isFieldVisible('inward', 'discount');
     final bool isDiscountMod = UserPermissionService.canModifyField('inward', 'discount', isEdit: isEdit);
+    final bool isAdvanceVis = UserPermissionService.isFieldVisible('inward', 'advance');
+    final bool isAdvanceMod = UserPermissionService.canModifyField('inward', 'advance', isEdit: isEdit);
     final bool isPhotoVis = UserPermissionService.isFieldVisible('inward', 'photo');
     final bool isPhotoMod = UserPermissionService.canModifyField('inward', 'photo', isEdit: isEdit);
 
@@ -2436,7 +2549,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                 },
               ),
             ),
-          // Estimate Items Summary & Discount Panel
+          // Estimate Items Summary & Discount / Advance Panel
           if (_estimates.isNotEmpty) ...[
             const SizedBox(height: 12),
             Container(
@@ -2530,6 +2643,75 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: const BorderSide(
                                   color: AppTheme.warning,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (isAdvanceVis) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.payments_rounded,
+                              size: 16,
+                              color: AppTheme.success,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Advance Paid',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          width: 130,
+                          child: TextFormField(
+                            controller: _advanceController,
+                            readOnly: !isAdvanceMod,
+                            enabled: isAdvanceMod,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.success,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: '0.0',
+                              prefixText: '₹ ',
+                              prefixStyle: const TextStyle(
+                                color: AppTheme.success,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: AppTheme.success.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: AppTheme.success,
                                   width: 1.5,
                                 ),
                               ),

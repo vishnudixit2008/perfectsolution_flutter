@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/services/windows_oauth_service.dart';
+import '../../../../data/services/fcm_service.dart';
 
 
 
@@ -61,6 +62,8 @@ class AuthViewModel extends ChangeNotifier {
               _isAuthenticated = true;
               _isLoading = false;
               _errorMessage = null;
+              unawaited(FcmService.instance.syncUserToken(userEmail));
+              unawaited(FcmService.instance.syncUserToken(currentUser.name));
               notifyListeners();
             } else {
               // Unauthorized User — immediately sign out & block
@@ -106,6 +109,8 @@ class AuthViewModel extends ChangeNotifier {
           _rememberMe = true;
           await UserPermissionService.setCurrentUser(rememberedEmail);
           _isAuthenticated = true;
+          unawaited(FcmService.instance.syncUserToken(rememberedEmail));
+          unawaited(FcmService.instance.syncUserToken(currentUser.name));
         } else {
           _rememberMe = false;
           _isAuthenticated = false;

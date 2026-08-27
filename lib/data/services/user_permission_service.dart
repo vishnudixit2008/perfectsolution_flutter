@@ -605,10 +605,18 @@ class UserPermissionService {
     return uniqueNamesByLower.values.toList();
   }
 
-  /// Checks if an entry's assignedTo field matches the specified (or current) user
-  static bool isEntryAssignedToUser(String? assignedTo, [AppUser? user]) {
+  /// Whether the current device / user should receive popups and alerts for call assignments
+  static bool shouldReceiveCallAlertPopup([AppUser? user]) {
     final currentUser = user ?? getCurrentUser();
-    if (AppUser.isPermanentAdmin(currentUser.email)) return true;
+    final cleanEmail = currentUser.email.toLowerCase().trim();
+    if (AppUser.isPermanentAdmin(cleanEmail)) return false;
+    if (cleanEmail == 'sale.perfectsolutionnoida@gmail.com') return false;
+    return true;
+  }
+
+  /// Checks if an entry is specifically and directly assigned to the user (ignoring admin wildcards)
+  static bool isEntryDirectlyAssignedToUser(String? assignedTo, [AppUser? user]) {
+    final currentUser = user ?? getCurrentUser();
     if (assignedTo == null || assignedTo.trim().isEmpty || assignedTo == 'N/A') {
       return false;
     }
@@ -655,6 +663,13 @@ class UserPermissionService {
     }
 
     return false;
+  }
+
+  /// Checks if an entry's assignedTo field matches the specified (or current) user
+  static bool isEntryAssignedToUser(String? assignedTo, [AppUser? user]) {
+    final currentUser = user ?? getCurrentUser();
+    if (AppUser.isPermanentAdmin(currentUser.email)) return true;
+    return isEntryDirectlyAssignedToUser(assignedTo, currentUser);
   }
 
   /// Returns whether the current user is restricted to only seeing entries assigned to them in [moduleKey]

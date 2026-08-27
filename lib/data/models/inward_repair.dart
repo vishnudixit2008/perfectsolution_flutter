@@ -13,6 +13,7 @@ class InwardRepair {
   final DateTime? completionDate;
   final String? photo;
   final double discount;
+  final double advance;
   final DateTime updatedAt;
 
   InwardRepair({
@@ -28,6 +29,7 @@ class InwardRepair {
     this.completionDate,
     this.photo,
     this.discount = 0.0,
+    this.advance = 0.0,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
 
@@ -55,6 +57,9 @@ class InwardRepair {
       discount: json['discount'] is num
           ? (json['discount'] as num).toDouble()
           : double.tryParse(json['discount']?.toString() ?? '') ?? 0.0,
+      advance: json['advance'] is num
+          ? (json['advance'] as num).toDouble()
+          : double.tryParse(json['advance']?.toString() ?? '') ?? 0.0,
       updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now() : DateTime.now(),
     );
   }
@@ -73,6 +78,7 @@ class InwardRepair {
       'completion_date': completionDate?.toIso8601String(),
       'photo': photo,
       'discount': discount,
+      'advance': advance,
       'updated_at': updatedAt.toIso8601String(),
     };
   }
@@ -90,6 +96,7 @@ class InwardRepair {
     DateTime? completionDate,
     String? photo,
     double? discount,
+    double? advance,
     DateTime? updatedAt,
   }) {
     return InwardRepair(
@@ -105,6 +112,7 @@ class InwardRepair {
       completionDate: completionDate ?? this.completionDate,
       photo: photo ?? this.photo,
       discount: discount ?? this.discount,
+      advance: advance ?? this.advance,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

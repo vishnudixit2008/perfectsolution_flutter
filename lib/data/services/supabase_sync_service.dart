@@ -20,6 +20,8 @@ import '../repositories/shop_repository.dart';
 import '../../ui/shared/status_management_dialog.dart';
 import 'ui_preferences_service.dart';
 import 'auto_update_service.dart';
+import 'fcm_service.dart';
+import '../../ui/shared/dialogs/call_alert_dialog.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
@@ -376,7 +378,10 @@ class SupabaseSyncService extends ChangeNotifier {
       final hiveKey = keys[i];
       final operation = op['operation'] as String? ?? 'upsert';
       final tableName = op['table'] as String? ?? '';
-      final data = op['data'] as Map<String, dynamic>?;
+      final rawData = op['data'];
+      final Map<String, dynamic>? data = rawData is Map
+          ? Map<String, dynamic>.from(rawData)
+          : null;
       final pkColumn = op['primary_key_column'] as String?;
       final pkValue = op['primary_key_value'];
 
@@ -386,17 +391,23 @@ class SupabaseSyncService extends ChangeNotifier {
         } else if (operation == 'delete' && pkColumn != null) {
           await client.from(tableName).delete().eq(pkColumn, pkValue);
           // Also write tombstone for delete operations
-          await client.from('deleted_records').upsert({
-            'table_name': tableName,
-            'record_id': pkValue.toString(),
-          });
+          try {
+            await client.from('deleted_records').upsert({
+              'table_name': tableName,
+              'record_id': pkValue.toString(),
+            }, onConflict: 'table_name,record_id');
+          } catch (_) {}
         }
         // Success: remove from queue
         await localDb.removePendingSyncEntry(hiveKey);
         if (kDebugMode) print('Flushed offline op: $operation on $tableName');
       } catch (e) {
+        final errStr = e.toString();
         if (kDebugMode) print('Offline flush failed for $tableName: $e');
-        // Leave in queue to retry next time
+        // If error is unrecoverable schema mismatch or duplicate key, purge from local pending queue
+        if (errStr.contains('PGRST204') || errStr.contains('23505') || errStr.contains('schema cache')) {
+          await localDb.removePendingSyncEntry(hiveKey);
+        }
       }
     }
   }
@@ -1083,8 +1094,22 @@ class SupabaseSyncService extends ChangeNotifier {
           if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
           final callsData = await q.timeout(const Duration(seconds: 5));
           final callsMap = <int, Map<String, dynamic>>{};
+          final List<CallModel> newlyAssignedCalls = [];
+
           for (final json in callsData) {
             final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
+            final localRaw = localDb.getCallById(cloudCall.id);
+            final wasAlreadyHere = localRaw != null;
+            final prevAssigned = localRaw?['assigned_to']?.toString();
+
+            // If newly assigned to current user (excluding admins / sale user), queue full screen alert popup
+            if (UserPermissionService.shouldReceiveCallAlertPopup() &&
+                UserPermissionService.isEntryDirectlyAssignedToUser(cloudCall.assignedTo)) {
+              if (!wasAlreadyHere || (prevAssigned != cloudCall.assignedTo)) {
+                newlyAssignedCalls.add(cloudCall);
+              }
+            }
+
             Map<String, dynamic> callJson = cloudCall.toJson();
             if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
               final hasPhotoKey = json.containsKey('photo');
@@ -1104,6 +1129,16 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllCalls(callsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('calls');
+
+          // Trigger full screen alert dialog with soothing chime for newly assigned calls
+          if (newlyAssignedCalls.isNotEmpty) {
+            for (final call in newlyAssignedCalls) {
+              final context = FcmService.navigatorKey?.currentContext;
+              if (context != null && context.mounted) {
+                CallAlertDialog.show(context, call);
+              }
+            }
+          }
 
         case 'sales':
         case 'sale_items':
@@ -1475,7 +1510,7 @@ class SupabaseSyncService extends ChangeNotifier {
           'table_name': tableName,
           'record_id': idValue.toString(),
           'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        });
+        }, onConflict: 'table_name,record_id');
       } catch (e) {
         if (kDebugMode) print('Tombstone write failed (non-critical): $e');
       }

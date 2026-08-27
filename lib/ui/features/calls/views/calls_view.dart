@@ -1967,7 +1967,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         photo: _photoUrl,
       );
 
-      await viewModel.saveCall(newCall);
+      await viewModel.saveCall(newCall, isNew: widget.existingCall == null);
 
       if (context.mounted) {
         Navigator.pop(context);

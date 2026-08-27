@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'fcm_service.dart';
 
 class UiPreferencesService {
   static const String _boxName = 'ui_preferences';
@@ -59,6 +61,9 @@ class UiPreferencesService {
 
   static Future<void> setKioskMode(bool enabled) async {
     await _getBox().put(_isKioskModeKey, enabled);
+    if (enabled) {
+      unawaited(FcmService.instance.syncUserToken('kiosk'));
+    }
   }
 
   static int getKioskTimeoutSeconds() {
