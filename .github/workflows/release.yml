@@ -40,6 +40,8 @@ jobs:
         shell: powershell
         run: |
           $env:CMAKE_POLICY_VERSION_MINIMUM="3.5"
+          $env:CL="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+          $env:CXXFLAGS="/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
           flutter build windows --release --no-tree-shake-icons
 
       - name: Verify and Fix Release Folder Contents

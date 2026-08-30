@@ -1,5 +1,5 @@
-$FirebaseSDKVersion = '11.2.0'
-platform :osx, '10.15'
+$FirebaseSDKVersion = '11.4.0'
+platform :osx, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -30,8 +30,8 @@ flutter_macos_podfile_setup
 target 'Runner' do
   use_frameworks!
 
-  pod 'FirebaseCoreInternal', '11.2.0'
-  pod 'FirebaseInstallations', '11.2.0'
+  pod 'FirebaseCoreInternal', $FirebaseSDKVersion
+  pod 'FirebaseInstallations', $FirebaseSDKVersion
 
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -43,7 +43,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.15'
+      config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '12.0'
       config.build_settings['SWIFT_VERSION'] = '5.0'
     end
   end
