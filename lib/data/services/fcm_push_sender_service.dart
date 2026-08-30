@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/app_user.dart';
 import '../models/call_model.dart';
 
 class FcmPushSenderService {
@@ -53,14 +52,6 @@ class FcmPushSenderService {
   Future<void> sendCallAssignmentPush(CallModel call) async {
     final assignedStaff = call.assignedTo.trim();
     if (assignedStaff.isEmpty || assignedStaff == 'N/A') return;
-
-    final lower = assignedStaff.toLowerCase();
-    if (AppUser.isPermanentAdmin(lower) ||
-        lower == 'sale.perfectsolutionnoida@gmail.com' ||
-        lower == 'perfect solution (admin)') {
-      debugPrint('FcmPushSenderService: Skipping call push for admin/sale user: $assignedStaff');
-      return;
-    }
 
     try {
       final tokens = await _getTargetTokens(assignedStaff);
@@ -134,7 +125,15 @@ class FcmPushSenderService {
 
       if (res == null || res['value'] == null) return;
 
-      final map = Map<String, dynamic>.from(res['value'] as Map);
+      dynamic rawVal = res['value'];
+      if (rawVal is String) {
+        try {
+          rawVal = jsonDecode(rawVal);
+        } catch (_) {}
+      }
+      if (rawVal is! Map) return;
+
+      final map = Map<String, dynamic>.from(rawVal);
       bool changed = false;
       for (final key in map.keys.toList()) {
         if (map[key] is List) {
@@ -225,7 +224,19 @@ class FcmPushSenderService {
         return [];
       }
 
-      final map = Map<String, dynamic>.from(res['value'] as Map);
+      dynamic rawVal = res['value'];
+      if (rawVal is String) {
+        try {
+          rawVal = jsonDecode(rawVal);
+        } catch (_) {}
+      }
+
+      if (rawVal is! Map) {
+        debugPrint('FcmPushSenderService: user_fcm_tokens value is not a Map: $rawVal');
+        return [];
+      }
+
+      final map = Map<String, dynamic>.from(rawVal);
       final keyClean = userIdentifier.trim().toLowerCase();
 
       final List<String> matchingTokens = [];
@@ -249,26 +260,49 @@ class FcmPushSenderService {
     }
   }
 
-  /// Retrieves all kiosk device tokens from Supabase
+  /// Retrieves all kiosk and active device tokens from Supabase
   Future<List<String>> _getKioskTokens() async {
     try {
       final supabase = Supabase.instance.client;
 
       final res = await supabase
           .from('shop_settings')
-          .select('value')
-          .eq('key', 'kiosk_fcm_tokens')
-          .maybeSingle();
+          .select('key, value')
+          .inFilter('key', ['kiosk_fcm_tokens', 'user_fcm_tokens']);
 
-      if (res == null || res['value'] == null) return [];
+      final List<String> allTokens = [];
 
-      final val = res['value'];
-      if (val is List) {
-        return val.map((e) => e.toString()).toSet().toList();
-      } else if (val is Map && val['tokens'] is List) {
-        return (val['tokens'] as List).map((e) => e.toString()).toSet().toList();
+      for (final row in res) {
+        final key = row['key']?.toString();
+        dynamic val = row['value'];
+        if (val is String) {
+          try {
+            val = jsonDecode(val);
+          } catch (_) {}
+        }
+
+        if (key == 'kiosk_fcm_tokens') {
+          if (val is List) {
+            allTokens.addAll(val.map((e) => e.toString()));
+          } else if (val is Map && val['tokens'] is List) {
+            allTokens.addAll((val['tokens'] as List).map((e) => e.toString()));
+          }
+        } else if (key == 'user_fcm_tokens') {
+          if (val is Map) {
+            for (final entry in val.entries) {
+              if (entry.value is List) {
+                allTokens.addAll((entry.value as List).map((e) => e.toString()));
+              } else if (entry.value is String) {
+                allTokens.add(entry.value.toString());
+              }
+            }
+          }
+        }
       }
-      return [];
+
+      final uniqueTokens = allTokens.where((t) => t.trim().isNotEmpty).toSet().toList();
+      debugPrint('FcmPushSenderService: Retrieved ${uniqueTokens.length} kiosk/device token(s) for QR display');
+      return uniqueTokens;
     } catch (e) {
       debugPrint('FcmPushSenderService: Error retrieving kiosk tokens: $e');
       return [];

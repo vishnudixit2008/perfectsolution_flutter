@@ -313,7 +313,7 @@ class _SalesViewState extends State<SalesView> {
     }).toList();
 
     // Sort: PENDING first (descending date), Confirmed second (descending date)
-    // Sort by status order first, then by date descending
+    // Sort by status order first, then by date descending, tie-breaking by invoiceNo descending
     filteredSales.sort((a, b) {
       final statusCompare = StatusManagementService.compareStatuses(
         'sales',
@@ -321,7 +321,11 @@ class _SalesViewState extends State<SalesView> {
         b.orderStatus,
       );
       if (statusCompare != 0) return statusCompare;
-      return b.saleDate.compareTo(a.saleDate);
+      final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
+      final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
+      final dateComp = dayB.compareTo(dayA);
+      if (dateComp != 0) return dateComp;
+      return b.invoiceNo.compareTo(a.invoiceNo);
     });
 
     // Pagination calculations
@@ -700,7 +704,9 @@ class _SalesViewState extends State<SalesView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dateComp = b.saleDate.compareTo(a.saleDate);
+        final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
+        final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
+        final dateComp = dayB.compareTo(dayA);
         if (dateComp != 0) return dateComp;
         return b.invoiceNo.compareTo(a.invoiceNo);
       });
@@ -952,7 +958,7 @@ class _SalesViewState extends State<SalesView> {
         backgroundColor: const Color(0xFF131A2E),
         onRefresh: () async {
           final localDb = context.read<ShopRepository>().localDb;
-          await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+          await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
           if (context.mounted) viewModel.loadSales();
         },
         child: ListView.builder(
@@ -3080,6 +3086,7 @@ class _AddRepairServiceModalState extends State<_AddRepairServiceModal> {
   final TextEditingController _priceController = TextEditingController();
   final FocusNode _priceFocusNode = FocusNode();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final Set<String> _locallyDeletedServices = {};
 
   @override
   void dispose() {
@@ -3113,7 +3120,7 @@ class _AddRepairServiceModalState extends State<_AddRepairServiceModal> {
       ...catalogItems
           .where((i) => (i.category?.toLowerCase() ?? '') == 'service')
           .map((i) => i.itemName),
-    }.toList();
+    }.where((s) => !_locallyDeletedServices.contains(s)).toList();
 
     return Dialog(
       backgroundColor: const Color(0xFF0F1524),
@@ -3269,18 +3276,62 @@ class _AddRepairServiceModalState extends State<_AddRepairServiceModal> {
                           itemCount: options.length,
                           itemBuilder: (context, index) {
                             final s = options.elementAt(index);
-                            return ListTile(
-                              dense: true,
-                              title: Text(
-                                s,
-                                style: const TextStyle(
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                            return Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                hoverColor: AppTheme.primary.withValues(alpha: 0.15),
+                                onTap: () => onSelected(s),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          child: Text(
+                                            s,
+                                            style: const TextStyle(
+                                              color: AppTheme.textPrimary,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 18,
+                                          color: Colors.redAccent,
+                                        ),
+                                        tooltip: 'Delete "$s"',
+                                        splashRadius: 16,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 32,
+                                          minHeight: 32,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () async {
+                                          setState(() {
+                                            _locallyDeletedServices.add(s);
+                                          });
+                                          await widget.viewModel.deleteCustomService(s);
+                                          if (_autocompleteController != null) {
+                                            final currentText = _autocompleteController!.text;
+                                            _autocompleteController!.value = TextEditingValue(
+                                              text: currentText,
+                                              selection: TextSelection.collapsed(offset: currentText.length),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              hoverColor: AppTheme.primary.withValues(alpha: 0.15),
-                              onTap: () => onSelected(s),
                             );
                           },
                         ),

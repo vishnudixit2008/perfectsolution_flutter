@@ -82,4 +82,5 @@ macos/Runner.xcworkspace/
 # Antigravity Agent Local Configs & Skills
 .agents/
 skills-lock.json
+scratch/
 

@@ -14,6 +14,7 @@ import '../services/local_database_service.dart';
 import '../services/supabase_sync_service.dart';
 import '../services/supabase_photo_service.dart';
 import '../services/google_drive_upload_service.dart';
+import '../services/multi_window_sync_service.dart';
 import '../../ui/shared/photo_attachment_widget.dart';
 
 class ShopRepository {
@@ -25,8 +26,11 @@ class ShopRepository {
   Stream<String> get onTableDataChanged => _tableDataChangedController.stream;
   static Stream<String> get tableDataChangedStream => _tableDataChangedController.stream;
 
-  static void notifyTableChanged(String tableName) {
+  static void notifyTableChanged(String tableName, {bool broadcastToOtherWindows = true}) {
     _tableDataChangedController.add(tableName);
+    if (broadcastToOtherWindows) {
+      MultiWindowSyncService.instance.broadcastTableChange(tableName);
+    }
   }
 
   ShopRepository({required LocalDatabaseService localDb}) : _localDb = localDb;
@@ -80,6 +84,8 @@ class ShopRepository {
   List<String> getCustomServiceNames() => _localDb.getCustomServiceNames();
   Future<void> saveCustomServiceName(String name, {bool syncToCloud = true}) async =>
       await _localDb.saveCustomServiceName(name, syncToCloud: syncToCloud);
+  Future<void> deleteCustomServiceName(String name, {bool syncToCloud = true}) async =>
+      await _localDb.deleteCustomServiceName(name, syncToCloud: syncToCloud);
   Future<void> setCustomServicesList(List<String> services, {bool syncToCloud = false}) async =>
       await _localDb.setCustomServicesList(services, syncToCloud: syncToCloud);
   double? getDetailPopupWidth() => _localDb.getDetailPopupWidth();

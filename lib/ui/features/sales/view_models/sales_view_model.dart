@@ -145,6 +145,13 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Delete Custom Service
+  Future<void> deleteCustomService(String serviceName) async {
+    await _repository.deleteCustomServiceName(serviceName);
+    loadSavedServices();
+    notifyListeners();
+  }
+
   // Add SaleItem to Cart (for prefilling estimates/products/services)
   void addSaleItemToCart({
     int? itemId,

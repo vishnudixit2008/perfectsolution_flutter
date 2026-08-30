@@ -23,16 +23,18 @@ class MainApplication : Application() {
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setUsage(AudioAttributes.USAGE_ALARM)
+            .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
             .build()
 
         val callChannel = NotificationChannel(
-            "call_alerts_v2",
+            "call_alerts_v3",
             "Call Assignment Alerts",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "High-priority full screen call alerts with soothing sound"
-            setSound(soundUri, audioAttributes)
+            setSound(null, null)
             enableVibration(true)
+            vibrationPattern = longArrayOf(0, 500, 250, 500, 250, 500)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
         notificationManager.createNotificationChannel(callChannel)

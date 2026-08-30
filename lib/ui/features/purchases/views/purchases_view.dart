@@ -157,8 +157,14 @@ class _PurchasesViewState extends State<PurchasesView> {
           return idMatch || vendorMatch || statusMatch || notesMatch;
         }).toList();
 
-        // Sort by date descending (newest purchases first)
-        filtered.sort((a, b) => b.date.compareTo(a.date));
+        // Sort by date descending (newest purchases first), tie-break with ID descending
+        filtered.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.id.compareTo(a.id);
+        });
 
         final groupedPurchases = _getGroupedPurchases(filtered);
 
@@ -297,7 +303,9 @@ class _PurchasesViewState extends State<PurchasesView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dateComp = b.date.compareTo(a.date);
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
         if (dateComp != 0) return dateComp;
         return b.id.compareTo(a.id);
       });
@@ -561,7 +569,7 @@ class _PurchasesViewState extends State<PurchasesView> {
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadPurchases();
       },
       child: ListView.builder(
@@ -1651,6 +1659,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
 
           if (isPhotoVis) ...[
             PhotoAttachmentWidget(
+              category: 'purchases',
               initialPhotoUrl: _photoUrl,
               label: 'Vendor Bill / Purchase Invoice Photo(s)',
               onUploadingChanged: (uploading) {

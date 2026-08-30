@@ -139,7 +139,7 @@ class CallsViewModel extends ChangeNotifier {
     await _repository.saveCall(call);
     await loadCalls();
 
-    if (isNew && call.assignedTo.trim().isNotEmpty && call.assignedTo.trim() != 'N/A') {
+    if (call.assignedTo.trim().isNotEmpty && call.assignedTo.trim() != 'N/A') {
       unawaited(FcmPushSenderService.instance.sendCallAssignmentPush(call));
     }
   }

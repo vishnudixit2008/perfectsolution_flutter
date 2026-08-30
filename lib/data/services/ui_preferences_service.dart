@@ -12,10 +12,9 @@ class UiPreferencesService {
         await Hive.openBox(_boxName);
       } catch (_) {
         try {
-          await Hive.deleteBoxFromDisk(_boxName);
-          await Hive.openBox(_boxName);
-        } catch (_) {
           await Hive.openBox('${_boxName}_fallback');
+        } catch (_) {
+          await Hive.openBox('${_boxName}_${DateTime.now().millisecondsSinceEpoch}');
         }
       }
     }

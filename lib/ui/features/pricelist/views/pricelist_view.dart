@@ -978,7 +978,7 @@ class _PricelistViewState extends State<PricelistView> {
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadItems();
       },
       child: ListView.builder(
@@ -1679,6 +1679,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 // Photo attachment widget
                 if (isPhotoVis)
                   PhotoAttachmentWidget(
+                    category: 'pricelist',
                     initialPhotoUrl: photoUrl,
                     onUploadingChanged: (uploading) {
                       setDialogState(() {

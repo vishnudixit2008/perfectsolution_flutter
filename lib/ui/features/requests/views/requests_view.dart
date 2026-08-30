@@ -182,8 +182,14 @@ class _RequestsViewState extends State<RequestsView> {
               dealerMatch;
         }).toList();
 
-        // Sort by date descending (newest requests first)
-        filtered.sort((a, b) => b.date.compareTo(a.date));
+        // Sort by date descending (newest requests first), tie-break with ID descending
+        filtered.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.id.compareTo(a.id);
+        });
 
         final groupedRequests = _getGroupedRequests(filtered);
 
@@ -316,7 +322,9 @@ class _RequestsViewState extends State<RequestsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dateComp = b.date.compareTo(a.date);
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
         if (dateComp != 0) return dateComp;
         return b.id.compareTo(a.id);
       });
@@ -602,7 +610,7 @@ class _RequestsViewState extends State<RequestsView> {
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadRequests();
       },
       child: ListView.builder(
@@ -1512,6 +1520,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
 
           if (isPhotoVis)
             PhotoAttachmentWidget(
+              category: 'requests',
               initialPhotoUrl: _photoUrl,
               label: 'Sample / Requested Item Photo(s)',
               onUploadingChanged: (uploading) {

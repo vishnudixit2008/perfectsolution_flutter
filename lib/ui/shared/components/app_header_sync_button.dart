@@ -124,32 +124,39 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
   Widget build(BuildContext context) {
     return Consumer<SupabaseSyncService>(
       builder: (context, syncService, _) {
-        final isSynced = syncService.status == SyncStatus.synced;
-        final isSyncing =
-            syncService.status == SyncStatus.syncing || _isManualSyncing;
+        final isOffline = syncService.status == SyncStatus.offline;
         final isError = syncService.status == SyncStatus.error;
+        final isSyncing =
+            (syncService.status == SyncStatus.syncing || _isManualSyncing) &&
+            !isOffline &&
+            !isError;
+        final isSynced = syncService.status == SyncStatus.synced && !isSyncing && !isOffline && !isError;
 
-        final Color statusColor = isSynced
-            ? AppTheme.success
+        final Color statusColor = isOffline || isError
+            ? AppTheme.danger
             : isSyncing
             ? AppTheme.primaryLight
-            : isError
-            ? AppTheme.danger
+            : isSynced
+            ? AppTheme.success
             : AppTheme.warning;
 
-        final String statusText = isSyncing
+        final String statusText = isOffline
+            ? 'Server Offline'
+            : isError
+            ? 'Sync Error'
+            : isSyncing
             ? 'Syncing...'
             : isSynced
             ? 'Synced'
-            : isError
-            ? 'Sync Error'
             : 'Offline';
 
-        final IconData statusIcon = isSynced
-            ? Icons.cloud_done_rounded
-            : isError
+        final IconData statusIcon = isOffline || isError
             ? Icons.cloud_off_rounded
-            : Icons.cloud_sync_rounded;
+            : isSyncing
+            ? Icons.sync_rounded
+            : isSynced
+            ? Icons.cloud_done_rounded
+            : Icons.cloud_off_rounded;
 
         return BouncyPressable(
           scaleFactor: 0.94,

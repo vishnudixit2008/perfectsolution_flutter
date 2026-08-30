@@ -35,7 +35,7 @@ class FcmService {
   /// Android Notification Channel for Call Assignment Alerts (Loud soothing alarm sound)
   static const AndroidNotificationChannel _callAlertChannel =
       AndroidNotificationChannel(
-    'call_alerts_v2',
+    'call_alerts_v3',
     'Call Assignment Alerts',
     description: 'High-priority full screen call alerts with soothing sound',
     importance: Importance.max,
@@ -341,26 +341,27 @@ class FcmService {
     }
   }
 
-  /// Displays the full-screen alert dialog on top of the UI
+  /// Displays the full-screen alert dialog on top of the UI with guaranteed context mount polling
   void _triggerCallAlertModal(CallModel call) {
     if (!UserPermissionService.shouldReceiveCallAlertPopup()) {
       debugPrint('FcmService: Suppressing call alert modal for admin/sale user: ${UserPermissionService.getCurrentUser().email}');
       return;
     }
 
-    final context = navigatorKey?.currentContext;
-    if (context != null && context.mounted) {
-      CallAlertDialog.show(context, call);
-    } else {
-      // If context not ready yet, play sound and retry
-      CallAlertAudioService.instance.playSoothingAlertLoop();
-      Future.delayed(const Duration(milliseconds: 800), () {
-        final retryContext = navigatorKey?.currentContext;
-        if (retryContext != null && retryContext.mounted) {
-          CallAlertDialog.show(retryContext, call);
-        }
-      });
-    }
+    CallAlertAudioService.instance.playSoothingAlertLoop();
+
+    int attempts = 0;
+    Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      attempts++;
+      final context = navigatorKey?.currentContext;
+      if (context != null && context.mounted) {
+        timer.cancel();
+        CallAlertDialog.show(context, call);
+      } else if (attempts >= 50) {
+        timer.cancel();
+        debugPrint('FcmService: Timeout waiting to mount CallAlertDialog (10s elapsed)');
+      }
+    });
   }
 
   CallModel? _parseCallFromData(Map<String, dynamic> data) {
@@ -457,15 +458,24 @@ class FcmService {
           .maybeSingle();
 
       Map<String, dynamic> currentMap = {};
-      if (res != null && res['value'] is Map) {
-        currentMap = Map<String, dynamic>.from(res['value'] as Map);
+      if (res != null && res['value'] != null) {
+        dynamic rawVal = res['value'];
+        if (rawVal is String) {
+          try {
+            rawVal = jsonDecode(rawVal);
+          } catch (_) {}
+        }
+        if (rawVal is Map) {
+          currentMap = Map<String, dynamic>.from(rawVal);
+        }
       }
 
       final keyClean = userIdentifier.trim().toLowerCase();
       final List<dynamic> tokenList = List.from(currentMap[keyClean] ?? []);
-      if (!tokenList.contains(token)) {
-        tokenList.add(token);
+      if (tokenList.contains(token)) {
+        return; // Already registered, do not spam DB & realtime listeners
       }
+      tokenList.add(token);
       currentMap[keyClean] = tokenList;
 
       await supabase.from('shop_settings').upsert({
@@ -495,9 +505,10 @@ class FcmService {
       if (res != null && res['value'] is List) {
         tokenList = List.from(res['value'] as List);
       }
-      if (!tokenList.contains(token)) {
-        tokenList.add(token);
+      if (tokenList.contains(token)) {
+        return; // Already registered
       }
+      tokenList.add(token);
 
       await supabase.from('shop_settings').upsert({
         'key': 'kiosk_fcm_tokens',

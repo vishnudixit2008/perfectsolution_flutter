@@ -152,6 +152,14 @@ class AppPermissionsService {
     return true;
   }
 
+  /// Request Full Screen Intent Permission (Android 14+)
+  Future<void> requestFullScreenIntentPermission() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _nativeChannel.invokeMethod('requestFullScreenIntentPermission');
+    } catch (_) {}
+  }
+
   /// Open App System Settings
   Future<void> openAppSystemSettings() async {
     try {

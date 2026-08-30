@@ -1,5 +1,6 @@
 package com.perfectsolution.shop_management_flutter
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -168,6 +169,42 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "checkFullScreenIntentPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        try {
+                            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                            val method = nm?.javaClass?.getMethod("canUseFullScreenIntent")
+                            val canUse = method?.invoke(nm) as? Boolean ?: true
+                            result.success(canUse)
+                        } catch (e: Exception) {
+                            result.success(true)
+                        }
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "requestFullScreenIntentPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                                data = Uri.parse("package:$packageName")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(intent)
+                        }
+                    }
+                    result.success(null)
+                }
+                "stopNativeAlert" -> {
+                    CallFirebaseMessagingService.stopNativeAlert()
+                    result.success(true)
+                }
                 "getInitialCallPayload" -> {
                     val payload = pendingCallPayload
                     pendingCallPayload = null
@@ -208,6 +245,11 @@ class MainActivity : FlutterActivity() {
         extractPayloads(intent)
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        applyWakeScreenFlags()
+    }
+
     override fun onResume() {
         super.onResume()
         applyWakeScreenFlags()
@@ -242,6 +284,20 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun applyWakeScreenFlags() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (powerManager != null) {
+                @Suppress("DEPRECATION")
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                            PowerManager.ON_AFTER_RELEASE,
+                    "PerfectSolution:MainActivityWakeLock"
+                )
+                wakeLock.acquire(15000)
+            }
+        } catch (e: Exception) {}
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
@@ -253,7 +309,8 @@ class MainActivity : FlutterActivity() {
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
             WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
             WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
         )
     }
 }

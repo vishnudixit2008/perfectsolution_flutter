@@ -13,6 +13,7 @@ class PhotoAttachmentWidget extends StatefulWidget {
   final ValueChanged<String?>? onPhotoChanged;
   final ValueChanged<bool>? onUploadingChanged;
   final String label;
+  final String category;
 
   const PhotoAttachmentWidget({
     super.key,
@@ -21,6 +22,7 @@ class PhotoAttachmentWidget extends StatefulWidget {
     this.onPhotoChanged,
     this.onUploadingChanged,
     this.label = 'Device / Item Photos',
+    this.category = 'inward_repairs',
   });
 
   /// Helper to safely parse raw photo strings without breaking Base64 data URIs
@@ -250,14 +252,14 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         setState(() {
           _isUploading = true;
           _uploadStatusText =
-              'Compressing & uploading ${selectedFiles.length} photo(s)...';
+              'Uploading ${selectedFiles.length} photo(s)...';
           _photoUrls.addAll(localPaths);
         });
         widget.onUploadingChanged?.call(true);
       }
       _notifyParent();
 
-      // 2. Read bytes and upload ALL photos concurrently to Google Drive!
+      // 2. Read bytes and upload ALL photos concurrently to Supabase Storage!
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uploadFutures = selectedFiles.asMap().entries.map((entry) async {
         final index = entry.key;
@@ -267,14 +269,13 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         return SupabasePhotoService.uploadPhoto(
           bytes: bytes,
           fileName: fileName,
-          // Category matches the module name for organised storage paths
-          category: 'photos',
+          category: widget.category,
         );
       });
 
       final List<String?> cloudUrls = await Future.wait(uploadFutures);
 
-      // 3. Replace local device paths with permanent Google Drive URLs for cross-user sync.
+      // 3. Replace local device paths with permanent Supabase Storage URLs for cross-user sync.
       // If an upload fails, remove the local path so local file paths NEVER get saved to database.
       for (int i = 0; i < localPaths.length; i++) {
         final localPath = localPaths[i];
@@ -315,7 +316,7 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         backgroundColor: const Color(0xFF131A2E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
-          children: [
+            children: [
             Icon(
               Icons.add_a_photo_rounded,
               color: AppTheme.primaryLight,
@@ -365,9 +366,6 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
                 try {
                   photo = await _picker.pickImage(
                     source: ImageSource.camera,
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 70,
                   );
                 } catch (e) {
                   if (kDebugMode) print('Camera pick error: $e');
@@ -407,18 +405,11 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
               onTap: () async {
                 List<XFile> files = [];
                 try {
-                  files = await _picker.pickMultiImage(
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 70,
-                  );
+                  files = await _picker.pickMultiImage();
                 } catch (_) {
                   try {
                     final single = await _picker.pickImage(
                       source: ImageSource.gallery,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 70,
                     );
                     if (single != null) files.add(single);
                   } catch (e) {

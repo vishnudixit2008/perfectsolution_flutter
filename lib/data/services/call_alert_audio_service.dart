@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
 class CallAlertAudioService {
@@ -48,6 +49,12 @@ class CallAlertAudioService {
       if (_player != null) {
         await _player!.stop();
         debugPrint('CallAlertAudioService: Alert sound stopped');
+      }
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        try {
+          const channel = MethodChannel('com.perfectsolution.kiosk/overlay');
+          await channel.invokeMethod('stopNativeAlert');
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('CallAlertAudioService: Error stopping alert sound: $e');

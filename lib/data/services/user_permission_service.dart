@@ -15,10 +15,9 @@ class UserPermissionService {
         await Hive.openBox(_boxName);
       } catch (_) {
         try {
-          await Hive.deleteBoxFromDisk(_boxName);
-          await Hive.openBox(_boxName);
-        } catch (_) {
           await Hive.openBox('${_boxName}_fallback');
+        } catch (_) {
+          await Hive.openBox('${_boxName}_${DateTime.now().millisecondsSinceEpoch}');
         }
       }
     }
@@ -607,10 +606,6 @@ class UserPermissionService {
 
   /// Whether the current device / user should receive popups and alerts for call assignments
   static bool shouldReceiveCallAlertPopup([AppUser? user]) {
-    final currentUser = user ?? getCurrentUser();
-    final cleanEmail = currentUser.email.toLowerCase().trim();
-    if (AppUser.isPermanentAdmin(cleanEmail)) return false;
-    if (cleanEmail == 'sale.perfectsolutionnoida@gmail.com') return false;
     return true;
   }
 

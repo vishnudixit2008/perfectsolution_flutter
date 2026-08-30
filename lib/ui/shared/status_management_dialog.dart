@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -139,7 +140,25 @@ class StatusManagementService {
   }
 
   /// Hydrate directly from shop_settings table
-  static Future<void> loadFromCustomStatusesMap(Map rawMap) async {
+  static Future<void> loadFromCustomStatusesMap(dynamic rawInput) async {
+    Map rawMap;
+    if (rawInput is String) {
+      try {
+        final decoded = jsonDecode(rawInput);
+        if (decoded is Map) {
+          rawMap = decoded;
+        } else {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    } else if (rawInput is Map) {
+      rawMap = rawInput;
+    } else {
+      return;
+    }
+
     final box = await _ensureBox();
     final prefix = _getUserPrefix();
     for (final entry in rawMap.entries) {
@@ -156,7 +175,25 @@ class StatusManagementService {
   }
 
   /// Hydrate default statuses directly from shop_settings table
-  static Future<void> loadFromDefaultStatusesMap(Map rawMap) async {
+  static Future<void> loadFromDefaultStatusesMap(dynamic rawInput) async {
+    Map rawMap;
+    if (rawInput is String) {
+      try {
+        final decoded = jsonDecode(rawInput);
+        if (decoded is Map) {
+          rawMap = decoded;
+        } else {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    } else if (rawInput is Map) {
+      rawMap = rawInput;
+    } else {
+      return;
+    }
+
     final box = await _ensureBox();
     final prefix = _getUserPrefix();
     for (final entry in rawMap.entries) {
@@ -170,9 +207,28 @@ class StatusManagementService {
   }
 
   /// Hydrate custom status colors directly from shop_settings table
-  static Future<void> loadFromStatusColorsMap(Map rawMap) async {
+  static Future<void> loadFromStatusColorsMap(dynamic rawInput) async {
+    Map rawMap;
+    if (rawInput is String) {
+      try {
+        final decoded = jsonDecode(rawInput);
+        if (decoded is Map) {
+          rawMap = decoded;
+        } else {
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+    } else if (rawInput is Map) {
+      rawMap = rawInput;
+    } else {
+      return;
+    }
+
     final box = await _ensureBox();
     final prefix = _getUserPrefix();
+    _colorCache.clear();
     for (final entry in rawMap.entries) {
       final modKey = entry.key.toString();
       if (entry.value is Map) {
@@ -190,8 +246,8 @@ class StatusManagementService {
           }
         }
         if (colorMap.isNotEmpty) {
-          await box.put('$prefix$_statusColorsPrefix$modKey', colorMap);
           await box.put('$_statusColorsPrefix$modKey', colorMap);
+          await box.put('$prefix$_statusColorsPrefix$modKey', colorMap);
           _colorCache[modKey] = Map<String, int>.from(colorMap);
         }
       }
@@ -239,8 +295,8 @@ class StatusManagementService {
     final box = _getBoxSafe();
     final prefix = _getUserPrefix();
     final raw = box != null
-        ? (box.get('$prefix$_statusColorsPrefix$moduleKey') ??
-            box.get('$_statusColorsPrefix$moduleKey'))
+        ? (box.get('$_statusColorsPrefix$moduleKey') ??
+            box.get('$prefix$_statusColorsPrefix$moduleKey'))
         : null;
 
     final Map<String, int> colorMap = {};
@@ -252,6 +308,9 @@ class StatusManagementService {
           colorMap[key] = val;
         } else if (val is num) {
           colorMap[key] = val.toInt();
+        } else if (val is String) {
+          final parsed = int.tryParse(val);
+          if (parsed != null) colorMap[key] = parsed;
         }
       }
     }
@@ -267,6 +326,12 @@ class StatusManagementService {
     if (colors.containsKey(cleanStatus)) {
       return Color(colors[cleanStatus]!);
     }
+    final normalized = cleanStatus.replaceAll(RegExp(r'[\s\-_]'), '');
+    for (final entry in colors.entries) {
+      if (entry.key.replaceAll(RegExp(r'[\s\-_]'), '') == normalized) {
+        return Color(entry.value);
+      }
+    }
     return _getDefaultStatusColor(status);
   }
 
@@ -278,22 +343,24 @@ class StatusManagementService {
 
     final box = await _ensureBox();
     final prefix = _getUserPrefix();
-    await box.put('$prefix$_statusColorsPrefix$moduleKey', colors);
     await box.put('$_statusColorsPrefix$moduleKey', colors);
+    await box.put('$prefix$_statusColorsPrefix$moduleKey', colors);
     _colorCache[moduleKey] = Map<String, int>.from(colors);
 
     // Sync to shop_settings so all shop devices receive color updates immediately
     try {
       final allColors = getAllStatusColors();
-      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+      await SupabaseSyncService.instance.pushRecordToCloud(
         'shop_settings',
         {
           'key': 'shop_status_colors',
           'value': allColors,
-          'updated_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
         },
-      ));
-    } catch (_) {}
+      );
+    } catch (e) {
+      if (kDebugMode) print('Error pushing status colors to cloud: $e');
+    }
 
     ShopRepository.notifyTableChanged('shop_settings');
     ShopRepository.notifyTableChanged('all');
@@ -307,21 +374,23 @@ class StatusManagementService {
       colors.remove(cleanStatus);
       final box = await _ensureBox();
       final prefix = _getUserPrefix();
-      await box.put('$prefix$_statusColorsPrefix$moduleKey', colors);
       await box.put('$_statusColorsPrefix$moduleKey', colors);
+      await box.put('$prefix$_statusColorsPrefix$moduleKey', colors);
       _colorCache[moduleKey] = Map<String, int>.from(colors);
 
       try {
         final allColors = getAllStatusColors();
-        unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        await SupabaseSyncService.instance.pushRecordToCloud(
           'shop_settings',
           {
             'key': 'shop_status_colors',
             'value': allColors,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           },
-        ));
-      } catch (_) {}
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error removing status color in cloud: $e');
+      }
 
       ShopRepository.notifyTableChanged('shop_settings');
       ShopRepository.notifyTableChanged('all');

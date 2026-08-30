@@ -17,6 +17,7 @@ import '../models/purchase_order_item.dart';
 import 'supabase_sync_service.dart';
 import 'kiosk_broadcast_service.dart';
 import '../repositories/shop_repository.dart';
+import '../../ui/shared/status_management_dialog.dart';
 
 class LocalDatabaseService {
   static const String _pricelistBoxName = 'pricelist_box';
@@ -45,10 +46,11 @@ class LocalDatabaseService {
   late Box _purchaseItemsBox;
   late Box _pendingSyncBox;
 
-  Future<void> init() async {
+  Future<void> init({int? subWindowId}) async {
     try {
       final appSupportDir = await getApplicationSupportDirectory();
-      final hiveDir = '${appSupportDir.path}/shop_management_hive';
+      final suffix = (subWindowId != null && subWindowId != 0) ? '_sub_$subWindowId' : '';
+      final hiveDir = '${appSupportDir.path}/shop_management_hive$suffix';
       await Hive.initFlutter(hiveDir);
     } catch (_) {
       await Hive.initFlutter();
@@ -88,13 +90,184 @@ class LocalDatabaseService {
     } catch (e) {
       if (kDebugMode) print('Hive second retry for $boxName: $e. Recovering...');
     }
-    // Last resort: delete the corrupted/locked box and open fresh
+    // Last resort: open fallback box in memory/isolated name
     try {
-      await Hive.deleteBoxFromDisk(boxName);
-      return await Hive.openBox(boxName);
+      return await Hive.openBox('${boxName}_fallback');
     } catch (err) {
       if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
-      return await Hive.openBox('${boxName}_fallback');
+      return await Hive.openBox('${boxName}_${DateTime.now().millisecondsSinceEpoch}');
+    }
+  }
+
+  Map<String, dynamic> exportDbSnapshot() {
+    Box? uiPrefBox;
+    if (Hive.isBoxOpen('ui_preferences')) {
+      uiPrefBox = Hive.box('ui_preferences');
+    }
+    Box? usersBox;
+    if (Hive.isBoxOpen('app_users_box')) {
+      usersBox = Hive.box('app_users_box');
+    }
+
+    return {
+      'pricelist': _boxToMap(_pricelistBox),
+      'settings': _boxToMap(_settingsBox),
+      'sales': _boxToMap(_salesBox),
+      'sale_items': _boxToMap(_saleItemsBox),
+      'calls': _boxToMap(_callsBox),
+      'inward': _boxToMap(_inwardBox),
+      'inward_items': _boxToMap(_inwardItemsBox),
+      'replacement': _boxToMap(_replacementBox),
+      'request': _boxToMap(_requestBox),
+      'purchase': _boxToMap(_purchaseBox),
+      'purchase_items': _boxToMap(_purchaseItemsBox),
+      'ui_preferences': uiPrefBox != null ? _boxToMap(uiPrefBox) : {},
+      'app_users': usersBox != null ? _boxToMap(usersBox) : {},
+    };
+  }
+
+  Map<String, dynamic> _boxToMap(Box box) {
+    final map = <String, dynamic>{};
+    for (final key in box.keys) {
+      map[key.toString()] = box.get(key);
+    }
+    return map;
+  }
+
+  Future<void> importDbSnapshot(Map<String, dynamic> snapshot) async {
+    for (final entry in snapshot.entries) {
+      await importTableData(entry.key, entry.value);
+    }
+  }
+
+  dynamic exportTableData(String tableName) {
+    switch (tableName) {
+      case 'pricelist':
+      case 'pricelist_items':
+        return _boxToMap(_pricelistBox);
+      case 'shop_settings':
+      case 'settings':
+        return _boxToMap(_settingsBox);
+      case 'custom_services':
+        return _settingsBox.get('custom_services_list');
+      case 'sales':
+        return {
+          'sales': _boxToMap(_salesBox),
+          'sale_items': _boxToMap(_saleItemsBox),
+        };
+      case 'calls':
+        return _boxToMap(_callsBox);
+      case 'inward_repairs':
+      case 'inward':
+        return {
+          'inward': _boxToMap(_inwardBox),
+          'inward_items': _boxToMap(_inwardItemsBox),
+        };
+      case 'replacements':
+      case 'replacement':
+        return _boxToMap(_replacementBox);
+      case 'requests':
+      case 'request':
+        return _boxToMap(_requestBox);
+      case 'purchases':
+      case 'purchase':
+        return {
+          'purchases': _boxToMap(_purchaseBox),
+          'purchase_items': _boxToMap(_purchaseItemsBox),
+        };
+      default:
+        return null;
+    }
+  }
+
+  Map<dynamic, dynamic> _normalizeMapKeys(Map data) {
+    final result = <dynamic, dynamic>{};
+    for (final e in data.entries) {
+      final k = int.tryParse(e.key.toString()) ?? e.key;
+      result[k] = e.value;
+    }
+    return result;
+  }
+
+  Future<void> importTableData(String tableName, dynamic data) async {
+    if (data == null) return;
+    try {
+      if ((tableName == 'pricelist' || tableName == 'pricelist_items') && data is Map) {
+        await _pricelistBox.clear();
+        await _pricelistBox.putAll(_normalizeMapKeys(data));
+      } else if ((tableName == 'settings' || tableName == 'shop_settings') && data is Map) {
+        await _settingsBox.clear();
+        await _settingsBox.putAll(data);
+      } else if (tableName == 'custom_services' && data is List) {
+        await _settingsBox.put('custom_services_list', List<String>.from(data));
+        ShopRepository.notifyTableChanged('custom_services');
+      } else if (tableName == 'sales' && data is Map) {
+        if (data.containsKey('sales') && data['sales'] is Map) {
+          await _salesBox.clear();
+          await _salesBox.putAll(_normalizeMapKeys(data['sales'] as Map));
+        } else {
+          await _salesBox.clear();
+          await _salesBox.putAll(_normalizeMapKeys(data));
+        }
+        if (data.containsKey('sale_items') && data['sale_items'] is Map) {
+          await _saleItemsBox.clear();
+          await _saleItemsBox.putAll(_normalizeMapKeys(data['sale_items'] as Map));
+        }
+      } else if (tableName == 'calls' && data is Map) {
+        await _callsBox.clear();
+        await _callsBox.putAll(_normalizeMapKeys(data));
+      } else if ((tableName == 'inward' || tableName == 'inward_repairs') && data is Map) {
+        if (data.containsKey('inward') && data['inward'] is Map) {
+          await _inwardBox.clear();
+          await _inwardBox.putAll(_normalizeMapKeys(data['inward'] as Map));
+        } else {
+          await _inwardBox.clear();
+          await _inwardBox.putAll(_normalizeMapKeys(data));
+        }
+        if (data.containsKey('inward_items') && data['inward_items'] is Map) {
+          await _inwardItemsBox.clear();
+          await _inwardItemsBox.putAll(_normalizeMapKeys(data['inward_items'] as Map));
+        }
+      } else if (tableName == 'replacements' || tableName == 'replacement') {
+        if (data is Map) {
+          await _replacementBox.clear();
+          await _replacementBox.putAll(_normalizeMapKeys(data));
+        }
+      } else if (tableName == 'requests' || tableName == 'request') {
+        if (data is Map) {
+          await _requestBox.clear();
+          await _requestBox.putAll(_normalizeMapKeys(data));
+        }
+      } else if (tableName == 'purchases' || tableName == 'purchase') {
+        if (data is Map) {
+          if (data.containsKey('purchases') && data['purchases'] is Map) {
+            await _purchaseBox.clear();
+            await _purchaseBox.putAll(_normalizeMapKeys(data['purchases'] as Map));
+          } else {
+            await _purchaseBox.clear();
+            await _purchaseBox.putAll(_normalizeMapKeys(data));
+          }
+          if (data.containsKey('purchase_items') && data['purchase_items'] is Map) {
+            await _purchaseItemsBox.clear();
+            await _purchaseItemsBox.putAll(_normalizeMapKeys(data['purchase_items'] as Map));
+          }
+        }
+      } else if (tableName == 'ui_preferences' && data is Map) {
+        if (Hive.isBoxOpen('ui_preferences')) {
+          final box = Hive.box('ui_preferences');
+          await box.clear();
+          await box.putAll(data);
+          StatusManagementService.clearCache();
+        }
+      } else if ((tableName == 'app_users' || tableName == 'app_users_box') && data is Map) {
+        if (Hive.isBoxOpen('app_users_box')) {
+          final box = Hive.box('app_users_box');
+          await box.clear();
+          await box.putAll(data);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('LocalDatabaseService importTableData ($tableName) error: $e');
     }
   }
 
@@ -515,6 +688,32 @@ class LocalDatabaseService {
     }
   }
 
+  Future<void> deleteCustomServiceName(String name, {bool syncToCloud = true}) async {
+    final cleaned = name.trim();
+    if (cleaned.isEmpty) return;
+
+    final List<String> list = getCustomServiceNames();
+    final initialLen = list.length;
+    list.removeWhere((item) => item.toLowerCase() == cleaned.toLowerCase());
+
+    if (list.length != initialLen) {
+      await _settingsBox.put('custom_services_list', list);
+      ShopRepository.notifyTableChanged('custom_services');
+
+      if (syncToCloud) {
+        unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+          'shop_settings',
+          {
+            'key': 'custom_services_list',
+            'value': list,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          localDb: this,
+        ));
+      }
+    }
+  }
+
   Future<void> setCustomServicesList(List<String> services, {bool syncToCloud = false}) async {
     await _settingsBox.put('custom_services_list', services);
     ShopRepository.notifyTableChanged('custom_services');
@@ -635,7 +834,13 @@ class LocalDatabaseService {
       }
     }
     // Sort sales by date descending (newest first)
-    sales.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+    sales.sort((a, b) {
+      final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
+      final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.invoiceNo.compareTo(a.invoiceNo);
+    });
     return sales;
   }
 
@@ -846,7 +1051,13 @@ class LocalDatabaseService {
         list.add(CallModel.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 
@@ -886,7 +1097,13 @@ class LocalDatabaseService {
       }
     }
     final list = map.values.toList();
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.jobNo.compareTo(a.jobNo);
+    });
     return list;
   }
 
@@ -1061,7 +1278,13 @@ class LocalDatabaseService {
         list.add(Replacement.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.jobNo.compareTo(a.jobNo);
+    });
     return list;
   }
 
@@ -1095,7 +1318,13 @@ class LocalDatabaseService {
         list.add(RequestOrder.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 
@@ -1120,7 +1349,13 @@ class LocalDatabaseService {
         list.add(PurchaseOrder.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 

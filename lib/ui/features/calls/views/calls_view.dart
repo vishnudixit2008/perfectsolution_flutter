@@ -187,8 +187,14 @@ class _CallsViewState extends State<CallsView> {
           return matchesSearch && matchesAssigned;
         }).toList();
 
-        // Sort by ID descending (newest calls first)
-        filteredCalls.sort((a, b) => b.id.compareTo(a.id));
+        // Sort by date descending (newest calls first), tie-break with ID descending
+        filteredCalls.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.id.compareTo(a.id);
+        });
 
         final groupedCalls = _getGroupedCalls(filteredCalls);
 
@@ -432,7 +438,9 @@ class _CallsViewState extends State<CallsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dateComp = b.date.compareTo(a.date);
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
         if (dateComp != 0) return dateComp;
         return b.id.compareTo(a.id);
       });
@@ -787,7 +795,7 @@ class _CallsViewState extends State<CallsView> {
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadCalls();
       },
       child: ListView.builder(
@@ -1782,6 +1790,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
           ],
           if (isPhotoVis)
             PhotoAttachmentWidget(
+              category: 'calls',
               initialPhotoUrl: _photoUrl,
               label: 'Enquiry / Product Screenshot or Photo(s)',
               onUploadingChanged: (uploading) {

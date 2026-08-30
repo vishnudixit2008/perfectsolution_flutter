@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/repositories/shop_repository.dart';
@@ -31,6 +33,7 @@ import 'ui/features/auth/view_models/auth_view_model.dart';
 import 'ui/features/auth/views/login_view.dart';
 import 'ui/navigation/navigation_view_model.dart';
 import 'data/services/fcm_service.dart';
+import 'data/services/multi_window_sync_service.dart';
 import 'ui/features/permissions/views/permissions_gate_view.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -39,25 +42,64 @@ void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) print('IconRegistry loaded: ${IconRegistry.icons.length}');
 
-  // Register Windows URL Scheme Protocol under HKCU (No Admin elevation required)
-  await _registerWindowsProtocolHandler();
+  int? windowId;
+  Map<String, dynamic> windowArgs = {};
+  if (args.isNotEmpty && args.first == 'multi_window') {
+    windowId = int.tryParse(args[1]);
+    if (args.length > 2 && args[2].isNotEmpty) {
+      try {
+        windowArgs = jsonDecode(args[2]);
+      } catch (_) {}
+    }
+  }
 
-  // Initialize Database Service
+  final bool isSubWindow = windowId != null && windowId != 0;
+
+  // Register Windows URL Scheme Protocol under HKCU (No Admin elevation required)
+  if (!isSubWindow) {
+    await _registerWindowsProtocolHandler();
+  }
+
+  // Initialize Database Service with isolated directory for sub-windows
   final localDb = LocalDatabaseService();
-  await localDb.init();
+  await localDb.init(subWindowId: windowId);
   await UiPreferencesService.init();
   await StatusManagementService.init();
   await UserPermissionService.init();
-  await GoogleDriveUploadService.init();
-  // This also calls Supabase.initialize() internally
-  await SupabaseSyncService.instance.init(localDb);
 
-  // Initialize Firebase Cloud Messaging & Full Screen Alerts
-  await FcmService.instance.init(key: rootNavigatorKey);
+  if (!isSubWindow) {
+    await GoogleDriveUploadService.init();
+    // This also calls Supabase.initialize() internally
+    await SupabaseSyncService.instance.init(localDb);
+  } else {
+    // Sub-windows initialize Supabase client for reading if needed without duplicate sync loops
+    try {
+      await Supabase.initialize(
+        url: SupabaseSyncService.defaultUrl,
+        publishableKey: SupabaseSyncService.defaultAnonKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+          localStorage: EmptyLocalStorage(),
+        ),
+      );
+    } catch (_) {}
+  }
 
-  // If Kiosk Mode is active on Android, keep WebSocket alive with foreground service
-  if (UiPreferencesService.isKioskMode()) {
-    KioskOverlayHelper.startKioskForegroundService();
+  // Initialize Desktop Multi-Window Service with localDb reference
+  await MultiWindowSyncService.instance.init(
+    windowId: windowId,
+    windowArgs: windowArgs,
+    localDb: localDb,
+  );
+
+  // Initialize Firebase Cloud Messaging & Full Screen Alerts on primary window
+  if (!isSubWindow) {
+    await FcmService.instance.init(key: rootNavigatorKey);
+
+    // If Kiosk Mode is active on Android, keep WebSocket alive with foreground service
+    if (UiPreferencesService.isKioskMode()) {
+      KioskOverlayHelper.startKioskForegroundService();
+    }
   }
 
   // Check if launched with command-line deep link argument on Windows/Desktop
@@ -132,15 +174,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    // Only wire up deep link listener on native platforms (not web)
-    if (!kIsWeb) {
+    final bool isSubWindow = MultiWindowSyncService.instance.isSubWindow;
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      WidgetsBinding.instance.addObserver(this);
+    }
+    // Only wire up deep link listener on main window
+    if (!kIsWeb && !isSubWindow) {
       _initDeepLinkHandling();
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
     if (state == AppLifecycleState.resumed) {
       if (kDebugMode) {
         print(
@@ -159,6 +205,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// Listens for the OAuth deep link callback (io.supabase.shopmanagement://login-callback)
   /// and hands it to Supabase so it can exchange the code for a session.
   void _initDeepLinkHandling() async {
+    if (MultiWindowSyncService.instance.isSubWindow) return;
     _appLinks = AppLinks();
 
     // Check cold start initial deep link (Windows/Android app launched via protocol link)
@@ -206,7 +253,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    final bool isDesktop = !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
+
+    Widget app = MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'Perfect Solution',
       debugShowCheckedModeBanner: false,
@@ -232,6 +281,28 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
       ),
     );
+
+    if (isDesktop) {
+      final shortcutActivator = SingleActivator(
+        LogicalKeyboardKey.keyN,
+        meta: Platform.isMacOS,
+        control: !Platform.isMacOS,
+      );
+
+      return CallbackShortcuts(
+        bindings: {
+          shortcutActivator: () {
+            MultiWindowSyncService.instance.createNewWindow();
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: app,
+        ),
+      );
+    }
+
+    return app;
   }
 }
 

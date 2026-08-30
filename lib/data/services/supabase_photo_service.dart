@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'image_compression_service.dart';
 
 /// Service for uploading, deleting, and managing photos in Supabase Storage.
 ///
@@ -18,23 +17,18 @@ import 'image_compression_service.dart';
 class SupabasePhotoService {
   static const String _bucketName = 'photos';
 
-  /// Uploads image bytes to Supabase Storage and returns the public URL.
-  /// Automatically compresses images > 100KB to < 100KB while preserving quality.
+  /// Uploads raw image bytes to Supabase Storage at maximum full resolution.
   /// Returns null if the upload fails — caller must NOT store null into DB.
   ///
-  /// [bytes]     : Raw image bytes (automatically optimized and compressed to < 100KB).
+  /// [bytes]     : Full-resolution raw image bytes.
   /// [fileName]  : Base filename (e.g. 'photo_123456.jpg').
-  /// [category]  : Sub-folder within the bucket (e.g. 'inward', 'calls').
+  /// [category]  : Sub-folder within the bucket (e.g. 'inward_repairs', 'calls').
   static Future<String?> uploadPhoto({
     required Uint8List bytes,
     required String fileName,
     String category = 'general',
   }) async {
     try {
-      // 1. Auto-compress image to < 100KB if larger
-      final optimizedBytes =
-          await ImageCompressionService.compressImageBytes(bytes);
-
       final client = Supabase.instance.client;
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       // Path: {category}/{timestamp}_{filename} — unique per upload
@@ -42,7 +36,7 @@ class SupabasePhotoService {
 
       await client.storage.from(_bucketName).uploadBinary(
         path,
-        optimizedBytes,
+        bytes,
         fileOptions: const FileOptions(
           contentType: 'image/jpeg',
           upsert: true,

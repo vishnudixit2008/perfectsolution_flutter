@@ -184,7 +184,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
               statusMatch;
         }).toList();
 
-        // Primary sort by status order (configured in StatusManagementService), secondary sort by jobNo descending
+        // Primary sort by status order (configured in StatusManagementService), secondary sort by date descending, tertiary by jobNo descending
         final statusList = StatusManagementService.getStatuses('inward');
         filteredRepairs.sort((a, b) {
           final idxA = statusList.indexWhere(
@@ -199,6 +199,10 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
           if (orderA != orderB) {
             return orderA.compareTo(orderB);
           }
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
           return b.jobNo.compareTo(a.jobNo);
         });
 
@@ -339,7 +343,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dateComp = b.date.compareTo(a.date);
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
         if (dateComp != 0) return dateComp;
         return b.jobNo.compareTo(a.jobNo);
       });
@@ -624,7 +630,7 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadRepairs();
       },
       child: ListView.builder(
@@ -1679,6 +1685,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
   bool _isPhotoUploading = false;
 
   List<InwardEstimateItem> _estimates = [];
+  final Set<String> _locallyDeletedServices = {};
 
   double get _estimatesSubtotal {
     return _estimates.fold(0.0, (sum, item) => sum + item.totalAmount);
@@ -2167,6 +2174,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
 
           if (isPhotoVis) ...[
             PhotoAttachmentWidget(
+              category: 'inward_repairs',
               initialPhotoUrl: _photoUrl,
               label: 'Device Condition / Proof Photo(s)',
               onUploadingChanged: (uploading) {
@@ -2335,7 +2343,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                               _selectedEstItemId = selection.id;
                               _estItemNameController.text = selection.itemName;
                               _estPriceController.text =
-                                  selection.price.toStringAsFixed(0);
+                              selection.price.toStringAsFixed(0);
                             },
                           )
                         : Autocomplete<String>(
@@ -2350,7 +2358,7 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                                           'service',
                                     )
                                     .map((i) => i.itemName),
-                              }.toList();
+                              }.where((s) => !_locallyDeletedServices.contains(s)).toList();
                               if (textEditingValue.text.isEmpty) {
                                 return allServices;
                               }
@@ -2399,21 +2407,67 @@ class _InwardRepairFormDialogState extends State<_InwardRepairFormDialog> {
                                     constraints:
                                         const BoxConstraints(maxHeight: 200),
                                     child: ListView.builder(
-                                      padding: EdgeInsets.zero,
+                                      padding: const EdgeInsets.symmetric(vertical: 4),
                                       shrinkWrap: true,
                                       itemCount: options.length,
                                       itemBuilder: (context, index) {
                                         final s = options.elementAt(index);
-                                        return ListTile(
-                                          dense: true,
-                                          title: Text(
-                                            s,
-                                            style: const TextStyle(
-                                              color: AppTheme.textPrimary,
-                                              fontSize: 13,
+                                        return Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            hoverColor: AppTheme.primary.withValues(alpha: 0.15),
+                                            onTap: () => onSelected(s),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                              child: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                                      child: Text(
+                                                        s,
+                                                        style: const TextStyle(
+                                                          color: AppTheme.textPrimary,
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.delete_outline_rounded,
+                                                      size: 18,
+                                                      color: Colors.redAccent,
+                                                    ),
+                                                    tooltip: 'Delete "$s"',
+                                                    splashRadius: 16,
+                                                    constraints: const BoxConstraints(
+                                                      minWidth: 32,
+                                                      minHeight: 32,
+                                                    ),
+                                                    padding: EdgeInsets.zero,
+                                                    onPressed: () async {
+                                                      setState(() {
+                                                        _locallyDeletedServices.add(s);
+                                                      });
+                                                      await context.read<SalesViewModel>().deleteCustomService(s);
+                                                      if (_activeAutocompleteController != null) {
+                                                        final currentText = _activeAutocompleteController!.text;
+                                                        _activeAutocompleteController!.value = TextEditingValue(
+                                                          text: currentText,
+                                                          selection: TextSelection.collapsed(offset: currentText.length),
+                                                        );
+                                                      }
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
-                                          onTap: () => onSelected(s),
                                         );
                                       },
                                     ),

@@ -214,6 +214,8 @@ class AuthViewModel extends ChangeNotifier {
       _isAuthenticated = true;
       _isLoading = false;
       _errorMessage = null;
+      unawaited(FcmService.instance.syncUserToken(cleanEmail));
+      unawaited(FcmService.instance.syncUserToken(currentUser.name));
       notifyListeners();
       return true;
     } catch (e) {
@@ -309,8 +311,10 @@ class AuthViewModel extends ChangeNotifier {
         return success;
       }
 
-      // ── Windows Desktop: HTTP Loopback Handshake ──────────────────────────────
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      // ── Desktop (macOS & Windows): HTTP Loopback Handshake ───────────────────
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS)) {
         try {
           final redirectUrl = await WindowsOAuthService.startLocalServer();
 
@@ -371,7 +375,7 @@ class AuthViewModel extends ChangeNotifier {
           }
         } catch (e) {
           await WindowsOAuthService.stopLocalServer();
-          if (kDebugMode) print('Windows OAuth error: $e');
+          if (kDebugMode) print('Desktop OAuth error: $e');
         }
       }
 
