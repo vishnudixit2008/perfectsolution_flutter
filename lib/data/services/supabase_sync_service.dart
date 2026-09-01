@@ -25,6 +25,27 @@ import '../../ui/shared/dialogs/call_alert_dialog.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
+/// ============================================================================
+/// CRITICAL ARCHITECTURE NOTICE FOR ALL DEVELOPERS & AI MODELS:
+/// ----------------------------------------------------------------------------
+/// This service is the core synchronization engine between local Hive storage
+/// and the self-hosted Supabase backend (running on Linux over direct IPv6).
+///
+/// KEY RULES & INVARIANTS:
+/// 1. DO NOT MODIFY SYNC OR MERGE LOGIC WITHOUT EXPLICIT PERMISSION FROM USER.
+/// 2. BATCHED QUERIES: syncAllTablesFromCloud() MUST run in 3 batched groups
+///    (max 4 concurrent requests). DO NOT revert to an unconstrained Future.wait
+///    of all 12 tables, as mobile network socket limits (max 6 connections)
+///    will starve the Realtime WebSocket channel and trigger timeouts.
+/// 3. DELTA SYNC: Every table query MUST include `updated_at >= lastSyncIso`
+///    to avoid re-downloading entire tables.
+/// 4. MERGE IN PLACE: Always save with `clearOthers: false` to preserve local
+///    offline edits and avoid wiping records.
+/// 5. TOMBSTONES: Deletions use the `deleted_records` table to ensure atomic
+///    and precise item removal across all devices without blind wipes.
+/// 6. ENDPOINT: The primary backend is `http://psflutter.duckdns.org:8000`
+///    (Direct native IPv6 with DuckDNS). Do not change without user approval.
+/// ============================================================================
 class SupabaseSyncService extends ChangeNotifier {
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';

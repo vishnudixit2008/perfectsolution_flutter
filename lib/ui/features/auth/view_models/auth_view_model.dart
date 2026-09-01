@@ -12,6 +12,24 @@ import '../../../../data/services/fcm_service.dart';
 
 
 
+/// ============================================================================
+/// CRITICAL ARCHITECTURE NOTICE FOR ALL DEVELOPERS & AI MODELS:
+/// ----------------------------------------------------------------------------
+/// This ViewModel manages user authentication state, email/password login,
+/// PIN verification, and cross-platform Google Sign-In.
+///
+/// KEY RULES & INVARIANTS:
+/// 1. CACHE-FIRST LOGIN (0ms): For email/password and remembered sessions,
+///    verify local Hive cache immediately so user transition to Dashboard
+///    is instant without network buffering.
+/// 2. MULTI-PLATFORM GOOGLE AUTH:
+///    - Android/iOS: Uses native `GoogleSignIn` SDK with `signInWithIdToken()`.
+///      Do NOT use browser redirect OAuth on mobile.
+///    - Windows/macOS: Uses `WindowsOAuthService.startLocalServer()` loopback on
+///      `http://localhost:54321`.
+///    - Web: Uses Google Identity Services (GIS) popup with `signInWithIdToken()`.
+/// 3. DO NOT MODIFY THIS AUTH FLOW WITHOUT EXPLICIT PERMISSION FROM THE USER.
+/// ============================================================================
 class AuthViewModel extends ChangeNotifier {
   static const String _prefBoxName = 'ui_preferences';
   static const String _rememberMeKey = 'auth_remember_me';

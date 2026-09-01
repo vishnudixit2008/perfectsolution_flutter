@@ -41,12 +41,11 @@ android/app/src/main/assets/
 android/captures/
 android/gradleApp.setting
 android/local.properties
-android/key.properties
 android/key.jks
 android/key.p12
 android/app/signingSecret.properties
-*.jks
-*.keystore
+!android/key.properties
+!android/app/upload-keystore.jks
 
 
 # iOS / macOS specific

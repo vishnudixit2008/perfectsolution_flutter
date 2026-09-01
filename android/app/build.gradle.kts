@@ -42,7 +42,17 @@ android {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
             keyPassword = keystoreProperties.getProperty("keyPassword") ?: "shopmanagement123"
-            storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
+            val rawStoreFile = keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks"
+            val resolvedFile = if (file(rawStoreFile).exists()) {
+                file(rawStoreFile)
+            } else if (rootProject.file(rawStoreFile).exists()) {
+                rootProject.file(rawStoreFile)
+            } else if (file("upload-keystore.jks").exists()) {
+                file("upload-keystore.jks")
+            } else {
+                rootProject.file("app/upload-keystore.jks")
+            }
+            storeFile = resolvedFile
             storePassword = keystoreProperties.getProperty("storePassword") ?: "shopmanagement123"
         }
     }

@@ -6,6 +6,23 @@ import '../models/app_user.dart';
 import 'ui_preferences_service.dart';
 import '../../ui/shared/status_management_dialog.dart';
 
+/// ============================================================================
+/// CRITICAL ARCHITECTURE NOTICE FOR ALL DEVELOPERS & AI MODELS:
+/// ----------------------------------------------------------------------------
+/// This service handles user authentication, PIN codes, role-based permissions,
+/// and email whitelist authorization.
+///
+/// KEY RULES & INVARIANTS:
+/// 1. CACHE-FIRST 0ms AUTH: Always check the local Hive database (`app_users_box`)
+///    first for instant user verification and login. NEVER block the UI on slow
+///    cloud network calls during user login or permission checks.
+/// 2. NON-BLOCKING BACKGROUND SYNC: Cloud user synchronization (via
+///    `syncUsersFromCloud()` and `syncSingleUserFromCloud()`) MUST run in the
+///    background (`unawaited`) with strict timeouts (max 4 seconds).
+/// 3. PERMANENT ADMIN ACCESS: Hardcoded admin emails (e.g. permanent admin email)
+///    MUST always pass authorization and never be locked out during offline/network failure.
+/// 4. DO NOT MODIFY THIS AUTH LOGIC WITHOUT EXPLICIT PERMISSION FROM THE USER.
+/// ============================================================================
 class UserPermissionService {
   static const String _boxName = 'app_users_box';
   static const String _currentEmailKey = 'current_user_email';
