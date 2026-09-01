@@ -51,6 +51,7 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
             notificationsGranted: true,
             overlayGranted: true,
             batteryOptimizationIgnored: true,
+            installPackagesGranted: true,
             cameraGranted: true,
             storageGranted: true,
           );
@@ -85,6 +86,9 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
       if (!_status!.batteryOptimizationIgnored) {
         await AppPermissionsService.instance.requestBatteryOptimization();
       }
+      if (!_status!.installPackagesGranted) {
+        await AppPermissionsService.instance.requestInstallPackagesPermission();
+      }
       await _checkPermissions();
     } finally {
       if (mounted) setState(() => _isRequesting = false);
@@ -116,6 +120,7 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
     final notifOk = status?.notificationsGranted ?? false;
     final overlayOk = status?.overlayGranted ?? false;
     final batteryOk = status?.batteryOptimizationIgnored ?? false;
+    final installOk = status?.installPackagesGranted ?? false;
     final cameraOk = status?.cameraGranted ?? false;
 
     return Scaffold(
@@ -225,6 +230,22 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
                       onTap: () async {
                         await AppPermissionsService.instance
                             .requestBatteryOptimization();
+                        await _checkPermissions();
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    _buildPermissionItem(
+                      icon: Icons.system_update_rounded,
+                      iconColor: const Color(0xFF60A5FA),
+                      title: 'Automatic App Updates',
+                      subtitle:
+                          'Allows the app to seamlessly receive background bug fixes, performance improvements, and feature updates.',
+                      isGranted: installOk,
+                      isRequired: true,
+                      onTap: () async {
+                        await AppPermissionsService.instance
+                            .requestInstallPackagesPermission();
                         await _checkPermissions();
                       },
                     ),

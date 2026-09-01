@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/call_model.dart';
+import '../models/app_user.dart';
 
 class FcmPushSenderService {
   static final FcmPushSenderService instance = FcmPushSenderService._internal();
@@ -52,6 +53,16 @@ class FcmPushSenderService {
   Future<void> sendCallAssignmentPush(CallModel call) async {
     final assignedStaff = call.assignedTo.trim();
     if (assignedStaff.isEmpty || assignedStaff == 'N/A') return;
+
+    final cleanStaff = assignedStaff.toLowerCase();
+    if (AppUser.isPermanentAdmin(cleanStaff) ||
+        cleanStaff == 'sale.perfectsolutionnoida@gmail.com' ||
+        cleanStaff == 'sale' ||
+        cleanStaff == 'office' ||
+        cleanStaff == 'unassigned') {
+      debugPrint('FcmPushSenderService: Suppressing push for admin/sale/office assignment: $assignedStaff');
+      return;
+    }
 
     try {
       final tokens = await _getTargetTokens(assignedStaff);
@@ -290,10 +301,14 @@ class FcmPushSenderService {
         } else if (key == 'user_fcm_tokens') {
           if (val is Map) {
             for (final entry in val.entries) {
-              if (entry.value is List) {
-                allTokens.addAll((entry.value as List).map((e) => e.toString()));
-              } else if (entry.value is String) {
-                allTokens.add(entry.value.toString());
+              final userKey = entry.key.toString().toLowerCase().trim();
+              // STRICT TARGETING: Only target tokens belonging to sale.perfectsolutionnoida@gmail.com
+              if (userKey == 'sale.perfectsolutionnoida@gmail.com' || userKey == 'sale') {
+                if (entry.value is List) {
+                  allTokens.addAll((entry.value as List).map((e) => e.toString()));
+                } else if (entry.value is String) {
+                  allTokens.add(entry.value.toString());
+                }
               }
             }
           }

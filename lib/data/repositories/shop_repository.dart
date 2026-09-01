@@ -65,8 +65,10 @@ class ShopRepository {
     );
   }
 
+  /// Resets only the pricelist back to the bundled default items.
+  /// Sales, repairs, calls, purchases and all other data are untouched.
   Future<void> resetPricelistToDefault() async =>
-      await _localDb.clearDatabase();
+      await _localDb.clearPricelistOnly();
 
   // Settings
   String? getActiveUpiId() => _localDb.getActiveUpiId();
@@ -261,6 +263,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.saveEstimateItemsForJob(
       repair.jobNo,
       items,
+      localDb: _localDb,
     );
     if (repair.photo != null && repair.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);
@@ -364,6 +367,7 @@ class ShopRepository {
     await SupabaseSyncService.instance.savePurchaseItemsForPurchase(
       order.id,
       items,
+      localDb: _localDb,
     );
     for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(

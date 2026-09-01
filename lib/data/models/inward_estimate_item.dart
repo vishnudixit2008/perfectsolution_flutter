@@ -73,6 +73,7 @@ class InwardEstimateItem {
       'service_price': servicePrice,
       'total_amount': totalAmount,
       'notes': notes,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }
 }

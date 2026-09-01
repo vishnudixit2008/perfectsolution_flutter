@@ -26,6 +26,7 @@ import '../features/sales/view_models/sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
 import '../shared/components/desktop_update_progress_widget.dart';
+import '../shared/components/mobile_update_banner.dart';
 import '../shared/update_dialog.dart';
 import '../features/settings/views/upi_qr_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -76,13 +77,20 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   void _setupKioskBroadcastListener() {
     KioskBroadcastService.instance.init();
 
+    bool isCurrentDeviceSaleKiosk() {
+      final email = UserPermissionService.getCurrentUserEmail().toLowerCase().trim();
+      return email == 'sale.perfectsolutionnoida@gmail.com' ||
+          email == 'sale' ||
+          UiPreferencesService.isKioskMode();
+    }
+
     // Check if there is an unhandled pending QR payload from cold start
     if (KioskBroadcastService.instance.latestPendingQrPayload != null) {
       final pending = KioskBroadcastService.instance.latestPendingQrPayload!;
       KioskBroadcastService.instance.clearPendingQr();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (!UiPreferencesService.isKioskMode() && !pending.isDirectPush) return;
+        if (!isCurrentDeviceSaleKiosk()) return;
         final timeout = UiPreferencesService.getKioskTimeoutSeconds();
         _openKioskQrModal(
           amount: pending.amount,
@@ -97,7 +105,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 
     _kioskShowSubscription = KioskBroadcastService.instance.onShowQr.listen((payload) {
       if (!mounted) return;
-      if (!UiPreferencesService.isKioskMode() && !payload.isDirectPush) return;
+      if (!isCurrentDeviceSaleKiosk()) return;
 
       // Bring Android app to front over other apps if minimized
       KioskOverlayHelper.bringAppToFront();
@@ -128,7 +136,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 
     _kioskDismissSubscription = KioskBroadcastService.instance.onDismissQr.listen((_) {
       if (!mounted) return;
-      if (!UiPreferencesService.isKioskMode()) return;
+      if (!isCurrentDeviceSaleKiosk()) return;
 
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
@@ -386,7 +394,13 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
         ],
       ),
       bottomNavigationBar: !isDesktop
-          ? AppBottomNavBar(currentIndex: currentIndex)
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const MobileUpdateBanner(),
+                AppBottomNavBar(currentIndex: currentIndex),
+              ],
+            )
           : null,
     );
   }

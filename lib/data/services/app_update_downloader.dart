@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -167,6 +168,21 @@ class AppUpdateDownloader {
     final String path = file.path;
 
     if (!kIsWeb && Platform.isAndroid) {
+      // 1. Try native PackageInstaller session (silent background update on Android 12+)
+      try {
+        const nativeChannel = MethodChannel('com.perfectsolution.kiosk/overlay');
+        final bool? success = await nativeChannel.invokeMethod<bool>(
+          'installApkSilently',
+          {'apkPath': path},
+        );
+        if (success == true) {
+          return true;
+        }
+      } catch (e) {
+        if (kDebugMode) print('PackageInstaller silent install error: $e');
+      }
+
+      // 2. Fallback to OpenFilex standard package installer prompt
       try {
         final result = await OpenFilex.open(
           path,

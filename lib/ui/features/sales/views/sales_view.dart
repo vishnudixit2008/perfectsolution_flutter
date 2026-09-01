@@ -698,6 +698,9 @@ class _SalesViewState extends State<SalesView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(sale);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(sale);
         }
       }
     }

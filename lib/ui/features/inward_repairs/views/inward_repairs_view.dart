@@ -337,6 +337,9 @@ class _InwardRepairsViewState extends State<InwardRepairsView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(repair);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(repair);
         }
       }
     }

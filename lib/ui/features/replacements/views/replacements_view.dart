@@ -307,6 +307,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(repl);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(repl);
         }
       }
     }

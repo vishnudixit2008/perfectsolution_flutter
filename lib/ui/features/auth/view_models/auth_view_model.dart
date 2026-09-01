@@ -24,8 +24,53 @@ class AuthViewModel extends ChangeNotifier {
   StreamSubscription<AuthState>? _authSubscription;
 
   AuthViewModel() {
+    _initSynchronousAuth();
     _listenToSupabaseAuth();
-    _checkInitialAuth();
+  }
+
+  void _initSynchronousAuth() {
+    try {
+      if (Hive.isBoxOpen(_prefBoxName)) {
+        final box = Hive.box(_prefBoxName);
+        final isRemembered = box.get(_rememberMeKey, defaultValue: false) as bool;
+        final rememberedEmail = box.get(_rememberedEmailKey) as String?;
+
+        if (isRemembered &&
+            rememberedEmail != null &&
+            rememberedEmail.isNotEmpty &&
+            UserPermissionService.isAuthorizedUser(rememberedEmail)) {
+          _rememberMe = true;
+          _isAuthenticated = true;
+          UserPermissionService.setCurrentUser(rememberedEmail);
+          unawaited(FcmService.instance.syncUserToken(rememberedEmail));
+          unawaited(FcmService.instance.syncUserToken(currentUser.name));
+
+          // Asynchronous background verification with cloud database
+          unawaited(() async {
+            try {
+              final stillAuthorized =
+                  await UserPermissionService.isAuthorizedUserAsync(rememberedEmail);
+              if (!stillAuthorized) {
+                await Supabase.instance.client.auth.signOut();
+                await _updateRememberMeSession('', false);
+                _isAuthenticated = false;
+                _errorMessage =
+                    'Access Denied: Your account ($rememberedEmail) access was revoked.';
+                notifyListeners();
+              }
+            } catch (_) {}
+          }());
+          return;
+        } else {
+          _rememberMe = false;
+          _isAuthenticated = false;
+        }
+      } else {
+        _isAuthenticated = false;
+      }
+    } catch (_) {
+      _isAuthenticated = false;
+    }
   }
 
   bool get isAuthenticated => _isAuthenticated;
@@ -95,36 +140,6 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _checkInitialAuth() async {
-    try {
-      if (Hive.isBoxOpen(_prefBoxName)) {
-        final box = Hive.box(_prefBoxName);
-        final isRemembered = box.get(_rememberMeKey, defaultValue: false) as bool;
-        final rememberedEmail = box.get(_rememberedEmailKey) as String?;
-
-        if (isRemembered &&
-            rememberedEmail != null &&
-            rememberedEmail.isNotEmpty &&
-            await UserPermissionService.isAuthorizedUserAsync(rememberedEmail)) {
-          _rememberMe = true;
-          await UserPermissionService.setCurrentUser(rememberedEmail);
-          _isAuthenticated = true;
-          unawaited(FcmService.instance.syncUserToken(rememberedEmail));
-          unawaited(FcmService.instance.syncUserToken(currentUser.name));
-        } else {
-          _rememberMe = false;
-          _isAuthenticated = false;
-          await _updateRememberMeSession('', false);
-        }
-      } else {
-        _isAuthenticated = false;
-      }
-    } catch (_) {
-      _isAuthenticated = false;
-    }
-    notifyListeners();
-  }
-
   /// Save or clear persistent login session in Hive
   Future<void> _updateRememberMeSession(String email, bool remember) async {
     try {
@@ -141,36 +156,77 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Sign in with Email & Password (Strict Password Verification + Whitelist Check)
+  /// Sign in with Email & Password (Strict Password Verification + Cache-First Whitelist)
   Future<bool> loginWithEmailAndPassword(
     String email,
     String password, {
     bool rememberMe = false,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPass = password.trim();
+
+    if (cleanEmail.isEmpty) {
+      _errorMessage = 'Please enter an email address.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    if (cleanPass.isEmpty) {
+      _errorMessage = 'Password is required to sign in. Access denied.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    // 1. Permanent Admins -> Instant 0ms Bypass
+    if (AppUser.isPermanentAdmin(cleanEmail)) {
+      final localUser = UserPermissionService.getUser(cleanEmail);
+      if (localUser != null && localUser.password != null && localUser.password!.isNotEmpty) {
+        if (localUser.password!.trim() != cleanPass) {
+          _errorMessage = 'Invalid Password. Sign in attempt blocked for security.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+      await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
+      await _updateRememberMeSession(cleanEmail, rememberMe);
+      _isAuthenticated = true;
+      _isLoading = false;
+      _errorMessage = null;
+      _rememberMe = rememberMe;
+      unawaited(FcmService.instance.syncUserToken(cleanEmail));
+      unawaited(FcmService.instance.syncUserToken(currentUser.name));
+      notifyListeners();
+      return true;
+    }
+
+    // 2. Cache-First: Instant 0ms Local Hive Check
+    final localUser = UserPermissionService.getUser(cleanEmail);
+    if (localUser != null && localUser.isActive && localUser.password != null && localUser.password!.isNotEmpty) {
+      if (localUser.password!.trim() == cleanPass) {
+        await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
+        await _updateRememberMeSession(cleanEmail, rememberMe);
+        _isAuthenticated = true;
+        _isLoading = false;
+        _errorMessage = null;
+        _rememberMe = rememberMe;
+        unawaited(FcmService.instance.syncUserToken(cleanEmail));
+        unawaited(FcmService.instance.syncUserToken(currentUser.name));
+        notifyListeners();
+        return true;
+      }
+    }
+
+    // 3. Fallback: Authenticate against Cloud DB / Supabase Auth
     _isLoading = true;
     _errorMessage = null;
     _rememberMe = rememberMe;
     notifyListeners();
 
     try {
-      final cleanEmail = email.trim().toLowerCase();
-      final cleanPass = password.trim();
-
-      if (cleanEmail.isEmpty) {
-        _errorMessage = 'Please enter an email address.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      if (cleanPass.isEmpty) {
-        _errorMessage = 'Password is required to sign in. Access denied.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // 1. Strict Whitelist Check (Live Cloud DB + Local)
+      // Whitelist Check (Fast 3s timeout)
       final isAuthorized = await UserPermissionService.isAuthorizedUserAsync(cleanEmail);
       if (!isAuthorized) {
         _errorMessage =
@@ -180,16 +236,16 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
-      // 2. Authenticate Password against Supabase Auth
+      // Check Password with Supabase Auth or DB verification
       bool supabaseAuthSuccess = false;
       try {
         if (Supabase.instance.client.auth.currentSession != null) {
-          await Supabase.instance.client.auth.signOut();
+          await Supabase.instance.client.auth.signOut().timeout(const Duration(seconds: 2));
         }
         final res = await Supabase.instance.client.auth.signInWithPassword(
           email: cleanEmail,
           password: cleanPass,
-        );
+        ).timeout(const Duration(seconds: 4));
         if (res.user != null) {
           supabaseAuthSuccess = true;
         }
@@ -197,11 +253,10 @@ class AuthViewModel extends ChangeNotifier {
         if (kDebugMode) print('Supabase auth sign in exception: $e');
       }
 
-      // 3. Check UserPermissionService password verification if Supabase Auth isn't populated
-      final bool localAuthSuccess =
+      final bool authSuccess =
           supabaseAuthSuccess || await UserPermissionService.verifyUserPassword(cleanEmail, cleanPass);
 
-      if (!localAuthSuccess) {
+      if (!authSuccess) {
         _errorMessage = 'Invalid Password. Sign in attempt blocked for security.';
         _isLoading = false;
         notifyListeners();
@@ -209,7 +264,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       // Password Verification PASSED -> Grant Session
-      await UserPermissionService.setCurrentUser(cleanEmail);
+      await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
       await _updateRememberMeSession(cleanEmail, rememberMe);
       _isAuthenticated = true;
       _isLoading = false;
@@ -476,18 +531,15 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Log out back to Login View
   Future<void> logout() async {
-    _isLoading = true;
+    _isLoading = false;
+    _isAuthenticated = false;
+    _rememberMe = false;
+    await _updateRememberMeSession('', false);
     notifyListeners();
 
     try {
-      await Supabase.instance.client.auth.signOut();
+      await Supabase.instance.client.auth.signOut().timeout(const Duration(seconds: 2));
     } catch (_) {}
-
-    await _updateRememberMeSession('', false);
-    _rememberMe = false;
-    _isAuthenticated = false;
-    _isLoading = false;
-    notifyListeners();
   }
 
   @override

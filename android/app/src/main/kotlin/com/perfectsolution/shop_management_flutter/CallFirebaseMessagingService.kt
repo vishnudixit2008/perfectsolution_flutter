@@ -72,35 +72,7 @@ class CallFirebaseMessagingService : FirebaseMessagingService() {
             Log.e("CallFcmService", "WakeLock error: ${e.message}")
         }
 
-        // 2. Play native soothing alert chime in background for guaranteed 10 seconds
-        try {
-            stopNativeAlert()
-            val soundResId = resources.getIdentifier("soothing_alert", "raw", packageName)
-            if (soundResId != 0) {
-                activeMediaPlayer = android.media.MediaPlayer.create(this, soundResId)?.apply {
-                    isLooping = true
-                    setAudioAttributes(
-                        android.media.AudioAttributes.Builder()
-                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .setUsage(android.media.AudioAttributes.USAGE_ALARM)
-                            .setFlags(android.media.AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
-                            .build()
-                    )
-                    setVolume(1.0f, 1.0f)
-                    start()
-                }
-
-                autoStopHandler = android.os.Handler(android.os.Looper.getMainLooper()).apply {
-                    postDelayed({
-                        stopNativeAlert()
-                    }, 10000) // Auto-stop after 10 seconds
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("CallFcmService", "Native MediaPlayer error: ${e.message}")
-        }
-
-        // 3. Prepare Intent to launch/bring MainActivity to the front
+        // 2. Prepare Intent to launch/bring MainActivity to the front
         val notifyIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
@@ -127,23 +99,24 @@ class CallFirebaseMessagingService : FirebaseMessagingService() {
             activityOptions
         )
 
-        // 4. Post High-Priority Notification with FullScreenIntent
+        // 3. Post Silent Notification with FullScreenIntent (No heads-up banner, silent in shade)
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             val notification = NotificationCompat.Builder(this, "call_alerts_v3")
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("📞 Call Assignment: Job #$callNo")
-                .setContentText("$name • $devices")
-                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setContentTitle("New call assigned")
+                .setContentText("Open app • Job #$callNo: $name")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setFullScreenIntent(pendingIntent, true)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
+                .setSilent(true) // Silent in notification shade; single sound is played by Flutter dialog
                 .addAction(
                     android.R.drawable.ic_menu_call,
-                    "Open Call",
+                    "Open App",
                     pendingIntent
                 )
                 .build()
@@ -153,7 +126,7 @@ class CallFirebaseMessagingService : FirebaseMessagingService() {
             Log.e("CallFcmService", "Notification error: ${e.message}")
         }
 
-        // 5. Directly launch MainActivity to bring full-screen modal up if permissions allow
+        // 4. Directly launch MainActivity to bring full-screen modal up immediately
         try {
             startActivity(notifyIntent)
         } catch (e: Exception) {

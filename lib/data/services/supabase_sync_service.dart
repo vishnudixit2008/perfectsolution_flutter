@@ -14,7 +14,6 @@ import '../models/purchase_order.dart';
 import '../models/replacement.dart';
 import '../models/request_order.dart';
 import '../models/sale.dart';
-import '../models/app_user.dart';
 import '../services/local_database_service.dart';
 import '../services/user_permission_service.dart';
 import '../repositories/shop_repository.dart';
@@ -30,7 +29,7 @@ class SupabaseSyncService extends ChangeNotifier {
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';
   static const String _keyKey = 'supabase_anon_key';
-  static const String _defaultUrl = 'https://vishnu.tailc78649.ts.net';
+  static const String _defaultUrl = 'http://psflutter.duckdns.org:8000';
   static const String _defaultAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg4MDE5NTIzLCJleHAiOjIxMDMzNzk1MjN9.eGJCMvVSVQe3lezs_UfCv5TeYRsoB9beJtlZuALKZ28';
 
@@ -54,6 +53,7 @@ class SupabaseSyncService extends ChangeNotifier {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   bool _isReconnecting = false;
+  bool _isRealtimeSubscribed = false;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
@@ -114,6 +114,9 @@ class SupabaseSyncService extends ChangeNotifier {
           publishableKey: _supabaseAnonKey!,
           authOptions: const FlutterAuthClientOptions(
             authFlowType: AuthFlowType.pkce,
+          ),
+          realtimeClientOptions: const RealtimeClientOptions(
+            timeout: Duration(seconds: 30),
           ),
         );
       } catch (_) {
@@ -182,10 +185,10 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Verifies Realtime WebSocket subscription is active, recreating channel if missing.
+  /// Verifies Realtime WebSocket subscription is active, recreating channel if missing or closed.
   void ensureRealtimeConnected(LocalDatabaseService localDb) {
     if (!_isInitialized) return;
-    if (_realtimeChannel == null && !_isReconnecting) {
+    if (!_isRealtimeSubscribed && !_isReconnecting) {
       _subscribeRealtime(localDb);
     }
   }
@@ -194,10 +197,19 @@ class SupabaseSyncService extends ChangeNotifier {
   /// We do NOT push all local data — cloud is the single source of truth.
   Future<void> _performBackgroundSync(LocalDatabaseService localDb) async {
     try {
-      // 1. Pull authoritative data from cloud into local
-      await syncAllTablesFromCloud(localDb);
-      // 2. Flush any operations queued while the device was offline
+      // 1.5s delay to allow initial dashboard UI and animations to render smoothly
+      await Future.delayed(const Duration(milliseconds: 1500));
+      // 1. Flush any operations queued while the device was offline FIRST
       await flushOfflineQueue(localDb);
+      // 2. Small gap so Supabase can propagate records that were just pushed.
+      //    Without this, a full sync immediately after flush may not yet see
+      //    the newly-pushed rows and will delete them locally (clearOthers:true).
+      await Future.delayed(const Duration(milliseconds: 500));
+      // 3. Pull authoritative data from cloud into local.
+      //    If a fallback Hive box was opened (possibly empty), force a full
+      //    re-download to restore any data that may be missing locally.
+      final forceFullSync = localDb.hadFallbackBoxOpen;
+      await syncAllTablesFromCloud(localDb, force: forceFullSync);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
       _setStatus(SyncStatus.error, 'Background Sync Error: $e');
@@ -212,8 +224,8 @@ class SupabaseSyncService extends ChangeNotifier {
   /// Regardless, it always broadcasts a Full Screen UI Refresh (0 cloud usage, pure local device RAM).
   Future<void> manualSync(LocalDatabaseService localDb, {bool forceFullDownload = false}) async {
     final now = DateTime.now();
-    // Anti-spam debounce: If clicked rapidly within 3 seconds, do instant local UI refresh without network hammering
-    if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 3) {
+    // Anti-spam debounce: If clicked rapidly within 2 seconds, do instant local UI refresh
+    if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 2) {
       ShopRepository.notifyTableChanged('all');
       _setStatus(SyncStatus.synced, 'Live Synced');
       return;
@@ -236,22 +248,10 @@ class SupabaseSyncService extends ChangeNotifier {
 
     _setStatus(SyncStatus.syncing, 'Syncing...');
 
-    // Fast 1.2s server probe to immediately detect offline status in <300ms
     try {
-      final client = Supabase.instance.client;
-      await client.from('shop_settings').select('key').limit(1).timeout(const Duration(milliseconds: 1200));
-    } catch (e) {
-      if (kDebugMode) print('Server offline probe failed: $e');
-      _setStatus(SyncStatus.offline, 'Server Offline');
-      ShopRepository.notifyTableChanged('all');
-      return;
-    }
-
-    try {
-      await syncAllTablesFromCloud(localDb, force: forceFullDownload, forceDelta: !forceFullDownload)
-          .timeout(const Duration(seconds: 15));
+      await syncAllTablesFromCloud(localDb, force: forceFullDownload, forceDelta: !forceFullDownload);
+      await flushOfflineQueue(localDb);
       _setStatus(SyncStatus.synced, 'Live Synced');
-      unawaited(flushOfflineQueue(localDb));
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
       _setStatus(SyncStatus.offline, 'Server Offline');
@@ -274,21 +274,32 @@ class SupabaseSyncService extends ChangeNotifier {
     if (!_isInitialized) return;
     try {
       final client = Supabase.instance.client;
+      _reconnectTimer?.cancel();
+      _offlineDebounceTimer?.cancel();
+
       if (_realtimeChannel != null) {
-        try {
-          _realtimeChannel!.unsubscribe();
-          client.removeChannel(_realtimeChannel!);
-        } catch (_) {}
+        final oldChannel = _realtimeChannel;
         _realtimeChannel = null;
+        _isRealtimeSubscribed = false;
+        try {
+          oldChannel?.unsubscribe();
+          if (oldChannel != null) {
+            client.removeChannel(oldChannel);
+          }
+        } catch (_) {}
       }
 
       final pendingTables = <String>{};
 
-      _realtimeChannel = client.channel('public-db-changes')
+      final newChannel = client.channel('public-db-changes');
+      _realtimeChannel = newChannel;
+
+      newChannel
         ..onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           callback: (payload) async {
+            if (_realtimeChannel != newChannel) return;
             final table = payload.table;
             final eventType = payload.eventType;
             final newRecord = payload.newRecord;
@@ -304,9 +315,28 @@ class SupabaseSyncService extends ChangeNotifier {
             // Direct in-memory fast path for immediate 0ms UI reflection
             try {
               if (eventType == PostgresChangeEvent.delete) {
-                final id = oldRecord['id'] ?? oldRecord['job_no'] ?? oldRecord['order_no'] ?? oldRecord['invoice_no'];
-                if (id != null) {
-                  final rid = id.toString();
+                // Use each table's specific PK column. Supabase may return an
+                // empty oldRecord if RLS doesn't allow returning old values —
+                // in that case fall back to newRecord (available on some configs).
+                final record = oldRecord.isNotEmpty ? oldRecord : newRecord;
+                String? rid;
+                switch (table) {
+                  case 'inward_repairs':
+                    rid = record['job_no']?.toString();
+                  case 'calls':
+                    rid = record['id']?.toString();
+                  case 'sales':
+                    rid = record['invoice_no']?.toString();
+                  case 'replacements':
+                    rid = record['job_no']?.toString();
+                  case 'requests':
+                    rid = record['id']?.toString();
+                  case 'purchases':
+                    rid = record['id']?.toString();
+                  case 'pricelist':
+                    rid = record['id']?.toString();
+                }
+                if (rid != null && rid.isNotEmpty) {
                   switch (table) {
                     case 'inward_repairs':
                       await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
@@ -324,26 +354,28 @@ class SupabaseSyncService extends ChangeNotifier {
                       await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
                   }
                   ShopRepository.notifyTableChanged(table);
+                  ShopRepository.notifyTableChanged('all');
+                } else {
+                  if (kDebugMode) print('[Realtime] DELETE on $table — could not determine PK from record; skipping local delete. Will catch on next delta sync.');
                 }
               } else if (newRecord.isNotEmpty) {
                 // If direct payload contains full record, save immediately into Hive
                 switch (table) {
                   case 'inward_repairs':
                     final repair = InwardRepair.fromJson(Map<String, dynamic>.from(newRecord));
-                    // Preserve existing estimate items
-                    final existingItems = localDb.getInwardEstimateItems(repair.jobNo);
-                    await localDb.saveInwardRepair(repair, existingItems);
+                    await localDb.saveInwardRepairHeaderOnly(repair);
                     ShopRepository.notifyTableChanged('inward_repairs');
+                    ShopRepository.notifyTableChanged('all');
                   case 'inward_estimate_items':
-                    final jno = int.tryParse(newRecord['job_no']?.toString() ?? '');
-                    if (jno != null) {
-                      // Schedule fetch for items
-                      pendingTables.add('inward_repairs');
-                    }
+                    final item = InwardEstimateItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveInwardEstimateItemOnly(item);
+                    ShopRepository.notifyTableChanged('inward_repairs');
+                    ShopRepository.notifyTableChanged('all');
                   case 'calls':
                     final call = CallModel.fromJson(Map<String, dynamic>.from(newRecord));
                     await localDb.saveCall(call);
                     ShopRepository.notifyTableChanged('calls');
+                    ShopRepository.notifyTableChanged('all');
                     if (UserPermissionService.shouldReceiveCallAlertPopup() &&
                         UserPermissionService.isEntryDirectlyAssignedToUser(call.assignedTo)) {
                       final context = FcmService.navigatorKey?.currentContext;
@@ -353,41 +385,41 @@ class SupabaseSyncService extends ChangeNotifier {
                     }
                   case 'sales':
                     final sale = Sale.fromJson(Map<String, dynamic>.from(newRecord));
-                    final existingItems = localDb.getSaleItems(sale.invoiceNo);
-                    await localDb.saveSale(sale, existingItems);
+                    await localDb.saveSaleHeaderOnly(sale);
                     ShopRepository.notifyTableChanged('sales');
+                    ShopRepository.notifyTableChanged('all');
                   case 'sale_items':
-                    final inv = int.tryParse(newRecord['invoice_no']?.toString() ?? '');
-                    if (inv != null) {
-                      pendingTables.add('sales');
-                    }
+                    final item = SaleItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveSaleItemOnly(item);
+                    ShopRepository.notifyTableChanged('sales');
+                    ShopRepository.notifyTableChanged('all');
                   case 'replacements':
                     final rep = Replacement.fromJson(Map<String, dynamic>.from(newRecord));
                     await localDb.saveReplacement(rep);
                     ShopRepository.notifyTableChanged('replacements');
+                    ShopRepository.notifyTableChanged('all');
                   case 'requests':
                     final req = RequestOrder.fromJson(Map<String, dynamic>.from(newRecord));
                     await localDb.saveRequestOrder(req);
                     ShopRepository.notifyTableChanged('requests');
+                    ShopRepository.notifyTableChanged('all');
                   case 'purchases':
                     final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(newRecord));
-                    final existingItems = localDb.getPurchaseOrderItems(pur.id);
-                    await localDb.savePurchaseOrder(pur, existingItems);
+                    await localDb.savePurchaseOrderHeaderOnly(pur);
                     ShopRepository.notifyTableChanged('purchases');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'purchase_order_items':
+                    final item = PurchaseOrderItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.savePurchaseOrderItemOnly(item);
+                    ShopRepository.notifyTableChanged('purchases');
+                    ShopRepository.notifyTableChanged('all');
                   case 'pricelist':
                     final item = PricelistItem.fromJson(Map<String, dynamic>.from(newRecord));
                     await localDb.savePricelistItem(item);
                     ShopRepository.notifyTableChanged('pricelist_items');
+                    ShopRepository.notifyTableChanged('all');
                   case 'app_users':
-                    final user = AppUser.fromJson(Map<String, dynamic>.from(newRecord));
-                    final email = user.email.toLowerCase().trim();
-                    final box = Hive.isBoxOpen('users_box') ? Hive.box('users_box') : null;
-                    if (box != null && email.isNotEmpty) {
-                      await box.put(email, user.toJson());
-                      if (email == UserPermissionService.getCurrentUserEmail().toLowerCase().trim()) {
-                        await StatusManagementService.loadFromUser(user);
-                      }
-                    }
+                    await UserPermissionService.syncUsersFromCloud(force: true);
                     ShopRepository.notifyTableChanged('app_users');
                     ShopRepository.notifyTableChanged('all');
                   case 'shop_settings':
@@ -416,9 +448,36 @@ class SupabaseSyncService extends ChangeNotifier {
                     } else if (key == 'upi_names_map' && value is Map) {
                       final map = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
                       await localDb.saveUpiNamesMap(map, syncToCloud: false);
+                    } else if (key == 'custom_services_list' && value is List) {
+                      final cloudList = List<String>.from(value.map((e) => e.toString()));
+                      await localDb.setCustomServicesList(cloudList, syncToCloud: false);
+                      ShopRepository.notifyTableChanged('custom_services');
                     }
                     ShopRepository.notifyTableChanged('shop_settings');
                     ShopRepository.notifyTableChanged('all');
+                  case 'deleted_records':
+                    final targetTable = newRecord['table_name']?.toString();
+                    final rid = newRecord['record_id']?.toString();
+                    if (targetTable != null && rid != null) {
+                      switch (targetTable) {
+                        case 'inward_repairs':
+                          await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+                        case 'calls':
+                          await localDb.deleteCall(int.tryParse(rid) ?? -1);
+                        case 'sales':
+                          await localDb.deleteSale(int.tryParse(rid) ?? -1);
+                        case 'replacements':
+                          await localDb.deleteReplacement(rid);
+                        case 'requests':
+                          await localDb.deleteRequestOrder(rid);
+                        case 'purchases':
+                          await localDb.deletePurchaseOrder(rid);
+                        case 'pricelist':
+                          await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+                      }
+                      ShopRepository.notifyTableChanged(targetTable);
+                      ShopRepository.notifyTableChanged('all');
+                    }
                 }
               }
             } catch (e) {
@@ -438,7 +497,10 @@ class SupabaseSyncService extends ChangeNotifier {
           },
         )
         ..subscribe((status, [error]) {
+          if (_realtimeChannel != newChannel) return; // Ignore teardown callbacks from stale channels
+
           if (status == RealtimeSubscribeStatus.subscribed) {
+            _isRealtimeSubscribed = true;
             _reconnectAttempts = 0;
             _isReconnecting = false;
             _offlineDebounceTimer?.cancel();
@@ -448,9 +510,11 @@ class SupabaseSyncService extends ChangeNotifier {
               _setStatus(SyncStatus.synced, 'Live Synced');
             }
             unawaited(flushOfflineQueue(localDb));
+            unawaited(syncAllTablesFromCloud(localDb, forceDelta: true));
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
+            _isRealtimeSubscribed = false;
             if (kDebugMode) {
               print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting with backoff...');
             }
@@ -513,6 +577,18 @@ class SupabaseSyncService extends ChangeNotifier {
       try {
         if (operation == 'upsert' && data != null) {
           await client.from(tableName).upsert(data);
+        } else if (operation == 'upsert_items') {
+          // Child items queued offline (estimate items, purchase items).
+          // Replay as a safe upsert — never delete-then-insert.
+          final rawItems = op['items'];
+          if (rawItems is List && rawItems.isNotEmpty) {
+            final itemsPayload = rawItems
+                .map((i) => Map<String, dynamic>.from(i as Map))
+                .toList();
+            // Determine conflict column from table name
+            final conflictCol = tableName == 'inward_estimate_items' ? 'line_id' : 'line_id';
+            await client.from(tableName).upsert(itemsPayload, onConflict: conflictCol);
+          }
         } else if (operation == 'delete' && pkColumn != null) {
           await client.from(tableName).delete().eq(pkColumn, pkValue);
           // Also write tombstone for delete operations
@@ -710,7 +786,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
       final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
       final String? lastSyncIso = (!force && lastSyncMillis > 0)
-          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 30000, isUtc: true).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 1800000, isUtc: true).toIso8601String()
           : null;
       final bool isDelta = lastSyncIso != null;
 
@@ -722,102 +798,113 @@ class SupabaseSyncService extends ChangeNotifier {
 
       // ── Parallel Cloud Fetch: Run all independent table queries concurrently ──
       var tombstoneQuery = client.from('deleted_records').select();
-      if (isDelta) tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
+      if (isDelta) tombstoneQuery = tombstoneQuery.gte('deleted_at', lastSyncIso);
 
-      // Lightweight column select excludes bulky 4MB base64 photos during bulk sync, accelerating sync by >99%
-      var inwardQuery = client.from('inward_repairs').select('job_no,date,name,mobile_no,devices,query,purchased_from,notes,status,completion_date,updated_at,discount');
+      // Lightweight column select includes photo storage URLs while accelerating sync
+      var inwardQuery = client.from('inward_repairs').select('job_no,date,name,mobile_no,devices,query,purchased_from,notes,status,completion_date,updated_at,discount,photo');
       var inwardItemsQuery = client.from('inward_estimate_items').select();
       if (isDelta) {
-        inwardQuery = inwardQuery.gt('updated_at', lastSyncIso);
-        inwardItemsQuery = inwardItemsQuery.gt('updated_at', lastSyncIso);
+        inwardQuery = inwardQuery.gte('updated_at', lastSyncIso);
+        inwardItemsQuery = inwardItemsQuery.gte('updated_at', lastSyncIso);
       }
 
       var replacementQuery = client.from('replacements').select();
-      if (isDelta) replacementQuery = replacementQuery.gt('updated_at', lastSyncIso);
+      if (isDelta) replacementQuery = replacementQuery.gte('updated_at', lastSyncIso);
 
       var requestQuery = client.from('requests').select();
-      if (isDelta) requestQuery = requestQuery.gt('updated_at', lastSyncIso);
+      if (isDelta) requestQuery = requestQuery.gte('updated_at', lastSyncIso);
 
       var callQuery = client.from('calls').select();
-      if (isDelta) callQuery = callQuery.gt('updated_at', lastSyncIso);
+      if (isDelta) callQuery = callQuery.gte('updated_at', lastSyncIso);
 
       var salesQuery = client.from('sales').select();
       var salesItemsQuery = client.from('sale_items').select();
       if (isDelta) {
-        salesQuery = salesQuery.gt('updated_at', lastSyncIso);
-        salesItemsQuery = salesItemsQuery.gt('updated_at', lastSyncIso);
+        salesQuery = salesQuery.gte('updated_at', lastSyncIso);
+        salesItemsQuery = salesItemsQuery.gte('updated_at', lastSyncIso);
       }
 
       var purchaseQuery = client.from('purchases').select();
       var purchaseItemsQuery = client.from('purchase_order_items').select();
       if (isDelta) {
-        purchaseQuery = purchaseQuery.gt('updated_at', lastSyncIso);
-        purchaseItemsQuery = purchaseItemsQuery.gt('updated_at', lastSyncIso);
+        purchaseQuery = purchaseQuery.gte('updated_at', lastSyncIso);
+        purchaseItemsQuery = purchaseItemsQuery.gte('updated_at', lastSyncIso);
       }
 
       var pricelistQuery = client.from('pricelist').select();
-      if (isDelta) pricelistQuery = pricelistQuery.gt('updated_at', lastSyncIso);
+      if (isDelta) pricelistQuery = pricelistQuery.gte('updated_at', lastSyncIso);
 
-      final settingsQuery = client.from('shop_settings').select();
+      var settingsQuery = client.from('shop_settings').select();
+      if (isDelta) settingsQuery = settingsQuery.gte('updated_at', lastSyncIso);
 
       int queryErrors = 0;
-      final fetchResults = await Future.wait([
-        tombstoneQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+
+      // Batch 1: Deletions, Inward Repairs, Estimate Items, Calls (max 4 concurrent connections)
+      final batch1 = await Future.wait([
+        tombstoneQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Tombstone query skipped: $e');
           return <Map<String, dynamic>>[];
         }),
-        inwardQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        inwardQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Inward query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        inwardItemsQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        inwardItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Inward items query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        replacementQuery.timeout(const Duration(seconds: 6)).catchError((e) {
-          queryErrors++;
-          if (kDebugMode) print('Replacements query error: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        requestQuery.timeout(const Duration(seconds: 6)).catchError((e) {
-          queryErrors++;
-          if (kDebugMode) print('Requests query error: $e');
-          return <Map<String, dynamic>>[];
-        }),
-        callQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        callQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Calls query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        salesQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+      ]);
+
+      // Batch 2: Sales, Sale Items, Replacements, Requests
+      final batch2 = await Future.wait([
+        salesQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Sales query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        salesItemsQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        salesItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Sale items query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        purchaseQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        replacementQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Replacements query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        requestQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Requests query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+      ]);
+
+      // Batch 3: Purchases, Purchase Order Items, Pricelist, Settings
+      final batch3 = await Future.wait([
+        purchaseQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Purchases query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        purchaseItemsQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        purchaseItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Purchase items query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        pricelistQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        pricelistQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Pricelist query error: $e');
           return <Map<String, dynamic>>[];
         }),
-        settingsQuery.timeout(const Duration(seconds: 6)).catchError((e) {
+        settingsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
           queryErrors++;
           if (kDebugMode) print('Shop settings query error: $e');
           return <Map<String, dynamic>>[];
@@ -828,37 +915,68 @@ class SupabaseSyncService extends ChangeNotifier {
         throw TimeoutException('Server Offline / Unreachable');
       }
 
-      final deletions = (fetchResults[0] as List).cast<Map<String, dynamic>>();
-      final inwardData = (fetchResults[1] as List).cast<Map<String, dynamic>>();
-      final inwardItemsData = (fetchResults[2] as List).cast<Map<String, dynamic>>();
-      final replacementData = (fetchResults[3] as List).cast<Map<String, dynamic>>();
-      final requestData = (fetchResults[4] as List).cast<Map<String, dynamic>>();
-      final callData = (fetchResults[5] as List).cast<Map<String, dynamic>>();
-      final salesData = (fetchResults[6] as List).cast<Map<String, dynamic>>();
-      final salesItemsData = (fetchResults[7] as List).cast<Map<String, dynamic>>();
-      final purchaseData = (fetchResults[8] as List).cast<Map<String, dynamic>>();
-      final purchaseItemsData = (fetchResults[9] as List).cast<Map<String, dynamic>>();
-      final pricelistData = (fetchResults[10] as List).cast<Map<String, dynamic>>();
-      final settingsData = (fetchResults[11] as List).cast<Map<String, dynamic>>();
+      final deletions = (batch1[0] as List).cast<Map<String, dynamic>>();
+      final inwardData = (batch1[1] as List).cast<Map<String, dynamic>>();
+      final inwardItemsData = (batch1[2] as List).cast<Map<String, dynamic>>();
+      final callData = (batch1[3] as List).cast<Map<String, dynamic>>();
 
-      // ── Step 0: Apply remote deletions (tombstones) ────────────────────────
+      final salesData = (batch2[0] as List).cast<Map<String, dynamic>>();
+      final salesItemsData = (batch2[1] as List).cast<Map<String, dynamic>>();
+      final replacementData = (batch2[2] as List).cast<Map<String, dynamic>>();
+      final requestData = (batch2[3] as List).cast<Map<String, dynamic>>();
+
+      final purchaseData = (batch3[0] as List).cast<Map<String, dynamic>>();
+      final purchaseItemsData = (batch3[1] as List).cast<Map<String, dynamic>>();
+      final pricelistData = (batch3[2] as List).cast<Map<String, dynamic>>();
+      final settingsData = (batch3[3] as List).cast<Map<String, dynamic>>();
+
+      // ── Step 0: Apply remote deletions (tombstones with freshness guard) ───
       for (final d in deletions) {
         final tbl = d['table_name']?.toString() ?? '';
         final rid = d['record_id']?.toString();
         if (rid == null || rid.isEmpty) continue;
+        final deletedAtStr = d['deleted_at']?.toString();
+        final deletedAt = deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
         switch (tbl) {
           case 'inward_repairs':
-            await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+            final id = int.tryParse(rid) ?? -1;
+            final local = localDb.getInwardRepairByJobNo(id);
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteInwardRepair(id);
           case 'calls':
-            await localDb.deleteCall(int.tryParse(rid) ?? -1);
+            final id = int.tryParse(rid) ?? -1;
+            final local = localDb.getCallById(id);
+            if (local != null && deletedAt != null) {
+              final upStr = local['updated_at']?.toString();
+              final up = upStr != null ? DateTime.tryParse(upStr) : null;
+              if (up != null && up.isAfter(deletedAt)) continue;
+            }
+            await localDb.deleteCall(id);
           case 'sales':
-            await localDb.deleteSale(int.tryParse(rid) ?? -1);
+            final id = int.tryParse(rid) ?? -1;
+            final sales = localDb.getSales();
+            final local = sales.where((s) => s.invoiceNo == id).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteSale(id);
           case 'replacements':
+            final repls = localDb.getReplacements();
+            final local = repls.where((r) => r.jobNo == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
             await localDb.deleteReplacement(rid);
           case 'requests':
+            final reqs = localDb.getRequestOrders();
+            final local = reqs.where((r) => r.id == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
             await localDb.deleteRequestOrder(rid);
           case 'purchases':
+            final purs = localDb.getPurchaseOrders();
+            final local = purs.where((p) => p.id == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
             await localDb.deletePurchaseOrder(rid);
+          case 'pricelist':
+            final id = int.tryParse(rid) ?? -1;
+            await localDb.deletePricelistItem(id);
         }
       }
 
@@ -1108,7 +1226,7 @@ class SupabaseSyncService extends ChangeNotifier {
       final client = Supabase.instance.client;
       final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
       final String? lastSyncIso = lastSyncMillis > 0
-          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 300000, isUtc: true).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 1800000, isUtc: true).toIso8601String()
           : null;
 
       // Handle table deletion tombstones
@@ -1118,28 +1236,55 @@ class SupabaseSyncService extends ChangeNotifier {
           tombstoneQuery = tombstoneQuery.eq('table_name', tableName);
         }
         if (lastSyncIso != null) {
-          tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
+          tombstoneQuery = tombstoneQuery.gte('deleted_at', lastSyncIso);
         }
-        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 4));
+        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 25));
         for (final d in deletions) {
           final tbl = d['table_name']?.toString() ?? tableName;
           final rid = d['record_id']?.toString();
           if (rid == null || rid.isEmpty) continue;
+          final deletedAtStr = d['deleted_at']?.toString();
+          final deletedAt = deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
           switch (tbl) {
             case 'inward_repairs':
-              await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final local = localDb.getInwardRepairByJobNo(id);
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+              await localDb.deleteInwardRepair(id);
             case 'calls':
-              await localDb.deleteCall(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final local = localDb.getCallById(id);
+              if (local != null && deletedAt != null) {
+                final upStr = local['updated_at']?.toString();
+                final up = upStr != null ? DateTime.tryParse(upStr) : null;
+                if (up != null && up.isAfter(deletedAt)) continue;
+              }
+              await localDb.deleteCall(id);
             case 'sales':
-              await localDb.deleteSale(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final sales = localDb.getSales();
+              final local = sales.where((s) => s.invoiceNo == id).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+              await localDb.deleteSale(id);
             case 'replacements':
+              final repls = localDb.getReplacements();
+              final local = repls.where((r) => r.jobNo == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deleteReplacement(rid);
             case 'requests':
+              final reqs = localDb.getRequestOrders();
+              final local = reqs.where((r) => r.id == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deleteRequestOrder(rid);
             case 'purchases':
+              final purs = localDb.getPurchaseOrders();
+              final local = purs.where((p) => p.id == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deletePurchaseOrder(rid);
             case 'pricelist':
-              await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              await localDb.deletePricelistItem(id);
           }
         }
         if (tableName == 'deleted_records') {
@@ -1153,11 +1298,11 @@ class SupabaseSyncService extends ChangeNotifier {
           var q = client.from('inward_repairs').select();
           var iq = client.from('inward_estimate_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            iq = iq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            iq = iq.gte('updated_at', lastSyncIso);
           }
-          final inwardData = await q.timeout(const Duration(seconds: 15));
-          final inwardItemsData = await iq.timeout(const Duration(seconds: 15));
+          final inwardData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final inwardItemsData = await iq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedJobs = <int>{};
           for (final json in inwardData) {
@@ -1174,12 +1319,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('inward_repairs')
                 .select()
                 .inFilter('job_no', affectedJobs.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullItemsData = await client
                 .from('inward_estimate_items')
                 .select()
                 .inFilter('job_no', affectedJobs.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final repairsMap = <int, Map<String, dynamic>>{};
             final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
@@ -1210,11 +1357,12 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('inward_repairs');
+          ShopRepository.notifyTableChanged('all');
 
         case 'calls':
           var q = client.from('calls').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final callsData = await q.timeout(const Duration(seconds: 15));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final callsData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final callsMap = <int, Map<String, dynamic>>{};
           final List<CallModel> newlyAssignedCalls = [];
 
@@ -1251,6 +1399,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllCalls(callsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('calls');
+          ShopRepository.notifyTableChanged('all');
 
           // Trigger full screen alert dialog with soothing chime for newly assigned calls
           if (newlyAssignedCalls.isNotEmpty) {
@@ -1267,11 +1416,11 @@ class SupabaseSyncService extends ChangeNotifier {
           var q = client.from('sales').select();
           var sq = client.from('sale_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            sq = sq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            sq = sq.gte('updated_at', lastSyncIso);
           }
-          final salesData = await q.timeout(const Duration(seconds: 15));
-          final saleItemsData = await sq.timeout(const Duration(seconds: 15));
+          final salesData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final saleItemsData = await sq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedInvoices = <int>{};
           for (final json in salesData) {
@@ -1288,12 +1437,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('sales')
                 .select()
                 .inFilter('invoice_no', affectedInvoices.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullSaleItemsData = await client
                 .from('sale_items')
                 .select()
                 .inFilter('invoice_no', affectedInvoices.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final salesMap = <int, Map<String, dynamic>>{};
             final saleItemsMap = <int, List<Map<String, dynamic>>>{};
@@ -1314,11 +1465,12 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllSales(salesMap, saleItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('sales');
+          ShopRepository.notifyTableChanged('all');
 
         case 'replacements':
           var q = client.from('replacements').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final replData = await q.timeout(const Duration(seconds: 15));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final replData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final replMap = <String, Map<String, dynamic>>{};
           for (final json in replData) {
             final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
@@ -1328,11 +1480,12 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllReplacements(replMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('replacements');
+          ShopRepository.notifyTableChanged('all');
 
         case 'requests':
           var q = client.from('requests').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final reqData = await q.timeout(const Duration(seconds: 15));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final reqData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final reqMap = <String, Map<String, dynamic>>{};
           for (final json in reqData) {
             final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
@@ -1342,6 +1495,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllRequests(reqMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('requests');
+          ShopRepository.notifyTableChanged('all');
 
         case 'purchases':
         case 'purchase_items':
@@ -1349,11 +1503,11 @@ class SupabaseSyncService extends ChangeNotifier {
           var q = client.from('purchases').select();
           var pq = client.from('purchase_order_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            pq = pq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            pq = pq.gte('updated_at', lastSyncIso);
           }
-          final purchData = await q.timeout(const Duration(seconds: 15));
-          final purchItemsData = await pq.timeout(const Duration(seconds: 15));
+          final purchData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final purchItemsData = await pq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedPurchases = <String>{};
           for (final json in purchData) {
@@ -1370,12 +1524,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('purchases')
                 .select()
                 .inFilter('id', affectedPurchases.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullItemsData = await client
                 .from('purchase_order_items')
                 .select()
                 .inFilter('purchase_id', affectedPurchases.toList())
-                .timeout(const Duration(seconds: 15));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final purchMap = <String, Map<String, dynamic>>{};
             final purchItemsMap = <String, List<Map<String, dynamic>>>{};
@@ -1396,12 +1552,13 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllPurchases(purchMap, purchItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('purchases');
+          ShopRepository.notifyTableChanged('all');
 
         case 'pricelist':
         case 'pricelist_items':
           var q = client.from('pricelist').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final priceData = await q.timeout(const Duration(seconds: 15));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final priceData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final priceMap = <int, Map<String, dynamic>>{};
           for (final json in priceData) {
             final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
@@ -1411,6 +1568,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllPricelistItems(priceMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('pricelist_items');
+          ShopRepository.notifyTableChanged('all');
 
         case 'app_users':
           await UserPermissionService.syncUsersFromCloud(force: true);
@@ -1420,7 +1578,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
 
         case 'shop_settings':
-          final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 15));
+          final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 25));
           for (final row in settingsData) {
             final key = row['key']?.toString();
             var value = row['value'];
@@ -1503,6 +1661,19 @@ class SupabaseSyncService extends ChangeNotifier {
           rethrow;
         }
       }
+
+      // Purge any existing tombstone for this record so old deletions never kill this live record
+      final pkVal = payload['invoice_no'] ?? payload['job_no'] ?? payload['id'];
+      if (pkVal != null) {
+        try {
+          await client
+              .from('deleted_records')
+              .delete()
+              .eq('table_name', tableName)
+              .eq('record_id', pkVal.toString());
+        } catch (_) {}
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Push to cloud error ($tableName): $e — queuing for offline retry');
@@ -1545,59 +1716,175 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Batch saves estimate items for a job after parent inward repair is saved
+  /// Batch saves estimate items for a job after parent inward repair is saved.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert so
+  /// a network blip between the two operations can never destroy cloud items.
   Future<void> saveEstimateItemsForJob(
     int jobNo,
-    List<InwardEstimateItem> items,
-  ) async {
-    if (!_isInitialized) return;
-
-    try {
-      _setStatus(SyncStatus.syncing, 'Syncing estimate items...');
-      final client = Supabase.instance.client;
-      await client.from('inward_estimate_items').delete().eq('job_no', jobNo);
-
-      if (items.isNotEmpty) {
+    List<InwardEstimateItem> items, {
+    LocalDatabaseService? localDb,
+  }) async {
+    if (!_isInitialized) {
+      // Offline: queue items so they sync when connectivity is restored.
+      if (localDb != null) {
         final payload = items.map((e) {
           final m = e.toJson();
           m['updated_at'] = DateTime.now().toUtc().toIso8601String();
           return m;
         }).toList();
-        await client.from('inward_estimate_items').upsert(payload);
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'inward_estimate_items',
+          'parent_key_column': 'job_no',
+          'parent_key_value': jobNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: estimate items queued for job $jobNo');
       }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing estimate items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on line_id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('inward_estimate_items').upsert(payload, onConflict: 'line_id');
+      }
+
+      // Step 2: Delete only removed items by comparing with the incoming list.
+      // This is safer than DELETE-all-then-insert because if the upsert above
+      // succeeds but the delete fails, no data is lost (just orphaned rows).
+      final incomingLineIds = items.map((e) => e.lineId).toSet();
+      final cloudItems = await client
+          .from('inward_estimate_items')
+          .select('line_id')
+          .eq('job_no', jobNo);
+      final cloudLineIds = (cloudItems as List)
+          .map((r) => r['line_id']?.toString())
+          .whereType<String>()
+          .toSet();
+      final toDelete = cloudLineIds.difference(incomingLineIds);
+      if (toDelete.isNotEmpty) {
+        await client
+            .from('inward_estimate_items')
+            .delete()
+            .inFilter('line_id', toDelete.toList());
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save estimate items cloud error ($jobNo): $e');
+      // Queue for retry on next flush
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'inward_estimate_items',
+          'parent_key_column': 'job_no',
+          'parent_key_value': jobNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
       _setStatus(SyncStatus.error, 'Sync Error (Estimate Items): $e');
     }
   }
 
-  /// Batch saves purchase order items after parent purchase order is saved
+  /// Batch saves purchase order items after parent purchase order is saved.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert.
   Future<void> savePurchaseItemsForPurchase(
     String purchaseId,
-    List<PurchaseOrderItem> items,
-  ) async {
-    if (!_isInitialized) return;
-
-    try {
-      _setStatus(SyncStatus.syncing, 'Syncing purchase items...');
-      final client = Supabase.instance.client;
-      await client
-          .from('purchase_order_items')
-          .delete()
-          .eq('purchase_id', purchaseId);
-
-      if (items.isNotEmpty) {
+    List<PurchaseOrderItem> items, {
+    LocalDatabaseService? localDb,
+  }) async {
+    if (!_isInitialized) {
+      // Offline: queue items so they sync when connectivity is restored.
+      if (localDb != null) {
         final payload = items.map((e) {
           final m = e.toSupabaseJson();
           m['updated_at'] = DateTime.now().toUtc().toIso8601String();
           return m;
         }).toList();
-        await client.from('purchase_order_items').upsert(payload);
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'purchase_order_items',
+          'parent_key_column': 'purchase_id',
+          'parent_key_value': purchaseId,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: purchase items queued for $purchaseId');
       }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing purchase items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on line_id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toSupabaseJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('purchase_order_items').upsert(payload, onConflict: 'line_id');
+      }
+
+      // Step 2: Delete only removed items by comparing with the incoming list.
+      final incomingLineIds = items.map((e) => e.lineId).toSet();
+      final cloudItems = await client
+          .from('purchase_order_items')
+          .select('line_id')
+          .eq('purchase_id', purchaseId);
+      final cloudLineIds = (cloudItems as List)
+          .map((r) => r['line_id']?.toString())
+          .whereType<String>()
+          .toSet();
+      final toDelete = cloudLineIds.difference(incomingLineIds);
+      if (toDelete.isNotEmpty) {
+        await client
+            .from('purchase_order_items')
+            .delete()
+            .inFilter('line_id', toDelete.toList());
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save purchase items cloud error ($purchaseId): $e');
+      // Queue for retry on next flush
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toSupabaseJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'purchase_order_items',
+          'parent_key_column': 'purchase_id',
+          'parent_key_value': purchaseId,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
       _setStatus(SyncStatus.error, 'Sync Error (Purchase Items): $e');
     }
   }
@@ -1673,36 +1960,4 @@ class SupabaseSyncService extends ChangeNotifier {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
-  /// One-click reset for production launch: Clears test data from Cloud & Local
-  Future<bool> resetDatabaseForProductionLaunch(
-    LocalDatabaseService localDb,
-  ) async {
-    try {
-      _setStatus(SyncStatus.syncing, 'Clearing test data...');
-
-      if (_isInitialized) {
-        final client = Supabase.instance.client;
-        try {
-          await client.from('deleted_records').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-          await client.from('inward_repairs').delete().neq('job_no', -1);
-          await client.from('replacements').delete().neq('job_no', '___');
-          await client.from('requests').delete().neq('id', '___');
-          await client.from('calls').delete().neq('id', -1);
-          await client.from('sales').delete().neq('invoice_no', -1);
-          await client.from('sale_items').delete().neq('invoice_no', -1);
-          await client.from('purchases').delete().neq('id', '___');
-          await client.from('pricelist').delete().neq('id', -1);
-        } catch (e) {
-          if (kDebugMode) print('Cloud clear error: $e');
-        }
-      }
-
-      await localDb.clearDatabase();
-      _setStatus(SyncStatus.synced, 'Fresh Production State Ready');
-      return true;
-    } catch (e) {
-      _setStatus(SyncStatus.error, 'Reset Failed: $e');
-      return false;
-    }
-  }
 }

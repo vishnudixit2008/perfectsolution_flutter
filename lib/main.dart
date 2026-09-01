@@ -55,21 +55,24 @@ void main(List<String> args) async {
 
   final bool isSubWindow = windowId != null && windowId != 0;
 
-  // Register Windows URL Scheme Protocol under HKCU (No Admin elevation required)
-  if (!isSubWindow) {
-    await _registerWindowsProtocolHandler();
+  // Register Windows URL Scheme Protocol in background on desktop
+  if (!isSubWindow && !kIsWeb && Platform.isWindows) {
+    unawaited(_registerWindowsProtocolHandler());
   }
 
-  // Initialize Database Service with isolated directory for sub-windows
+  // 1. Initialize Hive engine and open database boxes in parallel
   final localDb = LocalDatabaseService();
   await localDb.init(subWindowId: windowId);
-  await UiPreferencesService.init();
-  await StatusManagementService.init();
-  await UserPermissionService.init();
+
+  // 2. Open preference and service boxes in parallel
+  await Future.wait([
+    UiPreferencesService.init(),
+    StatusManagementService.init(),
+    UserPermissionService.init(),
+  ]);
 
   if (!isSubWindow) {
-    await GoogleDriveUploadService.init();
-    // This also calls Supabase.initialize() internally
+    unawaited(GoogleDriveUploadService.init());
     await SupabaseSyncService.instance.init(localDb);
   } else {
     // Sub-windows initialize Supabase client for reading if needed without duplicate sync loops
@@ -91,16 +94,6 @@ void main(List<String> args) async {
     windowArgs: windowArgs,
     localDb: localDb,
   );
-
-  // Initialize Firebase Cloud Messaging & Full Screen Alerts on primary window
-  if (!isSubWindow) {
-    await FcmService.instance.init(key: rootNavigatorKey);
-
-    // If Kiosk Mode is active on Android, keep WebSocket alive with foreground service
-    if (UiPreferencesService.isKioskMode()) {
-      KioskOverlayHelper.startKioskForegroundService();
-    }
-  }
 
   // Check if launched with command-line deep link argument on Windows/Desktop
   if (args.isNotEmpty && args.first.contains('://')) {
@@ -158,6 +151,16 @@ void main(List<String> args) async {
       child: const MyApp(),
     ),
   );
+
+  // Defer non-critical background push notifications and kiosk service after first frame
+  if (!isSubWindow) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FcmService.instance.init(key: rootNavigatorKey);
+      if (UiPreferencesService.isKioskMode()) {
+        KioskOverlayHelper.startKioskForegroundService();
+      }
+    });
+  }
 }
 
 class MyApp extends StatefulWidget {

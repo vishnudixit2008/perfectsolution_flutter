@@ -20,6 +20,10 @@ import '../repositories/shop_repository.dart';
 import '../../ui/shared/status_management_dialog.dart';
 
 class LocalDatabaseService {
+  /// Set to true if any Hive box opened via the fallback path (empty box).
+  /// The sync service checks this flag to force a full cloud re-pull instead
+  /// of a delta sync, because the box may be missing data.
+  bool hadFallbackBoxOpen = false;
   static const String _pricelistBoxName = 'pricelist_box';
   static const String _settingsBoxName = 'settings_box';
   static const String _salesBoxName = 'sales_box';
@@ -56,18 +60,33 @@ class LocalDatabaseService {
       await Hive.initFlutter();
     }
 
-    _pricelistBox = await _openBoxSafely(_pricelistBoxName);
-    _settingsBox = await _openBoxSafely(_settingsBoxName);
-    _salesBox = await _openBoxSafely(_salesBoxName);
-    _saleItemsBox = await _openBoxSafely(_saleItemsBoxName);
-    _callsBox = await _openBoxSafely(_callsBoxName);
-    _inwardBox = await _openBoxSafely(_inwardBoxName);
-    _inwardItemsBox = await _openBoxSafely(_inwardItemsBoxName);
-    _replacementBox = await _openBoxSafely(_replacementBoxName);
-    _requestBox = await _openBoxSafely(_requestBoxName);
-    _purchaseBox = await _openBoxSafely(_purchaseBoxName);
-    _purchaseItemsBox = await _openBoxSafely(_purchaseItemsBoxName);
-    _pendingSyncBox = await _openBoxSafely(_pendingSyncBoxName);
+    final boxes = await Future.wait([
+      _openBoxSafely(_pricelistBoxName),
+      _openBoxSafely(_settingsBoxName),
+      _openBoxSafely(_salesBoxName),
+      _openBoxSafely(_saleItemsBoxName),
+      _openBoxSafely(_callsBoxName),
+      _openBoxSafely(_inwardBoxName),
+      _openBoxSafely(_inwardItemsBoxName),
+      _openBoxSafely(_replacementBoxName),
+      _openBoxSafely(_requestBoxName),
+      _openBoxSafely(_purchaseBoxName),
+      _openBoxSafely(_purchaseItemsBoxName),
+      _openBoxSafely(_pendingSyncBoxName),
+    ]);
+
+    _pricelistBox = boxes[0];
+    _settingsBox = boxes[1];
+    _salesBox = boxes[2];
+    _saleItemsBox = boxes[3];
+    _callsBox = boxes[4];
+    _inwardBox = boxes[5];
+    _inwardItemsBox = boxes[6];
+    _replacementBox = boxes[7];
+    _requestBox = boxes[8];
+    _purchaseBox = boxes[9];
+    _purchaseItemsBox = boxes[10];
+    _pendingSyncBox = boxes[11];
 
     // Seed data is disabled since Supabase is now the source of truth
   }
@@ -92,9 +111,12 @@ class LocalDatabaseService {
     }
     // Last resort: open fallback box in memory/isolated name
     try {
+      hadFallbackBoxOpen = true;
+      if (kDebugMode) print('[WARN] Hive: opening fallback box for $boxName — full cloud sync will be forced');
       return await Hive.openBox('${boxName}_fallback');
     } catch (err) {
       if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
+      hadFallbackBoxOpen = true;
       return await Hive.openBox('${boxName}_${DateTime.now().millisecondsSinceEpoch}');
     }
   }
@@ -496,11 +518,23 @@ class LocalDatabaseService {
     await _seedPricelist();
   }
 
+  /// Clears and re-seeds ONLY the pricelist box from bundled assets.
+  /// Does NOT touch sales, repairs, calls, purchases, or any other data.
+  /// Use this for "Reset Pricelist to Default" actions.
+  Future<void> clearPricelistOnly() async {
+    await _pricelistBox.clear();
+    await _seedPricelist();
+  }
+
   // ─── Offline Pending Sync Queue ────────────────────────────────────────────
   /// Adds a pending operation to the offline queue so it can be retried
   /// when internet connectivity is restored.
   Future<void> enqueuePendingSync(Map<String, dynamic> operation) async {
-    final key = '${DateTime.now().microsecondsSinceEpoch}';
+    // Use microsecond timestamp + random hex suffix to prevent key collision
+    // when multiple operations are enqueued within the same microsecond.
+    final rnd = List<int>.generate(4, (_) => (DateTime.now().microsecondsSinceEpoch & 0xFF) ^ (DateTime.now().millisecond));
+    final suffix = rnd.map((b) => (b ^ DateTime.now().microsecondsSinceEpoch).toRadixString(16).padLeft(2, '0')).join();
+    final key = '${DateTime.now().microsecondsSinceEpoch}_$suffix';
     await _pendingSyncBox.put(key, operation);
   }
 
@@ -978,6 +1012,26 @@ class LocalDatabaseService {
     return updatedProducts;
   }
 
+  /// Saves sale metadata without wiping out existing items box
+  Future<void> saveSaleHeaderOnly(Sale sale) async {
+    await _salesBox.put(sale.invoiceNo, sale.toJson());
+  }
+
+  /// Upserts a single sale item into the existing items box for an invoice
+  Future<void> saveSaleItemOnly(SaleItem item) async {
+    final items = getSaleItems(item.invoiceNo);
+    final idx = items.indexWhere((i) => i.id == item.id);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _saleItemsBox.put(
+      item.invoiceNo,
+      items.map((i) => i.toJson()).toList(),
+    );
+  }
+
   // Confirm order and deduct inventory
   Future<List<PricelistItem>> confirmSale(int invoiceNo) async {
     final rawSale = _salesBox.get(invoiceNo);
@@ -1142,6 +1196,26 @@ class LocalDatabaseService {
     await _inwardItemsBox.put(repair.jobNo, itemsJson);
   }
 
+  /// Saves inward repair header without overwriting the estimate items box
+  Future<void> saveInwardRepairHeaderOnly(InwardRepair repair) async {
+    await _inwardBox.put(repair.jobNo, repair.toJson());
+  }
+
+  /// Upserts a single inward estimate item into the existing items box for a job
+  Future<void> saveInwardEstimateItemOnly(InwardEstimateItem item) async {
+    final items = getInwardEstimateItems(item.jobNo);
+    final idx = items.indexWhere((i) => i.lineId == item.lineId);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _inwardItemsBox.put(
+      item.jobNo,
+      items.map((i) => i.toJson()).toList(),
+    );
+  }
+
   Future<void> saveAllInwardRepairs(
     Map<int, Map<String, dynamic>> repairsMap,
     Map<int, List<Map<String, dynamic>>> itemsMap, {
@@ -1150,9 +1224,20 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_inwardBox.keys);
       final validKeys = repairsMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _inwardBox.delete(key);
-        await _inwardItemsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingJobNos = pendingOps
+          .where((op) => op['table'] == 'inward_repairs' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['job_no']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingJobNos.contains(keyInt)) continue;
+          await _inwardBox.delete(key);
+          await _inwardItemsBox.delete(key);
+        }
       }
     }
     if (repairsMap.isNotEmpty) await _inwardBox.putAll(repairsMap);
@@ -1165,9 +1250,20 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_replacementBox.keys);
-      final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _replacementBox.delete(key);
+      final validKeys = map.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingJobNos = pendingOps
+          .where((op) => op['table'] == 'replacements' && op['data'] != null)
+          .map((op) => op['data']['job_no']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingJobNos.contains(keyStr)) continue;
+          await _replacementBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _replacementBox.putAll(map);
@@ -1179,9 +1275,20 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_requestBox.keys);
-      final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _requestBox.delete(key);
+      final validKeys = map.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'requests' && op['data'] != null)
+          .map((op) => op['data']['id']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingIds.contains(keyStr)) continue;
+          await _requestBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _requestBox.putAll(map);
@@ -1194,8 +1301,19 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_callsBox.keys);
       final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _callsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'calls' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingIds.contains(keyInt)) continue;
+          await _callsBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _callsBox.putAll(map);
@@ -1209,9 +1327,20 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_salesBox.keys);
       final validKeys = salesMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _salesBox.delete(key);
-        await _saleItemsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingInvoices = pendingOps
+          .where((op) => op['table'] == 'sales' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['invoice_no']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingInvoices.contains(keyInt)) continue;
+          await _salesBox.delete(key);
+          await _saleItemsBox.delete(key);
+        }
       }
     }
     if (salesMap.isNotEmpty) await _salesBox.putAll(salesMap);
@@ -1225,10 +1354,21 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_purchaseBox.keys);
-      final validKeys = purchasesMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _purchaseBox.delete(key);
-        await _purchaseItemsBox.delete(key);
+      final validKeys = purchasesMap.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'purchases' && op['data'] != null)
+          .map((op) => op['data']['id']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingIds.contains(keyStr)) continue;
+          await _purchaseBox.delete(key);
+          await _purchaseItemsBox.delete(key);
+        }
       }
     }
     if (purchasesMap.isNotEmpty) await _purchaseBox.putAll(purchasesMap);
@@ -1242,8 +1382,19 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_pricelistBox.keys);
       final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _pricelistBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'pricelist' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingIds.contains(keyInt)) continue;
+          await _pricelistBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _pricelistBox.putAll(map);
@@ -1442,6 +1593,26 @@ class LocalDatabaseService {
     await _purchaseItemsBox.put(order.id, itemsJson);
 
     return updatedProducts;
+  }
+
+  /// Saves purchase order header without overwriting the items box
+  Future<void> savePurchaseOrderHeaderOnly(PurchaseOrder order) async {
+    await _purchaseBox.put(order.id, order.toJson());
+  }
+
+  /// Upserts a single purchase order item into the existing items box for a purchase
+  Future<void> savePurchaseOrderItemOnly(PurchaseOrderItem item) async {
+    final items = getPurchaseOrderItems(item.purchaseId);
+    final idx = items.indexWhere((i) => i.lineId == item.lineId);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _purchaseItemsBox.put(
+      item.purchaseId,
+      items.map((i) => i.toJson()).toList(),
+    );
   }
 
   Future<List<PricelistItem>> deletePurchaseOrder(String purchaseId) async {

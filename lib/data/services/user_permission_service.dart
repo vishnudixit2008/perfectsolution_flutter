@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,18 +59,19 @@ class UserPermissionService {
         await Supabase.instance.client
             .from('app_users')
             .delete()
-            .eq('email', remEmail);
+            .eq('email', remEmail)
+            .timeout(const Duration(seconds: 2));
       } catch (_) {}
     }
 
     // Set active user default if empty
     final current = box.get(_currentEmailKey);
     if (current == null) {
-      await setCurrentUser('perfectsolutionnoida@gmail.com');
+      await setCurrentUser('perfectsolutionnoida@gmail.com', syncInBackground: true);
     }
 
     // Sync cloud user database asynchronously
-    syncUsersFromCloud();
+    unawaited(syncUsersFromCloud());
   }
 
   static Box? _getBox() {
@@ -88,7 +90,7 @@ class UserPermissionService {
     return box.get(_currentEmailKey, defaultValue: 'perfectsolutionnoida@gmail.com');
   }
 
-  static Future<void> setCurrentUser(String email) async {
+  static Future<void> setCurrentUser(String email, {bool syncInBackground = true}) async {
     final cleanEmail = email.toLowerCase().trim();
     _cachedCurrentUser = null;
     StatusManagementService.clearCache();
@@ -96,9 +98,14 @@ class UserPermissionService {
     if (box != null) {
       await box.put(_currentEmailKey, cleanEmail);
     }
-    await syncSingleUserFromCloud(cleanEmail);
     final user = getCurrentUser();
     await StatusManagementService.loadFromUser(user);
+
+    if (syncInBackground) {
+      unawaited(syncSingleUserFromCloud(cleanEmail));
+    } else {
+      await syncSingleUserFromCloud(cleanEmail);
+    }
   }
 
   static Future<void> syncSingleUserFromCloud(String email) async {
@@ -110,7 +117,8 @@ class UserPermissionService {
           .from('app_users')
           .select()
           .eq('email', cleanEmail)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
 
       if (res != null) {
         final cloudUser = AppUser.fromJson(Map<String, dynamic>.from(res));
@@ -326,7 +334,7 @@ class UserPermissionService {
 
   // --- Authorization & Permission Check Helpers ---
 
-  /// Live Database & Local Storage Whitelist Authorization Check
+  /// Live Database & Local Storage Whitelist Authorization Check (Cache-First)
   static Future<bool> isAuthorizedUserAsync(String email) async {
     final cleanEmail = email.toLowerCase().trim();
     if (cleanEmail.isEmpty) return false;
@@ -334,13 +342,22 @@ class UserPermissionService {
     // Permanent pure admins are always authorized
     if (AppUser.isPermanentAdmin(cleanEmail)) return true;
 
-    // 1. Live Remote Cloud Check from Supabase app_users table
+    // 1. Check local Hive storage first (0ms instant response)
+    final localUser = getUser(cleanEmail);
+    if (localUser != null && localUser.isActive) {
+      // Refresh user permissions from cloud in the background
+      unawaited(syncSingleUserFromCloud(cleanEmail));
+      return true;
+    }
+
+    // 2. Fallback: Live Remote Cloud Check from Supabase app_users table
     try {
       final res = await Supabase.instance.client
           .from('app_users')
           .select()
           .eq('email', cleanEmail)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 3));
 
       if (res != null) {
         final map = Map<String, dynamic>.from(res);
@@ -353,13 +370,6 @@ class UserPermissionService {
       }
     } catch (_) {}
 
-    // 2. Fallback check from local Hive storage
-    final allUsers = getAllUsers();
-    for (var u in allUsers) {
-      if (u.email.toLowerCase().trim() == cleanEmail) {
-        return u.isActive;
-      }
-    }
     return false;
   }
 
@@ -393,20 +403,30 @@ class UserPermissionService {
     return null;
   }
 
-  /// Verifies password against user credentials — always does live cloud fetch first
+  /// Verifies password against user credentials — Cache-First for instant login
   static Future<bool> verifyUserPassword(String email, String password) async {
     final cleanEmail = email.toLowerCase().trim();
     final cleanPass = password.trim();
     if (cleanEmail.isEmpty || cleanPass.isEmpty) return false;
 
-    // 1. Always do a LIVE cloud fetch first to get the latest password set by admin
+    // 1. Check local Hive cache FIRST (0ms instant verification)
+    final localUser = getUser(cleanEmail);
+    if (localUser != null && localUser.isActive && localUser.password != null && localUser.password!.isNotEmpty) {
+      if (localUser.password!.trim() == cleanPass) {
+        // Instant Match -> refresh in background
+        unawaited(syncSingleUserFromCloud(cleanEmail));
+        return true;
+      }
+    }
+
+    // 2. Cloud fallback: Fetch latest password from Supabase app_users table
     try {
       final res = await Supabase.instance.client
           .from('app_users')
           .select()
           .eq('email', cleanEmail)
           .maybeSingle()
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 3));
 
       if (res != null) {
         final map = Map<String, dynamic>.from(res);
@@ -423,20 +443,9 @@ class UserPermissionService {
         if (cloudUser.password != null && cloudUser.password!.trim().isNotEmpty) {
           return cloudUser.password!.trim() == cleanPass;
         }
-        // User exists but has no password set → deny
         return false;
       }
-    } catch (_) {
-      // Cloud fetch failed — fall back to local Hive cache below
-    }
-
-    // 2. Fallback: check local Hive cache
-    final user = getUser(cleanEmail);
-    if (user == null || !user.isActive) return false;
-
-    if (user.password != null && user.password!.isNotEmpty) {
-      return user.password!.trim() == cleanPass;
-    }
+    } catch (_) {}
 
     return false;
   }
@@ -604,8 +613,30 @@ class UserPermissionService {
     return uniqueNamesByLower.values.toList();
   }
 
-  /// Whether the current device / user should receive popups and alerts for call assignments
+  /// Whether the current device / user should receive popups and alerts for call assignments.
+  /// Strictly excludes permanent admins, admin/administrator roles, sale/kiosk accounts, and inactive users.
   static bool shouldReceiveCallAlertPopup([AppUser? user]) {
+    final currentUser = user ?? getCurrentUser();
+    final email = currentUser.email.toLowerCase().trim();
+    final role = currentUser.role.toLowerCase().trim();
+
+    // 1. Exclude permanent admins (e.g. perfectsolutionnoida@gmail.com, vishnudixit2008@gmail.com)
+    if (AppUser.isPermanentAdmin(email)) return false;
+
+    // 2. Exclude any admin / administrator roles
+    if (currentUser.isAdmin || role == 'admin' || role == 'administrator') return false;
+
+    // 3. Exclude sale user / kiosk display accounts
+    if (email == 'sale.perfectsolutionnoida@gmail.com' ||
+        email == 'sale' ||
+        email.startsWith('sale@') ||
+        UiPreferencesService.isKioskMode()) {
+      return false;
+    }
+
+    // 4. Exclude inactive users
+    if (!currentUser.isActive) return false;
+
     return true;
   }
 

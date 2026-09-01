@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../ui/shared/status_management_dialog.dart';
 import '../repositories/shop_repository.dart';
 import 'local_database_service.dart';
+import 'supabase_sync_service.dart';
 
 class MultiWindowSyncService {
   static final MultiWindowSyncService instance = MultiWindowSyncService._internal();
@@ -36,39 +37,16 @@ class MultiWindowSyncService {
     _currentWindowId = windowId;
     _windowArgs = windowArgs ?? {};
     _localDb = localDb;
+    _isInitialized = true;
 
     // Listen for messages from other windows
     DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
       debugPrint('MultiWindowSyncService [Window $_currentWindowId]: Received method "${call.method}" from Window $fromWindowId');
 
       switch (call.method) {
-        case 'get_db_snapshot':
-          if (_localDb != null) {
-            final snapshot = _localDb!.exportDbSnapshot();
-            return jsonEncode(snapshot);
-          }
-          return '{}';
-
-        case 'sync_table_snapshot':
-          final payload = call.arguments;
-          if (payload is String && _localDb != null) {
-            Future.microtask(() async {
-              try {
-                final map = jsonDecode(payload);
-                if (map is Map && map.containsKey('table') && map.containsKey('data')) {
-                  final tableName = map['table']?.toString() ?? '';
-                  final data = map['data'];
-                  await _localDb!.importTableData(tableName, data);
-                  ShopRepository.notifyTableChanged(tableName, broadcastToOtherWindows: false);
-                }
-              } catch (e) {
-                debugPrint('sync_table_snapshot error: $e');
-              }
-            });
-          }
-          return true;
-
         case 'table_changed':
+          // Lightweight notification: just refresh the local UI from Hive.
+          // No raw data is transferred between windows — all data comes from Supabase.
           final tableName = call.arguments?.toString() ?? 'all';
           Future.microtask(() {
             ShopRepository.notifyTableChanged(tableName, broadcastToOtherWindows: false);
@@ -111,21 +89,24 @@ class MultiWindowSyncService {
         return null;
       });
     } else {
-      // Register sub-window with main window and request initial DB snapshot
+      // Sub-window: register with main window, then pull data directly from Supabase.
+      // Data always comes from Supabase — never from a stale Hive snapshot of another window.
       try {
         await DesktopMultiWindow.invokeMethod(0, 'register_sub_window', _currentWindowId.toString());
-        final snapshotJson = await DesktopMultiWindow.invokeMethod(0, 'get_db_snapshot');
-        if (snapshotJson is String && snapshotJson.isNotEmpty && _localDb != null) {
-          final snapshot = jsonDecode(snapshotJson);
-          if (snapshot is Map<String, dynamic>) {
-            await _localDb!.importDbSnapshot(snapshot);
+        debugPrint('MultiWindowSyncService: Sub-window #$_currentWindowId registered. Syncing from Supabase...');
+        if (_localDb != null) {
+          // Connect and perform a full sync so this window has fresh authoritative data.
+          final connected = await SupabaseSyncService.instance.connectAndSubscribe(_localDb!);
+          if (connected) {
             await StatusManagementService.init();
             ShopRepository.notifyTableChanged('all', broadcastToOtherWindows: false);
-            debugPrint('MultiWindowSyncService: Sub-window #$_currentWindowId loaded DB snapshot & status order successfully');
+            debugPrint('MultiWindowSyncService: Sub-window #$_currentWindowId synced from Supabase successfully.');
+          } else {
+            debugPrint('MultiWindowSyncService: Sub-window #$_currentWindowId — Supabase not available; UI may show stale data until connection restores.');
           }
         }
       } catch (e) {
-        debugPrint('MultiWindowSyncService: Sub-window snapshot fetch error: $e');
+        debugPrint('MultiWindowSyncService: Sub-window Supabase sync error: $e');
       }
     }
 
@@ -158,7 +139,7 @@ class MultiWindowSyncService {
     }
   }
 
-  /// Broadcasts a table change event and table data to all other open desktop windows
+  /// Broadcasts a lightweight table change event to all other open desktop windows
   Future<void> broadcastTableChange(String tableName) async {
     if (kIsWeb || (!Platform.isMacOS && !Platform.isWindows && !Platform.isLinux)) return;
 
@@ -166,26 +147,10 @@ class MultiWindowSyncService {
       final allWindows = await DesktopMultiWindow.getAllSubWindowIds();
       final targetWindows = <int>{...allWindows, ..._knownSubWindowIds};
 
-      // Prepare payload if we have localDb
-      String? syncPayload;
-      if (_localDb != null) {
-        final tableData = _localDb!.exportTableData(tableName);
-        if (tableData != null) {
-          syncPayload = jsonEncode({
-            'table': tableName,
-            'data': tableData,
-          });
-        }
-      }
-
       // If we are in a sub-window, notify Window 0
       if (isSubWindow) {
         try {
-          if (syncPayload != null) {
-            await DesktopMultiWindow.invokeMethod(0, 'sync_table_snapshot', syncPayload);
-          } else {
-            await DesktopMultiWindow.invokeMethod(0, 'table_changed', tableName);
-          }
+          await DesktopMultiWindow.invokeMethod(0, 'table_changed', tableName);
         } catch (e) {
           debugPrint('MultiWindowSyncService: Error notifying Window 0: $e');
         }
@@ -195,11 +160,7 @@ class MultiWindowSyncService {
       for (final windowId in targetWindows) {
         if (windowId == _currentWindowId || windowId == 0) continue;
         try {
-          if (syncPayload != null) {
-            await DesktopMultiWindow.invokeMethod(windowId, 'sync_table_snapshot', syncPayload);
-          } else {
-            await DesktopMultiWindow.invokeMethod(windowId, 'table_changed', tableName);
-          }
+          await DesktopMultiWindow.invokeMethod(windowId, 'table_changed', tableName);
         } catch (e) {
           _knownSubWindowIds.remove(windowId);
           debugPrint('MultiWindowSyncService: Window #$windowId closed or unreachable. Removed from registry.');

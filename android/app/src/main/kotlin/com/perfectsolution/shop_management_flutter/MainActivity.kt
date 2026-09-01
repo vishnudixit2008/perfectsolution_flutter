@@ -14,11 +14,16 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.perfectsolution.kiosk/overlay"
+    companion object {
+        const val CHANNEL = "com.perfectsolution.kiosk/overlay"
+        var channelInstance: MethodChannel? = null
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channelInstance = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkNotificationPermission" -> {
                     val areEnabled = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
@@ -200,6 +205,23 @@ class MainActivity : FlutterActivity() {
                         }
                     }
                     result.success(null)
+                }
+                "checkInstallPermission" -> {
+                    val canInstall = ApkInstallerHelper.canRequestPackageInstalls(this)
+                    result.success(canInstall)
+                }
+                "requestInstallPermission" -> {
+                    ApkInstallerHelper.openInstallPermissionSettings(this)
+                    result.success(null)
+                }
+                "installApkSilently" -> {
+                    val apkPath = call.argument<String>("apkPath")
+                    if (apkPath.isNullOrEmpty()) {
+                        result.error("INVALID_PATH", "APK path is required", null)
+                    } else {
+                        val initiated = ApkInstallerHelper.installApk(this, apkPath)
+                        result.success(initiated)
+                    }
                 }
                 "stopNativeAlert" -> {
                     CallFirebaseMessagingService.stopNativeAlert()

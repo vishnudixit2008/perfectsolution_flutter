@@ -316,6 +316,9 @@ class _RequestsViewState extends State<RequestsView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(req);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(req);
         }
       }
     }

@@ -297,6 +297,9 @@ class _PurchasesViewState extends State<PurchasesView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(pur);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(pur);
         }
       }
     }

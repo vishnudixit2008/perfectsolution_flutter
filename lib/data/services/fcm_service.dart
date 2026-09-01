@@ -32,17 +32,16 @@ class FcmService {
   static GlobalKey<NavigatorState>? navigatorKey;
   bool _isInitialized = false;
 
-  /// Android Notification Channel for Call Assignment Alerts (Loud soothing alarm sound)
+  /// Android Notification Channel for Call Assignment Alerts (Silent background channel in tray)
   static const AndroidNotificationChannel _callAlertChannel =
       AndroidNotificationChannel(
     'call_alerts_v3',
     'Call Assignment Alerts',
-    description: 'High-priority full screen call alerts with soothing sound',
-    importance: Importance.max,
-    playSound: true,
-    sound: RawResourceAndroidNotificationSound('soothing_alert'),
-    enableVibration: true,
-    audioAttributesUsage: AudioAttributesUsage.alarm,
+    description: 'Silent notification for full screen call alerts',
+    importance: Importance.defaultImportance,
+    playSound: false,
+    sound: null,
+    enableVibration: false,
   );
 
   /// Android Notification Channel for Kiosk Payment QR Display
@@ -182,6 +181,10 @@ class FcmService {
               }
             }
           } else if (call.method == 'onKioskQrPayload') {
+            if (!_isCurrentDeviceSaleKiosk()) {
+              debugPrint('FcmService: Ignoring onKioskQrPayload - device is not sale display');
+              return;
+            }
             final payload = call.arguments?.toString();
             if (payload != null && payload.isNotEmpty) {
               try {
@@ -226,24 +229,17 @@ class FcmService {
         } catch (_) {}
 
         try {
-          final initialKiosk = await methodChannel.invokeMethod<String>('getInitialKioskPayload');
-          if (initialKiosk != null && initialKiosk.isNotEmpty) {
-            final data = jsonDecode(initialKiosk);
-            if (data is Map) {
-              final upiId = data['upi_id']?.toString() ?? '';
-              final amount = double.tryParse(data['amount']?.toString() ?? '0') ?? 0.0;
-              final customerName = data['customer_name']?.toString();
-              final note = data['note']?.toString();
+          if (_isCurrentDeviceSaleKiosk()) {
+            final initialKiosk = await methodChannel.invokeMethod<String>('getInitialKioskPayload');
+            if (initialKiosk != null && initialKiosk.isNotEmpty) {
+              final data = jsonDecode(initialKiosk);
+              if (data is Map) {
+                final upiId = data['upi_id']?.toString() ?? '';
+                final amount = double.tryParse(data['amount']?.toString() ?? '0') ?? 0.0;
+                final customerName = data['customer_name']?.toString();
+                final note = data['note']?.toString();
 
-              if (amount > 0) {
-                KioskBroadcastService.instance.showLocalQr(
-                  upiId: upiId,
-                  amount: amount,
-                  customerName: customerName,
-                  invoiceNo: note,
-                  isDirectPush: true,
-                );
-                Future.delayed(const Duration(milliseconds: 1000), () {
+                if (amount > 0) {
                   KioskBroadcastService.instance.showLocalQr(
                     upiId: upiId,
                     amount: amount,
@@ -251,29 +247,52 @@ class FcmService {
                     invoiceNo: note,
                     isDirectPush: true,
                   );
-                });
+                  Future.delayed(const Duration(milliseconds: 1000), () {
+                    KioskBroadcastService.instance.showLocalQr(
+                      upiId: upiId,
+                      amount: amount,
+                      customerName: customerName,
+                      invoiceNo: note,
+                      isDirectPush: true,
+                    );
+                  });
+                }
               }
             }
           }
         } catch (_) {}
       }
 
-      // Get initial token
-      final token = await messaging.getToken();
-      if (token != null) {
-        debugPrint('FcmService: Device FCM Token: $token');
-        await _syncCurrentDeviceToken(token);
-        await syncCurrentUserTokens();
-      }
-
       _isInitialized = true;
       debugPrint('FcmService: Successfully initialized Firebase Cloud Messaging');
+
+      // Get initial token in background without blocking startup
+      unawaited(() async {
+        try {
+          final token = await messaging.getToken();
+          if (token != null) {
+            debugPrint('FcmService: Device FCM Token: $token');
+            await _syncCurrentDeviceToken(token);
+            await syncCurrentUserTokens();
+          }
+        } catch (e) {
+          debugPrint('FcmService: Error fetching initial token: $e');
+        }
+      }());
     } catch (e) {
       debugPrint('FcmService: Error initializing Firebase: $e');
     }
   }
 
 
+
+  /// Verifies if the currently logged-in user or active device mode is the sale display
+  static bool _isCurrentDeviceSaleKiosk() {
+    final email = UserPermissionService.getCurrentUserEmail().toLowerCase().trim();
+    return email == 'sale.perfectsolutionnoida@gmail.com' ||
+        email == 'sale' ||
+        UiPreferencesService.isKioskMode();
+  }
 
   /// Handle incoming foreground push message
   void _handleForegroundMessage(RemoteMessage message) {
@@ -287,6 +306,10 @@ class FcmService {
         _triggerCallAlertModal(call);
       }
     } else if (type == 'kiosk_qr') {
+      if (!_isCurrentDeviceSaleKiosk()) {
+        debugPrint('FcmService: Suppressing kiosk QR push for non-sale device');
+        return;
+      }
       final upiId = data['upi_id']?.toString() ?? '';
       final amount = double.tryParse(data['amount']?.toString() ?? '0') ?? 0.0;
       final customerName = data['customer_name']?.toString();
@@ -348,7 +371,10 @@ class FcmService {
       return;
     }
 
-    CallAlertAudioService.instance.playSoothingAlertLoop();
+    if (!UserPermissionService.isEntryDirectlyAssignedToUser(call.assignedTo)) {
+      debugPrint('FcmService: Suppressing call alert modal - call is assigned to "${call.assignedTo}", not logged-in user "${UserPermissionService.getCurrentUser().email}"');
+      return;
+    }
 
     int attempts = 0;
     Timer.periodic(const Duration(milliseconds: 200), (timer) {
@@ -398,6 +424,10 @@ class FcmService {
       final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
       if (!isMobile && !kIsWeb) return;
 
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.isEmpty) return;
 
@@ -427,6 +457,10 @@ class FcmService {
     try {
       final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
       if (!isMobile && !kIsWeb) return;
+
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
 
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {

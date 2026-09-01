@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'app_update_downloader.dart';
 import 'update_check_service.dart';
@@ -48,6 +49,17 @@ class AutoUpdateService extends ChangeNotifier {
     if (_isInitialized) return;
     _isInitialized = true;
 
+    // Listen for native installation failure events (Android PackageInstaller)
+    if (!kIsWeb && Platform.isAndroid) {
+      const nativeChannel = MethodChannel('com.perfectsolution.kiosk/overlay');
+      nativeChannel.setMethodCallHandler((call) async {
+        if (call.method == 'onInstallError') {
+          _errorMessage = call.arguments as String?;
+          _setStatus(AutoUpdateStatus.error);
+        }
+      });
+    }
+
     // Periodic check every 15 minutes
     _periodicCheckTimer?.cancel();
     _periodicCheckTimer = Timer.periodic(const Duration(minutes: 15), (_) {
@@ -90,8 +102,8 @@ class AutoUpdateService extends ChangeNotifier {
           _updateInfo = versionStatus;
           _errorMessage = null;
 
-          // On Desktop (Windows / macOS), automatically download in the background
-          if (Platform.isWindows || Platform.isMacOS) {
+          // Automatically download in the background on Desktop and Android
+          if (Platform.isWindows || Platform.isMacOS || Platform.isAndroid) {
             _startBackgroundDownload(versionStatus);
           } else {
             _setStatus(AutoUpdateStatus.idle);
@@ -216,7 +228,13 @@ class AutoUpdateService extends ChangeNotifier {
       return await _performWindowsUpdate(filePath);
     }
 
-    // Android / Other – use system installer
+    if (!kIsWeb && Platform.isAndroid) {
+      _installStatus = 'Applying update in background...';
+      notifyListeners();
+      return await AppUpdateDownloader.launchInstaller(file);
+    }
+
+    // Other – use system installer
     return await AppUpdateDownloader.launchInstaller(file);
   }
 

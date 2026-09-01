@@ -171,6 +171,9 @@ class _CallsViewState extends State<CallsView> {
                   .toLowerCase()
                   .contains(query);
 
+          final matchesStatus = _selectedStatus == 'All' ||
+              c.status.trim().toLowerCase() == _selectedStatus.trim().toLowerCase();
+
           bool matchesAssigned = true;
           if (_selectedAssigned == 'Unassigned') {
             matchesAssigned =
@@ -184,7 +187,7 @@ class _CallsViewState extends State<CallsView> {
                     _selectedAssigned.trim().toLowerCase();
           }
 
-          return matchesSearch && matchesAssigned;
+          return matchesSearch && matchesStatus && matchesAssigned;
         }).toList();
 
         // Sort by date descending (newest calls first), tie-break with ID descending
@@ -432,6 +435,9 @@ class _CallsViewState extends State<CallsView> {
         );
         if (fallbackKey.isNotEmpty) {
           grouped[fallbackKey]!.add(call);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(call);
         }
       }
     }
