@@ -12,7 +12,8 @@ The backend runs on a dedicated Linux host with the following network setup:
 
 | Interface / Access | Endpoint | Purpose |
 |---|---|---|
-| **Public Flutter App Client** | `http://psflutter.duckdns.org:8000` | Native IPv6 direct connection via DuckDNS dynamic DNS auto-updater. No middleman relay, full fiber speed, zero bandwidth limits. |
+| **Public Flutter App Client** | `https://api.perfectsolutionnoida.in` | Official Cloudflare Zero Trust Tunnel. 256-bit TLS 1.3, DDoS protection, Anycast global routing (Noida/Delhi edge), unlimited bandwidth, 0 open router ports. |
+| **Backup Public Tunnel** | `https://gb4ccxrgywpd.shares.zrok.io` | Zrok v2 public fallback tunnel running via systemd service. |
 | **Local Shop LAN** | `http://192.168.1.19:8000` | Direct local network connection when on the same Wi-Fi. |
 | **Admin & Supabase Studio** | `http://100.123.9.102:3000` | Encrypted private Tailscale mesh network for administrators to inspect tables and execute SQL securely. |
 | **Database Server** | Dockerized Supabase (Postgres 17, PostgREST, Realtime, GoTrue Auth, Envoy Gateway) | Self-hosted backend in `/opt/supabase`. |

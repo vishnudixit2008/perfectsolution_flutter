@@ -1,5 +1,6 @@
 package com.perfectsolution.shop_management_flutter
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -99,24 +100,40 @@ class CallFirebaseMessagingService : FirebaseMessagingService() {
             activityOptions
         )
 
-        // 3. Post Silent Notification with FullScreenIntent (No heads-up banner, silent in shade)
+        // 3. Post High-Priority Notification with FullScreenIntent
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "call_alerts_v4"
 
-            val notification = NotificationCompat.Builder(this, "call_alerts_v3")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Call Assignment Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Full-screen popups and alerts for incoming calls"
+                    lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 300, 150, 300)
+                    setBypassDnd(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val notification = NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("New call assigned")
-                .setContentText("Open app • Job #$callNo: $name")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentTitle("New Call Assigned: $name")
+                .setContentText("Open app • Job #$callNo • $devices")
+                .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setFullScreenIntent(pendingIntent, true)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
-                .setSilent(true) // Silent in notification shade; single sound is played by Flutter dialog
+                .setOngoing(false)
                 .addAction(
                     android.R.drawable.ic_menu_call,
-                    "Open App",
+                    "View Call",
                     pendingIntent
                 )
                 .build()
@@ -184,7 +201,24 @@ class CallFirebaseMessagingService : FirebaseMessagingService() {
         // 3. Post FullScreenIntent Notification for Kiosk QR (Guarantees screen wake & immediate display from lockscreen/background)
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val notification = NotificationCompat.Builder(this, "kiosk_qr_channel")
+            val channelId = "kiosk_qr_v4"
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Kiosk Payment QR",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "High priority full-screen payment QR display for counter tablet"
+                    lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 250, 100, 250)
+                    setBypassDnd(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val notification = NotificationCompat.Builder(this, channelId)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle("Payment QR Display: ₹$amount")
                 .setContentText(if (customerName.isNotEmpty()) "Customer: $customerName" else "Scan to Pay")

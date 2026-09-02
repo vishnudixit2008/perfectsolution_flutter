@@ -1,6 +1,7 @@
 package com.perfectsolution.shop_management_flutter
 
 import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -237,6 +238,27 @@ class MainActivity : FlutterActivity() {
                     pendingKioskPayload = null
                     result.success(payload)
                 }
+                "getDeviceBrand" -> {
+                    result.success(Build.MANUFACTURER.lowercase())
+                }
+                "openOemBackgroundPopupSettings" -> {
+                    val opened = openOemBackgroundPopupSettings()
+                    result.success(opened)
+                }
+                "openOemAutostartSettings" -> {
+                    val opened = openOemAutostartSettings()
+                    result.success(opened)
+                }
+                "getInitialCallPayload" -> {
+                    val payload = pendingCallPayload
+                    pendingCallPayload = null
+                    result.success(payload)
+                }
+                "getInitialKioskPayload" -> {
+                    val payload = pendingKioskPayload
+                    pendingKioskPayload = null
+                    result.success(payload)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -334,6 +356,118 @@ class MainActivity : FlutterActivity() {
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
             WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
         )
+    }
+
+    private fun openOemBackgroundPopupSettings(): Boolean {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        try {
+            if (manufacturer.contains("vivo") || manufacturer.contains("iqoo")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity"))
+                    putExtra("packagename", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+                val intent2 = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.PurviewTabActivity"))
+                    putExtra("packagename", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent2.resolveActivity(packageManager) != null) {
+                    startActivity(intent2)
+                    return true
+                }
+            } else if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")) {
+                val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                    setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                    putExtra("extra_pkgname", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } else if (manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.single.PermissionTopActivity"))
+                    putExtra("package_name", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            }
+        } catch (e: Exception) {}
+
+        // Fallback to standard Application Details
+        try {
+            val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(fallbackIntent)
+            return true
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private fun openOemAutostartSettings(): Boolean {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        try {
+            if (manufacturer.contains("vivo") || manufacturer.contains("iqoo")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+                val intent2 = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent2.resolveActivity(packageManager) != null) {
+                    startActivity(intent2)
+                    return true
+                }
+            } else if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } else if (manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            }
+        } catch (e: Exception) {}
+
+        // Fallback to standard battery optimization screen
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                return true
+            }
+        } catch (e: Exception) {}
+        return false
     }
 }
 

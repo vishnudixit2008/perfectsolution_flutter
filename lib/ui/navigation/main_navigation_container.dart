@@ -78,10 +78,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     KioskBroadcastService.instance.init();
 
     bool isCurrentDeviceSaleKiosk() {
-      final email = UserPermissionService.getCurrentUserEmail().toLowerCase().trim();
-      return email == 'sale.perfectsolutionnoida@gmail.com' ||
-          email == 'sale' ||
-          UiPreferencesService.isKioskMode();
+      return UiPreferencesService.isKioskMode();
     }
 
     // Check if there is an unhandled pending QR payload from cold start

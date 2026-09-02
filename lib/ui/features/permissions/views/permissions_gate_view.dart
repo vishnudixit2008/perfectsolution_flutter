@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../data/services/app_permissions_service.dart';
 import '../../../../data/services/fcm_service.dart';
+import '../../../../data/services/ui_preferences_service.dart';
 import '../../../core/app_theme.dart';
 import '../../../core/motion/bouncy_pressable.dart';
 
@@ -21,6 +22,10 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
   PermissionStatusModel? _status;
   bool _isLoading = true;
   bool _isRequesting = false;
+
+  String _deviceBrand = 'other';
+  bool _hasSpecialOem = false;
+  bool _oemSetupCompleted = false;
 
   @override
   void initState() {
@@ -61,12 +66,19 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
     }
 
     final status = await AppPermissionsService.instance.checkPermissions();
+    final brand = await AppPermissionsService.instance.getDeviceBrand();
+    final hasOem = await AppPermissionsService.instance.hasSpecialOemRestrictions();
+    final oemDone = (UiPreferencesService.getValue('oem_setup_completed') as bool?) ?? false;
+
     if (mounted) {
       setState(() {
         _status = status;
+        _deviceBrand = brand;
+        _hasSpecialOem = hasOem;
+        _oemSetupCompleted = oemDone;
         _isLoading = false;
       });
-      if (status.isAllEssentialGranted) {
+      if (status.isAllEssentialGranted && (!hasOem || oemDone)) {
         unawaited(FcmService.instance.syncCurrentUserTokens());
       }
     }
@@ -88,6 +100,10 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
       }
       if (!_status!.installPackagesGranted) {
         await AppPermissionsService.instance.requestInstallPackagesPermission();
+      }
+      if (_hasSpecialOem && !_oemSetupCompleted) {
+        await AppPermissionsService.instance.openOemBackgroundPopupSettings();
+        await UiPreferencesService.setValue('oem_setup_completed', true);
       }
       await _checkPermissions();
     } finally {
@@ -112,7 +128,11 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
       );
     }
 
-    if (_status != null && _status!.isAllEssentialGranted) {
+    final isAllowedToPass = _status != null &&
+        _status!.isAllEssentialGranted &&
+        (!_hasSpecialOem || _oemSetupCompleted);
+
+    if (isAllowedToPass) {
       return widget.child;
     }
 
@@ -256,7 +276,7 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
                       iconColor: const Color(0xFF34D399),
                       title: 'Camera & Device Photos',
                       subtitle:
-                          'Allows attaching device condition photos in Inward repairs and customer calls.',
+                          'Optional on startup — prompted automatically in-app when you attach repair condition photos.',
                       isGranted: cameraOk,
                       isRequired: false,
                       onTap: () async {
@@ -267,6 +287,10 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
                         await _checkPermissions();
                       },
                     ),
+                    if (_hasSpecialOem) ...[
+                      const SizedBox(height: 16),
+                      _buildOemPermissionCard(_deviceBrand),
+                    ],
                   ],
                 ),
               ),
@@ -497,6 +521,144 @@ class _PermissionsGateViewState extends State<PermissionsGateView>
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOemPermissionCard(String brand) {
+    String brandTitle = 'Background Alert Setup';
+    String brandDesc =
+        'Allow "Display pop-up window" & "Autostart" so calls ring over the lockscreen.';
+    if (brand.contains('vivo') || brand.contains('iqoo')) {
+      brandTitle = 'Vivo / iQOO Alert Protection';
+      brandDesc =
+          'Vivo requires allowing "Display pop-up window while in background" & "Autostart" so calls pop up instantly over the lockscreen.';
+    } else if (brand.contains('xiaomi') ||
+        brand.contains('redmi') ||
+        brand.contains('poco')) {
+      brandTitle = 'Xiaomi / MIUI Alert Protection';
+      brandDesc =
+          'Xiaomi requires enabling "Display pop-up windows" & "Autostart" in Security permissions for instant call alerts.';
+    } else if (brand.contains('oppo') ||
+        brand.contains('realme') ||
+        brand.contains('oneplus')) {
+      brandTitle = 'ColorOS / Realme Alert Setup';
+      brandDesc =
+          'Enable background popup windows and startup permissions to ensure full-screen call alerts appear.';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.phonelink_setup_rounded,
+                    color: Color(0xFFFBBF24), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  brandTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            brandDesc,
+            style: const TextStyle(
+              color: AppTheme.textMuted,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: BouncyPressable(
+                  onTap: () async {
+                    await UiPreferencesService.setValue('oem_setup_completed', true);
+                    await AppPermissionsService.instance
+                        .openOemBackgroundPopupSettings();
+                    await _checkPermissions();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '1. Enable Pop-ups',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: BouncyPressable(
+                  onTap: () async {
+                    await UiPreferencesService.setValue('oem_setup_completed', true);
+                    await AppPermissionsService.instance
+                        .openOemAutostartSettings();
+                    await _checkPermissions();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '2. Allow Autostart',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

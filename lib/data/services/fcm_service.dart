@@ -32,22 +32,21 @@ class FcmService {
   static GlobalKey<NavigatorState>? navigatorKey;
   bool _isInitialized = false;
 
-  /// Android Notification Channel for Call Assignment Alerts (Silent background channel in tray)
+  /// Android Notification Channel for Call Assignment Alerts
   static const AndroidNotificationChannel _callAlertChannel =
       AndroidNotificationChannel(
-    'call_alerts_v3',
+    'call_alerts_v4',
     'Call Assignment Alerts',
-    description: 'Silent notification for full screen call alerts',
-    importance: Importance.defaultImportance,
-    playSound: false,
-    sound: null,
-    enableVibration: false,
+    description: 'Full-screen popups and alerts for incoming calls',
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
   );
 
   /// Android Notification Channel for Kiosk Payment QR Display
   static const AndroidNotificationChannel _kioskQrChannel =
       AndroidNotificationChannel(
-    'kiosk_qr',
+    'kiosk_qr_v4',
     'Kiosk Payment QR',
     description: 'Wakeup notifications for Kiosk display',
     importance: Importance.max,
@@ -286,12 +285,9 @@ class FcmService {
 
 
 
-  /// Verifies if the currently logged-in user or active device mode is the sale display
+  /// Verifies if the currently active device mode is the sale display
   static bool _isCurrentDeviceSaleKiosk() {
-    final email = UserPermissionService.getCurrentUserEmail().toLowerCase().trim();
-    return email == 'sale.perfectsolutionnoida@gmail.com' ||
-        email == 'sale' ||
-        UiPreferencesService.isKioskMode();
+    return UiPreferencesService.isKioskMode();
   }
 
   /// Handle incoming foreground push message
@@ -366,13 +362,16 @@ class FcmService {
 
   /// Displays the full-screen alert dialog on top of the UI with guaranteed context mount polling
   void _triggerCallAlertModal(CallModel call) {
+    final user = UserPermissionService.getCurrentUser();
+    debugPrint('FcmService: _triggerCallAlertModal received call #${call.id} (assignedTo: "${call.assignedTo}"). Current user: "${user.email}", name: "${user.name}", role: "${user.role}"');
+
     if (!UserPermissionService.shouldReceiveCallAlertPopup()) {
-      debugPrint('FcmService: Suppressing call alert modal for admin/sale user: ${UserPermissionService.getCurrentUser().email}');
+      debugPrint('FcmService: Suppressing call alert modal for admin/sale user: ${user.email} (role: ${user.role})');
       return;
     }
 
     if (!UserPermissionService.isEntryDirectlyAssignedToUser(call.assignedTo)) {
-      debugPrint('FcmService: Suppressing call alert modal - call is assigned to "${call.assignedTo}", not logged-in user "${UserPermissionService.getCurrentUser().email}"');
+      debugPrint('FcmService: Suppressing call alert modal - call is assigned to "${call.assignedTo}", not logged-in user "${user.email}" / "${user.name}"');
       return;
     }
 
@@ -553,6 +552,72 @@ class FcmService {
       debugPrint('FcmService: Successfully registered Kiosk device token');
     } catch (e) {
       debugPrint('FcmService: Error registering kiosk token: $e');
+    }
+  }
+
+  /// De-registers device FCM token from Supabase when Kiosk Mode is disabled
+  Future<void> removeUserToken(String userIdentifier) async {
+    try {
+      final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+      if (!isMobile && !kIsWeb) return;
+
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return;
+
+      final supabase = Supabase.instance.client;
+
+      // 1. Remove from user_fcm_tokens
+      final res = await supabase
+          .from('shop_settings')
+          .select('value')
+          .eq('key', 'user_fcm_tokens')
+          .maybeSingle();
+
+      if (res != null && res['value'] != null) {
+        dynamic rawVal = res['value'];
+        if (rawVal is String) {
+          try {
+            rawVal = jsonDecode(rawVal);
+          } catch (_) {}
+        }
+        if (rawVal is Map) {
+          final map = Map<String, dynamic>.from(rawVal);
+          final keyClean = userIdentifier.trim().toLowerCase();
+          if (map.containsKey(keyClean) && map[keyClean] is List) {
+            final list = (map[keyClean] as List).where((t) => t.toString() != token).toList();
+            map[keyClean] = list;
+            await supabase.from('shop_settings').update({
+              'value': map,
+              'updated_at': DateTime.now().toIso8601String(),
+            }).eq('key', 'user_fcm_tokens');
+          }
+        }
+      }
+
+      // 2. Also remove from kiosk_fcm_tokens if identifier is kiosk or sale
+      if (userIdentifier == 'kiosk' || userIdentifier == 'sale') {
+        final kioskRes = await supabase
+            .from('shop_settings')
+            .select('value')
+            .eq('key', 'kiosk_fcm_tokens')
+            .maybeSingle();
+
+        if (kioskRes != null && kioskRes['value'] is List) {
+          final list = (kioskRes['value'] as List).where((t) => t.toString() != token).toList();
+          await supabase.from('shop_settings').update({
+            'value': list,
+            'updated_at': DateTime.now().toIso8601String(),
+          }).eq('key', 'kiosk_fcm_tokens');
+        }
+      }
+
+      debugPrint('FcmService: Removed token for $userIdentifier');
+    } catch (e) {
+      debugPrint('FcmService: Error removing user token: $e');
     }
   }
 

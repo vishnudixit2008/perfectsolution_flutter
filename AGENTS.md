@@ -26,8 +26,9 @@ Whenever running static analysis commands (`dart analyze` or `flutter analyze`):
    - Delta syncs MUST strictly filter using `updated_at >= lastSyncIso` on all tables.
 
 4. **BACKEND ENDPOINT & NETWORK TOPOLOGY:**
-   - Primary Backend URL: `http://psflutter.duckdns.org:8000` (Self-Hosted Supabase on Linux over Direct Native IPv6 with DuckDNS).
+   - Primary Backend URL: `https://api.perfectsolutionnoida.in` (Official Cloudflare Zero Trust Tunnel).
+   - Backup Public Tunnel: `https://gb4ccxrgywpd.shares.zrok.io` (Zrok v2).
    - Admin / Studio Dashboard: `http://100.123.9.102:3000` (Protected inside private Tailscale mesh).
    - Local Network LAN: `http://192.168.1.19:8000`.
-   - **DO NOT** change the default URL to temporary tunnels or unapproved domains without explicit user approval.
+   - **DO NOT** change the default URL without explicit user approval.
 

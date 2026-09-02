@@ -271,7 +271,7 @@ class FcmPushSenderService {
     }
   }
 
-  /// Retrieves all kiosk and active device tokens from Supabase
+  /// Retrieves all active kiosk display device tokens from Supabase
   Future<List<String>> _getKioskTokens() async {
     try {
       final supabase = Supabase.instance.client;
@@ -279,44 +279,27 @@ class FcmPushSenderService {
       final res = await supabase
           .from('shop_settings')
           .select('key, value')
-          .inFilter('key', ['kiosk_fcm_tokens', 'user_fcm_tokens']);
+          .eq('key', 'kiosk_fcm_tokens')
+          .maybeSingle();
+
+      if (res == null || res['value'] == null) return [];
+
+      dynamic val = res['value'];
+      if (val is String) {
+        try {
+          val = jsonDecode(val);
+        } catch (_) {}
+      }
 
       final List<String> allTokens = [];
-
-      for (final row in res) {
-        final key = row['key']?.toString();
-        dynamic val = row['value'];
-        if (val is String) {
-          try {
-            val = jsonDecode(val);
-          } catch (_) {}
-        }
-
-        if (key == 'kiosk_fcm_tokens') {
-          if (val is List) {
-            allTokens.addAll(val.map((e) => e.toString()));
-          } else if (val is Map && val['tokens'] is List) {
-            allTokens.addAll((val['tokens'] as List).map((e) => e.toString()));
-          }
-        } else if (key == 'user_fcm_tokens') {
-          if (val is Map) {
-            for (final entry in val.entries) {
-              final userKey = entry.key.toString().toLowerCase().trim();
-              // STRICT TARGETING: Only target tokens belonging to sale.perfectsolutionnoida@gmail.com
-              if (userKey == 'sale.perfectsolutionnoida@gmail.com' || userKey == 'sale') {
-                if (entry.value is List) {
-                  allTokens.addAll((entry.value as List).map((e) => e.toString()));
-                } else if (entry.value is String) {
-                  allTokens.add(entry.value.toString());
-                }
-              }
-            }
-          }
-        }
+      if (val is List) {
+        allTokens.addAll(val.map((e) => e.toString()));
+      } else if (val is Map && val['tokens'] is List) {
+        allTokens.addAll((val['tokens'] as List).map((e) => e.toString()));
       }
 
       final uniqueTokens = allTokens.where((t) => t.trim().isNotEmpty).toSet().toList();
-      debugPrint('FcmPushSenderService: Retrieved ${uniqueTokens.length} kiosk/device token(s) for QR display');
+      debugPrint('FcmPushSenderService: Retrieved ${uniqueTokens.length} active kiosk display token(s) for QR display');
       return uniqueTokens;
     } catch (e) {
       debugPrint('FcmPushSenderService: Error retrieving kiosk tokens: $e');

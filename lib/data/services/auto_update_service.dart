@@ -182,7 +182,11 @@ class AutoUpdateService extends ChangeNotifier {
       }
     } catch (e) {
       _isDownloading = false;
-      _errorMessage = e.toString().replaceAll('Exception:', '').trim();
+      String cleanError = e.toString().replaceAll('Exception:', '').replaceAll('HttpException:', '').trim();
+      if (cleanError.contains('Handshake') || cleanError.contains('CERTIFICATE') || cleanError.contains('handshake')) {
+        cleanError = 'Network security handshake error. Tap Retry to reconnect.';
+      }
+      _errorMessage = cleanError;
       _setStatus(AutoUpdateStatus.error);
       if (kDebugMode) print('AutoUpdateService background download error: $e');
     }

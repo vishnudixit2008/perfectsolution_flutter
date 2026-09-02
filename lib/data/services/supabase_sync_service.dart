@@ -43,14 +43,14 @@ enum SyncStatus { offline, syncing, synced, error }
 ///    offline edits and avoid wiping records.
 /// 5. TOMBSTONES: Deletions use the `deleted_records` table to ensure atomic
 ///    and precise item removal across all devices without blind wipes.
-/// 6. ENDPOINT: The primary backend is `http://psflutter.duckdns.org:8000`
-///    (Direct native IPv6 with DuckDNS). Do not change without user approval.
+/// 6. ENDPOINT: The primary backend is `https://api.perfectsolutionnoida.in`
+///    (Cloudflare Zero Trust Tunnel). Do not change without user approval.
 /// ============================================================================
 class SupabaseSyncService extends ChangeNotifier {
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';
   static const String _keyKey = 'supabase_anon_key';
-  static const String _defaultUrl = 'http://psflutter.duckdns.org:8000';
+  static const String _defaultUrl = 'https://api.perfectsolutionnoida.in';
   static const String _defaultAnonKey =
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg4MDE5NTIzLCJleHAiOjIxMDMzNzk1MjN9.eGJCMvVSVQe3lezs_UfCv5TeYRsoB9beJtlZuALKZ28';
 

@@ -22,11 +22,14 @@ class PermissionStatusModel {
 
   bool get isAllEssentialGranted {
     if (kIsWeb || !Platform.isAndroid) return true;
-    return notificationsGranted &&
-        overlayGranted &&
-        batteryOptimizationIgnored &&
-        installPackagesGranted;
+    return isAllEssentialGrantedForAndroid;
   }
+
+  bool get isAllEssentialGrantedForAndroid =>
+      notificationsGranted &&
+      overlayGranted &&
+      batteryOptimizationIgnored &&
+      installPackagesGranted;
 }
 
 class AppPermissionsService {
@@ -208,6 +211,50 @@ class AppPermissionsService {
       await _nativeChannel.invokeMethod('openAppDetailsSettings');
     } catch (_) {
       await openAppSettings();
+    }
+  }
+
+  /// Get device manufacturer / brand (e.g. "vivo", "xiaomi", "samsung")
+  Future<String> getDeviceBrand() async {
+    if (kIsWeb || !Platform.isAndroid) return 'other';
+    try {
+      final brand = await _nativeChannel.invokeMethod<String>('getDeviceBrand');
+      return brand?.toLowerCase().trim() ?? 'other';
+    } catch (_) {
+      return 'other';
+    }
+  }
+
+  /// Checks if the device has aggressive custom background restrictions (Vivo, Xiaomi, Oppo, etc.)
+  Future<bool> hasSpecialOemRestrictions() async {
+    final brand = await getDeviceBrand();
+    return brand.contains('vivo') ||
+        brand.contains('iqoo') ||
+        brand.contains('xiaomi') ||
+        brand.contains('redmi') ||
+        brand.contains('poco') ||
+        brand.contains('oppo') ||
+        brand.contains('realme') ||
+        brand.contains('oneplus');
+  }
+
+  /// Open Brand-Specific Background Pop-up permission toggle (Vivo / Xiaomi / Oppo)
+  Future<void> openOemBackgroundPopupSettings() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _nativeChannel.invokeMethod('openOemBackgroundPopupSettings');
+    } catch (_) {
+      await openAppSystemSettings();
+    }
+  }
+
+  /// Open Brand-Specific Autostart permission toggle
+  Future<void> openOemAutostartSettings() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _nativeChannel.invokeMethod('openOemAutostartSettings');
+    } catch (_) {
+      await requestBatteryOptimization();
     }
   }
 }

@@ -62,6 +62,10 @@ class UiPreferencesService {
     await _getBox().put(_isKioskModeKey, enabled);
     if (enabled) {
       unawaited(FcmService.instance.syncUserToken('kiosk'));
+      unawaited(FcmService.instance.syncUserToken('sale'));
+    } else {
+      unawaited(FcmService.instance.removeUserToken('kiosk'));
+      unawaited(FcmService.instance.removeUserToken('sale'));
     }
   }
 
