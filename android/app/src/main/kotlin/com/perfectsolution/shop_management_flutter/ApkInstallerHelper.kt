@@ -100,9 +100,18 @@ object ApkInstallerHelper {
         params.setAppPackageName(context.packageName)
         params.setSize(apkFile.length())
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            params.setInstallReason(android.content.pm.PackageManager.INSTALL_REASON_USER)
+        }
+
         // For Android 12+ (API 31+): Enable silent unattended update without user prompt
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+        }
+
+        // For Android 14+ (API 34+): Set package source to downloaded file for unattended updates
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            params.setPackageSource(PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE)
         }
 
         var sessionId = -1

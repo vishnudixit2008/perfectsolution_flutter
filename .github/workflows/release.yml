@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -259,31 +257,3 @@ jobs:
           files: PerfectSolution-macOS.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Web Release Build (GitHub Pages)
-  # ─────────────────────────────────────────────────────────────────────────────
-  release-web:
-    name: Build & Deploy (Web)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter SDK
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install Dependencies
-        run: flutter pub get
-
-      - name: Build Web Application
-        run: flutter build web --release
-
-      - name: Deploy Web to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build/web

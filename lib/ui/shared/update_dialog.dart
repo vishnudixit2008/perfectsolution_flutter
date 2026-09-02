@@ -32,6 +32,14 @@ class UpdateDialog extends StatefulWidget {
       forceCheck: forceCheck,
     );
     if (updateStatus != null && updateStatus.hasUpdate && context.mounted) {
+      // For non-mandatory updates: Do NOT show a popup dialog.
+      // AutoUpdateService automatically downloads the update in the background,
+      // and the bottom banner (MobileUpdateBanner) displays the download progress
+      // and the 'Relaunch to Update' button when ready.
+      // Only show the modal popup dialog if the update is MANDATORY or manually triggered (forceCheck).
+      if (!updateStatus.isMandatory && !forceCheck) {
+        return;
+      }
       showDialog(
         context: context,
         barrierDismissible: !updateStatus.isMandatory,

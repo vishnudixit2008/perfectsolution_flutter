@@ -1216,6 +1216,113 @@ class LocalDatabaseService {
     );
   }
 
+  /// Deletes a single inward estimate item by lineId
+  Future<void> deleteInwardEstimateItem(String lineId, int? jobNo) async {
+    if (jobNo != null) {
+      final items = getInwardEstimateItems(jobNo);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.lineId == lineId);
+      if (items.length != initialCount) {
+        await _inwardItemsBox.put(
+          jobNo,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _inwardItemsBox.keys) {
+        final jno = key is int ? key : int.tryParse(key.toString());
+        if (jno != null) {
+          final items = getInwardEstimateItems(jno);
+          final initialCount = items.length;
+          items.removeWhere((i) => i.lineId == lineId);
+          if (items.length != initialCount) {
+            await _inwardItemsBox.put(
+              jno,
+              items.map((i) => i.toJson()).toList(),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /// Deletes a single sale item by lineId / id
+  Future<void> deleteSaleItem(String lineId, int? invoiceNo) async {
+    if (invoiceNo != null) {
+      final items = getSaleItems(invoiceNo);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.id == lineId);
+      if (items.length != initialCount) {
+        await _saleItemsBox.put(
+          invoiceNo,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _saleItemsBox.keys) {
+        final inv = key is int ? key : int.tryParse(key.toString());
+        if (inv != null) {
+          final items = getSaleItems(inv);
+          final initialCount = items.length;
+          items.removeWhere((i) => i.id == lineId);
+          if (items.length != initialCount) {
+            await _saleItemsBox.put(
+              inv,
+              items.map((i) => i.toJson()).toList(),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /// Deletes a single purchase order item by lineId
+  Future<void> deletePurchaseOrderItem(String lineId, String? purchaseId) async {
+    if (purchaseId != null && purchaseId.isNotEmpty) {
+      final items = getPurchaseOrderItems(purchaseId);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.lineId == lineId);
+      if (items.length != initialCount) {
+        await _purchaseItemsBox.put(
+          purchaseId,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _purchaseItemsBox.keys) {
+        final pid = key.toString();
+        final items = getPurchaseOrderItems(pid);
+        final initialCount = items.length;
+        items.removeWhere((i) => i.lineId == lineId);
+        if (items.length != initialCount) {
+          await _purchaseItemsBox.put(
+            pid,
+            items.map((i) => i.toJson()).toList(),
+          );
+        }
+      }
+    }
+  }
+
+  /// Checks whether there are pending sync queue operations for a given parent record
+  bool hasPendingSyncForParent(String table, String parentKeyColumn, dynamic parentKeyValue) {
+    if (parentKeyValue == null) return false;
+    final parentKeyStr = parentKeyValue.toString().trim().toLowerCase();
+    final pendingOps = getPendingSyncQueue();
+    return pendingOps.any((op) {
+      final opTable = op['table']?.toString();
+      if (opTable != table) return false;
+      final opParentKey = op['parent_key_value']?.toString().trim().toLowerCase();
+      if (opParentKey == parentKeyStr) return true;
+      final data = op['data'];
+      if (data is Map) {
+        final val = data[parentKeyColumn]?.toString().trim().toLowerCase();
+        if (val == parentKeyStr) return true;
+      }
+      return false;
+    });
+  }
+
   Future<void> saveAllInwardRepairs(
     Map<int, Map<String, dynamic>> repairsMap,
     Map<int, List<Map<String, dynamic>>> itemsMap, {

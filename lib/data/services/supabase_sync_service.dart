@@ -344,16 +344,40 @@ class SupabaseSyncService extends ChangeNotifier {
                 switch (table) {
                   case 'inward_repairs':
                     rid = record['job_no']?.toString();
+                  case 'inward_estimate_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final jobNo = int.tryParse(record['job_no']?.toString() ?? '');
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deleteInwardEstimateItem(lineId, jobNo);
+                      ShopRepository.notifyTableChanged('inward_repairs');
+                      ShopRepository.notifyTableChanged('all');
+                    }
                   case 'calls':
                     rid = record['id']?.toString();
                   case 'sales':
                     rid = record['invoice_no']?.toString();
+                  case 'sale_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final invoiceNo = int.tryParse(record['invoice_no']?.toString() ?? '');
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deleteSaleItem(lineId, invoiceNo);
+                      ShopRepository.notifyTableChanged('sales');
+                      ShopRepository.notifyTableChanged('all');
+                    }
                   case 'replacements':
                     rid = record['job_no']?.toString();
                   case 'requests':
                     rid = record['id']?.toString();
                   case 'purchases':
                     rid = record['id']?.toString();
+                  case 'purchase_order_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final purchaseId = record['purchase_id']?.toString();
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deletePurchaseOrderItem(lineId, purchaseId);
+                      ShopRepository.notifyTableChanged('purchases');
+                      ShopRepository.notifyTableChanged('all');
+                    }
                   case 'pricelist':
                     rid = record['id']?.toString();
                 }
@@ -607,7 +631,7 @@ class SupabaseSyncService extends ChangeNotifier {
                 .map((i) => Map<String, dynamic>.from(i as Map))
                 .toList();
             // Determine conflict column from table name
-            final conflictCol = tableName == 'inward_estimate_items' ? 'line_id' : 'line_id';
+            final conflictCol = tableName == 'sale_items' ? 'id' : 'line_id';
             await client.from(tableName).upsert(itemsPayload, onConflict: conflictCol);
           }
         } else if (operation == 'delete' && pkColumn != null) {
@@ -1019,13 +1043,44 @@ class SupabaseSyncService extends ChangeNotifier {
         }
         repairsMap[cloudRepair.jobNo] = repairJson;
       }
-      for (final json in inwardItemsData) {
-        final jno = int.tryParse(json['job_no']?.toString() ?? '');
-        if (jno != null) {
-          final item = InwardEstimateItem.fromJson(Map<String, dynamic>.from(json));
-          inwardItemsMap.putIfAbsent(jno, () => []).add(item.toJson());
+
+      if (isDelta && (inwardData.isNotEmpty || inwardItemsData.isNotEmpty)) {
+        final affectedJobs = <int>{};
+        for (final json in inwardData) {
+          final j = int.tryParse(json['job_no']?.toString() ?? '');
+          if (j != null) affectedJobs.add(j);
+        }
+        for (final json in inwardItemsData) {
+          final j = int.tryParse(json['job_no']?.toString() ?? '');
+          if (j != null) affectedJobs.add(j);
+        }
+        if (affectedJobs.isNotEmpty) {
+          final fullItems = await client
+              .from('inward_estimate_items')
+              .select()
+              .inFilter('job_no', affectedJobs.toList())
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
+          for (final jno in affectedJobs) {
+            final itemsJson = (fullItems as List)
+                .where((i) => i['job_no']?.toString() == jno.toString())
+                .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('inward_estimate_items', 'job_no', jno)) {
+              inwardItemsMap[jno] = itemsJson;
+            }
+          }
+        }
+      } else if (!isDelta) {
+        for (final json in inwardItemsData) {
+          final jno = int.tryParse(json['job_no']?.toString() ?? '');
+          if (jno != null) {
+            final item = InwardEstimateItem.fromJson(Map<String, dynamic>.from(json));
+            inwardItemsMap.putIfAbsent(jno, () => []).add(item.toJson());
+          }
         }
       }
+
       if (repairsMap.isNotEmpty || inwardItemsMap.isNotEmpty || !isDelta) {
         await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: !isDelta);
       }
@@ -1083,13 +1138,44 @@ class SupabaseSyncService extends ChangeNotifier {
         final sale = Sale.fromJson(Map<String, dynamic>.from(json));
         salesMap[sale.invoiceNo] = sale.toJson();
       }
-      for (final json in salesItemsData) {
-        final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
-        if (inv != null) {
-          final item = SaleItem.fromJson(Map<String, dynamic>.from(json));
-          salesItemsMap.putIfAbsent(inv, () => []).add(item.toJson());
+
+      if (isDelta && (salesData.isNotEmpty || salesItemsData.isNotEmpty)) {
+        final affectedInvoices = <int>{};
+        for (final json in salesData) {
+          final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
+          if (inv != null) affectedInvoices.add(inv);
+        }
+        for (final json in salesItemsData) {
+          final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
+          if (inv != null) affectedInvoices.add(inv);
+        }
+        if (affectedInvoices.isNotEmpty) {
+          final fullItems = await client
+              .from('sale_items')
+              .select()
+              .inFilter('invoice_no', affectedInvoices.toList())
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
+          for (final inv in affectedInvoices) {
+            final itemsJson = (fullItems as List)
+                .where((i) => i['invoice_no']?.toString() == inv.toString())
+                .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('sale_items', 'invoice_no', inv)) {
+              salesItemsMap[inv] = itemsJson;
+            }
+          }
+        }
+      } else if (!isDelta) {
+        for (final json in salesItemsData) {
+          final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
+          if (inv != null) {
+            final item = SaleItem.fromJson(Map<String, dynamic>.from(json));
+            salesItemsMap.putIfAbsent(inv, () => []).add(item.toJson());
+          }
         }
       }
+
       if (salesMap.isNotEmpty || salesItemsMap.isNotEmpty || !isDelta) {
         await localDb.saveAllSales(salesMap, salesItemsMap, clearOthers: !isDelta);
       }
@@ -1102,13 +1188,44 @@ class SupabaseSyncService extends ChangeNotifier {
         final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
         purchasesMap[pur.id] = pur.toJson();
       }
-      for (final json in purchaseItemsData) {
-        final pid = json['purchase_id']?.toString();
-        if (pid != null && pid.isNotEmpty) {
-          final item = PurchaseOrderItem.fromJson(Map<String, dynamic>.from(json));
-          purchaseItemsMap.putIfAbsent(pid, () => []).add(item.toJson());
+
+      if (isDelta && (purchaseData.isNotEmpty || purchaseItemsData.isNotEmpty)) {
+        final affectedPurchases = <String>{};
+        for (final json in purchaseData) {
+          final pid = json['id']?.toString();
+          if (pid != null && pid.isNotEmpty) affectedPurchases.add(pid);
+        }
+        for (final json in purchaseItemsData) {
+          final pid = json['purchase_id']?.toString();
+          if (pid != null && pid.isNotEmpty) affectedPurchases.add(pid);
+        }
+        if (affectedPurchases.isNotEmpty) {
+          final fullItems = await client
+              .from('purchase_order_items')
+              .select()
+              .inFilter('purchase_id', affectedPurchases.toList())
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
+          for (final pid in affectedPurchases) {
+            final itemsJson = (fullItems as List)
+                .where((i) => i['purchase_id']?.toString() == pid)
+                .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
+                .toList();
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('purchase_order_items', 'purchase_id', pid)) {
+              purchaseItemsMap[pid] = itemsJson;
+            }
+          }
+        }
+      } else if (!isDelta) {
+        for (final json in purchaseItemsData) {
+          final pid = json['purchase_id']?.toString();
+          if (pid != null && pid.isNotEmpty) {
+            final item = PurchaseOrderItem.fromJson(Map<String, dynamic>.from(json));
+            purchaseItemsMap.putIfAbsent(pid, () => []).add(item.toJson());
+          }
         }
       }
+
       if (purchasesMap.isNotEmpty || purchaseItemsMap.isNotEmpty || !isDelta) {
         await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap, clearOthers: !isDelta);
       }
@@ -1372,7 +1489,9 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['job_no']?.toString() == jno.toString())
                   .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              inwardItemsMap[jno] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('inward_estimate_items', 'job_no', jno)) {
+                inwardItemsMap[jno] = itemsJson;
+              }
             }
 
             await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: false);
@@ -1480,7 +1599,9 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['invoice_no']?.toString() == inv.toString())
                   .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              saleItemsMap[inv] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('sale_items', 'invoice_no', inv)) {
+                saleItemsMap[inv] = itemsJson;
+              }
             }
 
             await localDb.saveAllSales(salesMap, saleItemsMap, clearOthers: false);
@@ -1567,7 +1688,9 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['purchase_id']?.toString() == pid)
                   .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              purchItemsMap[pid] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('purchase_order_items', 'purchase_id', pid)) {
+                purchItemsMap[pid] = itemsJson;
+              }
             }
 
             await localDb.saveAllPurchases(purchMap, purchItemsMap, clearOthers: false);
@@ -1722,6 +1845,89 @@ class SupabaseSyncService extends ChangeNotifier {
       await client.from('inward_estimate_items').delete().eq('job_no', jobNo);
     } catch (e) {
       if (kDebugMode) print('Delete estimate items error ($jobNo): $e');
+    }
+  }
+
+  /// Batch saves sale items for an invoice.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert.
+  Future<void> saveSaleItemsForInvoice(
+    int invoiceNo,
+    List<SaleItem> items, {
+    LocalDatabaseService? localDb,
+  }) async {
+    if (!_isInitialized) {
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'sale_items',
+          'parent_key_column': 'invoice_no',
+          'parent_key_value': invoiceNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: sale items queued for invoice #$invoiceNo');
+      }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing sale items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('sale_items').upsert(payload, onConflict: 'id');
+      }
+
+      // Step 2: Delete only removed items by comparing with incoming list
+      final incomingIds = items.map((e) => e.id).toSet();
+      final cloudItems = await client
+          .from('sale_items')
+          .select('id')
+          .eq('invoice_no', invoiceNo);
+      final cloudIds = (cloudItems as List)
+          .map((r) => r['id']?.toString())
+          .whereType<String>()
+          .toSet();
+      final toDelete = cloudIds.difference(incomingIds);
+      if (toDelete.isNotEmpty) {
+        await client
+            .from('sale_items')
+            .delete()
+            .inFilter('id', toDelete.toList());
+      }
+
+      _setStatus(SyncStatus.synced, 'Live Synced');
+    } catch (e) {
+      if (kDebugMode) print('Save sale items cloud error ($invoiceNo): $e');
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'sale_items',
+          'parent_key_column': 'invoice_no',
+          'parent_key_value': invoiceNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+      _setStatus(SyncStatus.error, 'Sync Error (Sale Items): $e');
     }
   }
 
@@ -1907,6 +2113,17 @@ class SupabaseSyncService extends ChangeNotifier {
         });
       }
       _setStatus(SyncStatus.error, 'Sync Error (Purchase Items): $e');
+    }
+  }
+
+  /// Deletes all purchase order items for a given purchaseId
+  Future<void> deletePurchaseItemsForPurchase(String purchaseId) async {
+    if (!_isInitialized) return;
+    try {
+      final client = Supabase.instance.client;
+      await client.from('purchase_order_items').delete().eq('purchase_id', purchaseId);
+    } catch (e) {
+      if (kDebugMode) print('Delete purchase items error ($purchaseId): $e');
     }
   }
 

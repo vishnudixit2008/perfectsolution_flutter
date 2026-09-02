@@ -180,7 +180,7 @@ class MobileUpdateBanner extends StatelessWidget {
                     const SizedBox(width: 8),
                     BouncyPressable(
                       scaleFactor: 0.94,
-                      onTap: () => _confirmRelaunch(context, updateService, version),
+                      onTap: () => updateService.relaunchAndInstall(),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
@@ -269,56 +269,6 @@ class MobileUpdateBanner extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _confirmRelaunch(BuildContext context, AutoUpdateService updateService, String version) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF131A2E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.system_update_rounded, color: Color(0xFF60A5FA), size: 22),
-            SizedBox(width: 10),
-            Text(
-              'Relaunch & Update',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Perfect Solution v$version is downloaded and ready to install.\n\nUpdating will take just a few seconds and all your active data is preserved.',
-          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later', style: TextStyle(color: AppTheme.textMuted)),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              updateService.relaunchAndInstall();
-            },
-            icon: const Icon(Icons.restart_alt_rounded, size: 16),
-            label: const Text('Relaunch Now'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

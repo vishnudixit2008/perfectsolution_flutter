@@ -122,20 +122,17 @@ class ShopRepository {
       _localDb.getSaleItems(invoiceNo);
   Future<void> saveSale(Sale sale, List<SaleItem> items) async {
     final updatedProducts = await _localDb.saveSale(sale, items);
+    // Batch upsert sale items first so cloud has child rows before parent triggers Realtime
+    await SupabaseSyncService.instance.saveSaleItemsForInvoice(
+      sale.invoiceNo,
+      items,
+      localDb: _localDb,
+    );
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
       localDb: _localDb,
     );
-    // Delete existing cloud sale_items for this invoice so removed/deleted items are purged
-    await SupabaseSyncService.instance.deleteSaleItemsForInvoice(sale.invoiceNo);
-    for (final item in items) {
-      await SupabaseSyncService.instance.pushRecordToCloud(
-        'sale_items',
-        item.toJson(),
-        localDb: _localDb,
-      );
-    }
     for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
@@ -255,14 +252,15 @@ class ShopRepository {
     List<InwardEstimateItem> items,
   ) async {
     await _localDb.saveInwardRepair(repair, items);
-    await SupabaseSyncService.instance.pushRecordToCloud(
-      'inward_repairs',
-      repair.toJson(),
-      localDb: _localDb,
-    );
+    // Batch upsert estimate items first so cloud has child rows before parent triggers Realtime
     await SupabaseSyncService.instance.saveEstimateItemsForJob(
       repair.jobNo,
       items,
+      localDb: _localDb,
+    );
+    await SupabaseSyncService.instance.pushRecordToCloud(
+      'inward_repairs',
+      repair.toJson(),
       localDb: _localDb,
     );
     if (repair.photo != null && repair.photo!.contains('data:image/')) {
@@ -359,14 +357,15 @@ class ShopRepository {
     List<PurchaseOrderItem> items,
   ) async {
     final updatedProducts = await _localDb.savePurchaseOrder(order, items);
-    await SupabaseSyncService.instance.pushRecordToCloud(
-      'purchases',
-      order.toJson(),
-      localDb: _localDb,
-    );
+    // Batch upsert purchase items first so cloud has child rows before parent triggers Realtime
     await SupabaseSyncService.instance.savePurchaseItemsForPurchase(
       order.id,
       items,
+      localDb: _localDb,
+    );
+    await SupabaseSyncService.instance.pushRecordToCloud(
+      'purchases',
+      order.toJson(),
       localDb: _localDb,
     );
     for (final p in updatedProducts) {
@@ -396,6 +395,7 @@ class ShopRepository {
       purchaseId,
       localDb: _localDb,
     );
+    await SupabaseSyncService.instance.deletePurchaseItemsForPurchase(purchaseId);
     for (final prod in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
         'pricelist',
