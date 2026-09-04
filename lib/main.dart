@@ -19,7 +19,6 @@ import 'ui/shared/status_management_dialog.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/icon_registry.dart';
 import 'ui/features/pricelist/view_models/pricelist_view_model.dart';
-
 import 'ui/features/settings/view_models/settings_view_model.dart';
 import 'ui/features/sales/view_models/sales_view_model.dart';
 import 'ui/features/dashboard/view_models/recent_sales_view_model.dart';
@@ -256,7 +255,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
+    final bool isDesktop =
+        !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
     Widget app = MaterialApp(
       navigatorKey: rootNavigatorKey,
@@ -298,10 +298,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             MultiWindowSyncService.instance.createNewWindow();
           },
         },
-        child: Focus(
-          autofocus: true,
-          child: app,
-        ),
+        child: Focus(autofocus: true, child: app),
       );
     }
 
