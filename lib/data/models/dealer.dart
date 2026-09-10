@@ -12,6 +12,7 @@ class Dealer {
   final String? products;
   final String? googleMapsUrl;
   final String? notes;
+  final double rating;
   final DateTime updatedAt;
 
   Dealer({
@@ -28,8 +29,27 @@ class Dealer {
     this.products,
     this.googleMapsUrl,
     this.notes,
+    this.rating = 5.0,
     DateTime? updatedAt,
   }) : updatedAt = updatedAt ?? DateTime.now();
+
+  /// Normalized list of keywords extracted from products, category, notes, and name
+  List<String> get productKeywords {
+    final tokens = <String>{};
+    void addTokens(String? text) {
+      if (text == null || text.trim().isEmpty) return;
+      final clean = text.toLowerCase().replaceAll(RegExp(r'[,/|;•\-_()]'), ' ');
+      for (final word in clean.split(RegExp(r'\s+'))) {
+        if (word.length >= 2) tokens.add(word);
+      }
+    }
+
+    addTokens(products);
+    addTokens(category);
+    addTokens(notes);
+    addTokens(name);
+    return tokens.toList();
+  }
 
   factory Dealer.fromJson(Map<String, dynamic> json) {
     return Dealer(
@@ -46,6 +66,9 @@ class Dealer {
       products: json['products']?.toString(),
       googleMapsUrl: json['google_maps_url']?.toString(),
       notes: json['notes']?.toString(),
+      rating: json['rating'] is num
+          ? (json['rating'] as num).toDouble()
+          : double.tryParse(json['rating']?.toString() ?? '') ?? 5.0,
       updatedAt: json['updated_at'] != null
           ? DateTime.tryParse(json['updated_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -67,6 +90,7 @@ class Dealer {
       'products': products,
       'google_maps_url': googleMapsUrl,
       'notes': notes,
+      'rating': rating,
       'updated_at': updatedAt.toIso8601String(),
     };
   }
@@ -85,6 +109,7 @@ class Dealer {
     String? products,
     String? googleMapsUrl,
     String? notes,
+    double? rating,
     DateTime? updatedAt,
   }) {
     return Dealer(
@@ -101,6 +126,7 @@ class Dealer {
       products: products ?? this.products,
       googleMapsUrl: googleMapsUrl ?? this.googleMapsUrl,
       notes: notes ?? this.notes,
+      rating: rating ?? this.rating,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }

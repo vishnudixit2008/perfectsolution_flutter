@@ -948,7 +948,7 @@ class _DealersViewState extends State<DealersView> {
             onPressed: () async {
               Navigator.pop(ctx);
               await viewModel.deleteDealer(dealer.id);
-              if (mounted) {
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Deleted "${dealer.name}"')),
                 );
@@ -1076,6 +1076,7 @@ class _DealerAddEditDialogState extends State<DealerAddEditDialog> {
       products: products.isEmpty ? null : products,
       googleMapsUrl: mapsUrl,
       notes: notes.isEmpty ? null : notes,
+      rating: widget.existingDealer?.rating ?? 5.0,
     );
 
     await context.read<DealersViewModel>().saveDealer(dealer);
@@ -1294,6 +1295,64 @@ class _DealerAddEditDialogState extends State<DealerAddEditDialog> {
                           hintText: 'e.g. Keyboards, Displays, Chip Level Motherboard, Cables',
                           prefixIcon: Icon(Icons.inventory_2_outlined, size: 20),
                         ),
+                      ),
+                      const SizedBox(height: 6),
+                      // 1-Tap Quick Product Chips
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          'Screens',
+                          'Batteries',
+                          'Keyboards',
+                          'Motherboards',
+                          'Adapters',
+                          'Hinges',
+                          'Fans',
+                          'RAM/SSD',
+                          'Printers',
+                        ].map((tag) {
+                          final current = _productsController.text.toLowerCase();
+                          final isPresent = current.contains(tag.toLowerCase());
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(6),
+                            onTap: () {
+                              final text = _productsController.text.trim();
+                              if (isPresent) {
+                                final updated = text
+                                    .split(RegExp(r',\s*'))
+                                    .where((s) => !s.toLowerCase().contains(tag.toLowerCase()))
+                                    .join(', ');
+                                setState(() => _productsController.text = updated);
+                              } else {
+                                final updated = text.isEmpty ? tag : '$text, $tag';
+                                setState(() => _productsController.text = updated);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isPresent
+                                    ? const Color(0xFF22D3EE).withValues(alpha: 0.2)
+                                    : Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isPresent
+                                      ? const Color(0xFF22D3EE).withValues(alpha: 0.6)
+                                      : Colors.white12,
+                                ),
+                              ),
+                              child: Text(
+                                isPresent ? '✓ $tag' : '+ $tag',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isPresent ? FontWeight.bold : FontWeight.normal,
+                                  color: isPresent ? const Color(0xFF22D3EE) : AppTheme.textMuted,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 14),
 

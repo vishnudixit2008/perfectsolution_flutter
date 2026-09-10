@@ -3,9 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/customer_profile.dart';
+import '../../../../data/models/dealer.dart';
 import '../../../../data/models/request_order.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/customer_directory_service.dart';
+import '../../../../data/services/dealer_inquiry_service.dart';
+import '../../../../data/services/dealer_recommendation_service.dart';
+import '../../../../data/services/item_category_detector.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/user_permission_service.dart';
@@ -52,6 +56,7 @@ class _RequestsViewState extends State<RequestsView> {
   final TextEditingController _searchController = TextEditingController();
 
   // Table columns widths
+  // ignore: unused_field
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _nameWidth = 180.0;
@@ -1140,7 +1145,7 @@ class _RequestsViewState extends State<RequestsView> {
                 const Text('Select Runner Staff *', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
-                  value: selectedRunnerEmail,
+                  initialValue: selectedRunnerEmail,
                   dropdownColor: const Color(0xFF131A2E),
                   style: const TextStyle(color: AppTheme.textPrimary),
                   items: allUsers.map((u) => DropdownMenuItem(value: u.email, child: Text('${u.name} (${u.role})'))).toList(),
@@ -1253,64 +1258,9 @@ class _RequestsViewState extends State<RequestsView> {
   }
 
   static void _showBroadcastDialog(BuildContext context, RequestOrder req) {
-    final dealers = context.read<ShopRepository>().getDealers();
-    final withMobile = dealers.where((d) => d.mobileNo != null && d.mobileNo!.trim().isNotEmpty).toList();
-
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F1524),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
-        title: const Row(
-          children: [
-            Icon(Icons.campaign_rounded, color: Color(0xFFF59E0B)),
-            SizedBox(width: 10),
-            Text('Dispatch Dealer Inquiries', style: TextStyle(color: AppTheme.textPrimary, fontSize: 17)),
-          ],
-        ),
-        content: SizedBox(
-          width: 500,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Inquire stock & price for "${req.item}" across market vendors:', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12.5)),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 300,
-                child: ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: withMobile.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
-                  itemBuilder: (context, idx) {
-                    final d = withMobile[idx];
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(d.name, style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
-                      subtitle: Text('${d.buildingName ?? 'Nehru Place'} • ${d.category ?? 'General'}', style: const TextStyle(color: AppTheme.textMuted, fontSize: 11.5)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.send_rounded, color: Color(0xFF22D3EE), size: 18),
-                        tooltip: 'Send WhatsApp Inquiry',
-                        onPressed: () {
-                          String phone = d.mobileNo!.replaceAll(RegExp(r'[^0-9]'), '');
-                          if (phone.length == 10) phone = '91$phone';
-                          final msg = Uri.encodeComponent(
-                            'Hi ${d.name}, Perfect Solution inquiry: Do you have "${req.item}" in stock? Please share availability and best price rate.',
-                          );
-                          launchUrl(Uri.parse('https://wa.me/$phone?text=$msg'), mode: LaunchMode.externalApplication);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-        ],
-      ),
+      builder: (ctx) => _DealerInquiryBroadcastDialog(request: req),
     );
   }
 
@@ -1579,6 +1529,15 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
             isEdit ? 'Request updated successfully' : 'Request created successfully',
           ),
           backgroundColor: AppTheme.success,
+          action: !isEdit
+              ? SnackBarAction(
+                  label: '⚡ Dispatch Dealers',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    _RequestsViewState._showBroadcastDialog(context, order);
+                  },
+                )
+              : null,
         ),
       );
     }
@@ -1715,6 +1674,68 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                   ? 'Please enter item name'
                   : null,
             ),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _itemController,
+              builder: (context, value, _) {
+                final text = value.text.trim();
+                if (text.length < 3) return const SizedBox.shrink();
+                final classification = ItemCategoryDetector.classify(text);
+                final repo = context.read<ShopRepository>();
+                final dealers = repo.getDealers();
+                final orders = repo.getPurchaseOrders();
+                final matched = DealerRecommendationService.getRecommendations(
+                  itemText: text,
+                  allDealers: dealers,
+                  purchaseOrders: orders,
+                  getPurchaseItems: (id) => repo.getPurchaseOrderItems(id),
+                );
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6.0, bottom: 4.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B).withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF22D3EE).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 15, color: Color(0xFF22D3EE)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            classification.summary,
+                            style: const TextStyle(
+                              color: Color(0xFF22D3EE),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (matched.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '⚡ ${matched.length} Frequent Dealers',
+                              style: const TextStyle(
+                                color: Color(0xFF10B981),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 12),
           ],
 
@@ -1791,7 +1812,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                       );
                       final effectiveStatus = match;
                       return DropdownButtonFormField<String>(
-                        value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                         isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Status'),
                         dropdownColor: const Color(0xFF131A2E),
@@ -1970,4 +1991,339 @@ class _RequestListItem {
   _RequestListItem.card(this.request)
       : statusHeader = null,
         statusCount = null;
+}
+
+class _DealerInquiryBroadcastDialog extends StatefulWidget {
+  final RequestOrder request;
+
+  const _DealerInquiryBroadcastDialog({required this.request});
+
+  @override
+  State<_DealerInquiryBroadcastDialog> createState() =>
+      _DealerInquiryBroadcastDialogState();
+}
+
+class _DealerInquiryBroadcastDialogState
+    extends State<_DealerInquiryBroadcastDialog> {
+  late List<DealerRecommendation> _recommendations;
+  late final Set<String> _selectedDealerIds;
+  bool _isDispatching = false;
+  late final ItemClassification _classification;
+
+  @override
+  void initState() {
+    super.initState();
+    final repo = context.read<ShopRepository>();
+    final dealers = repo.getDealers();
+    final orders = repo.getPurchaseOrders();
+
+    _classification = ItemCategoryDetector.classify(widget.request.item);
+    _recommendations = DealerRecommendationService.getRecommendations(
+      itemText: widget.request.item,
+      allDealers: dealers,
+      purchaseOrders: orders,
+      getPurchaseItems: (id) => repo.getPurchaseOrderItems(id),
+    );
+
+    // Pre-select top 4 recommended dealers by default
+    _selectedDealerIds = _recommendations.take(4).map((r) => r.dealer.id).toSet();
+  }
+
+  void _manualLaunch(Dealer d) {
+    String phone = d.mobileNo!.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.length == 10) phone = '91$phone';
+    final msg = Uri.encodeComponent(
+      'Hi ${d.name}, Perfect Solution inquiry: Do you have "${widget.request.item}" in stock? Please share availability and best price rate.',
+    );
+    launchUrl(
+      Uri.parse('https://wa.me/$phone?text=$msg'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<void> _dispatchInquiries() async {
+    if (_selectedDealerIds.isEmpty) return;
+    setState(() => _isDispatching = true);
+
+    try {
+      final selectedDealers = _recommendations
+          .where((r) => _selectedDealerIds.contains(r.dealer.id))
+          .map((r) => r.dealer)
+          .toList();
+
+      final count = await DealerInquiryService.enqueueInquiries(
+        requestId: widget.request.id,
+        itemText: widget.request.item,
+        photoUrl: widget.request.photoList.firstOrNull,
+        targetDealers: selectedDealers,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.bolt_rounded, color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '⚡ Enqueued $count WhatsApp inquiries! Server is dispatching in background.',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF065F46),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isDispatching = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Server queue error ($e). Use individual WhatsApp buttons or start shop-server.',
+            ),
+            backgroundColor: Colors.deepOrange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF0F1524),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.white12),
+      ),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.campaign_rounded, color: Color(0xFFF59E0B), size: 20),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Intelligent Dealer Procurement',
+              style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 540,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Classification & Detected Part Banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B).withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF22D3EE).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF22D3EE)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _classification.summary,
+                          style: const TextStyle(
+                            color: Color(0xFF22D3EE),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Inquiring: "${widget.request.item}"',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (widget.request.photoList.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.photo_outlined, size: 12, color: Colors.white70),
+                          SizedBox(width: 4),
+                          Text('Photo Attached', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Top Matched Dealers (Auto-Ranked):',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${_selectedDealerIds.length} of ${_recommendations.length} selected',
+                  style: const TextStyle(color: Color(0xFF22D3EE), fontSize: 11.5, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Dealer list
+            _recommendations.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Center(
+                      child: Text('No dealers with mobile numbers found in directory.', style: TextStyle(color: AppTheme.textMuted)),
+                    ),
+                  )
+                : SizedBox(
+                    height: 300,
+                    child: ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: _recommendations.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
+                      itemBuilder: (context, idx) {
+                        final rec = _recommendations[idx];
+                        final isSelected = _selectedDealerIds.contains(rec.dealer.id);
+
+                        return Container(
+                          color: isSelected ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
+                          child: CheckboxListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            activeColor: const Color(0xFF10B981),
+                            value: isSelected,
+                            onChanged: (val) {
+                              setState(() {
+                                if (val == true) {
+                                  _selectedDealerIds.add(rec.dealer.id);
+                                } else {
+                                  _selectedDealerIds.remove(rec.dealer.id);
+                                }
+                              });
+                            },
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    rec.dealer.name,
+                                    style: const TextStyle(
+                                      color: AppTheme.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                if (rec.isTopMatch)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF22D3EE).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      '⭐ TOP MATCH',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        color: Color(0xFF22D3EE),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: rec.matchReasons.map((reason) {
+                                  final isFrequent = reason.startsWith('⭐');
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: isFrequent
+                                          ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                          : Colors.white.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      reason,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isFrequent ? const Color(0xFFFBBF24) : AppTheme.textMuted,
+                                        fontWeight: isFrequent ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            secondary: IconButton(
+                              icon: const Icon(Icons.open_in_new, color: Color(0xFF22D3EE), size: 18),
+                              tooltip: 'Open individual WhatsApp link',
+                              onPressed: () => _manualLaunch(rec.dealer),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+        ),
+        ElevatedButton.icon(
+          onPressed: _selectedDealerIds.isEmpty || _isDispatching ? null : _dispatchInquiries,
+          icon: _isDispatching
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.bolt_rounded, size: 18),
+          label: Text(_isDispatching ? 'Enqueuing...' : '⚡ Auto-Dispatch (${_selectedDealerIds.length})'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF10B981),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
 }

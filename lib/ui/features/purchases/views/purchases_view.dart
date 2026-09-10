@@ -17,7 +17,6 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
-import '../../../shared/components/app_animated_search_bar.dart';
 import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/components/app_status_section_header.dart';
 import '../../../shared/components/app_status_chip.dart';
