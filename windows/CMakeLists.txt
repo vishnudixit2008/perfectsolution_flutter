@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.14)
 set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "Minimum policy version for third-party SDKs" FORCE)
 project(shop_management_flutter LANGUAGES CXX)
 
+# Suppress CMake deprecation warnings from third-party SDKs (e.g. firebase_cpp_sdk)
+# that still use cmake_minimum_required(VERSION < 3.10). This only hides the
+# warning — it does not affect how those packages are built.
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress cmake_minimum_required deprecation warnings" FORCE)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "shop_management_flutter")
@@ -54,6 +59,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+
+# Pre-locate NuGet so plugins (e.g. permission_handler_windows) don't trigger
+# "Nuget.exe not found, trying to download or use cached version."
+find_program(NUGET nuget PATHS "$ENV{LOCALAPPDATA}/NuGet" "C:/src/flutter/bin")
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.

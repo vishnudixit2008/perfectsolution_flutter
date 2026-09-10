@@ -26,6 +26,13 @@ import '../../../shared/components/app_keyboard_autocomplete.dart';
 import '../../../shared/components/app_status_section_header.dart';
 import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/status_management_dialog.dart';
+import '../../../shared/components/app_toast.dart';
+import '../../../shared/components/customer_lookup_banner.dart';
+import '../../../shared/dialogs/customer_history_dialog.dart';
+import '../../../shared/components/dotted_underline.dart';
+import '../../../../data/models/app_exceptions.dart';
+import '../../../../data/models/customer_profile.dart';
+import '../../../../data/services/customer_directory_service.dart';
 
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
@@ -35,6 +42,22 @@ import '../../../../data/services/ui_preferences_service.dart';
 
 class SalesView extends StatefulWidget {
   const SalesView({super.key});
+
+  /// Opens the invoice details dialog for a sale from anywhere in the app.
+  static void showInvoiceDetailsSheet(
+    BuildContext context,
+    Sale sale, {
+    RecentSalesViewModel? viewModel,
+    VoidCallback? onEditSale,
+  }) {
+    final vm = viewModel ?? context.read<RecentSalesViewModel>();
+    _SalesViewState._showInvoiceDetailsDialog(
+      context,
+      vm,
+      sale,
+      onEditSale: onEditSale,
+    );
+  }
 
   @override
   State<SalesView> createState() => _SalesViewState();
@@ -99,18 +122,36 @@ class _SalesViewState extends State<SalesView> {
     UiPreferencesService.setColumnWidth('sales', columnKey, newWidth);
   }
 
+  CustomerProfile? _matchedCustomerProfile;
+
   @override
   void initState() {
     super.initState();
     _loadSavedColumnWidths();
+    _customerPhoneController.addListener(_onSalesPhoneChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SalesViewModel>().loadCatalog();
       context.read<RecentSalesViewModel>().loadSales();
     });
   }
 
+  void _onSalesPhoneChanged() {
+    final text = _customerPhoneController.text.trim();
+    final profile = CustomerDirectoryService.instance.lookupCustomer(text);
+    if (profile != _matchedCustomerProfile) {
+      setState(() {
+        _matchedCustomerProfile = profile;
+      });
+      if (profile != null && _customerNameController.text.trim().isEmpty) {
+        _customerNameController.text = profile.displayName;
+        context.read<SalesViewModel>().setCustomerName(profile.displayName);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _customerPhoneController.removeListener(_onSalesPhoneChanged);
     _ledgerSearchController.dispose();
     _customerNameController.dispose();
     _customerPhoneController.dispose();
@@ -124,6 +165,7 @@ class _SalesViewState extends State<SalesView> {
     _customerPhoneController.clear();
     _discountController.clear();
     _advanceController.clear();
+    _matchedCustomerProfile = null;
   }
 
   void _handleSalesPrefill(
@@ -132,6 +174,16 @@ class _SalesViewState extends State<SalesView> {
     NavigationViewModel navVM,
   ) {
     navVM.clearPrefillData();
+
+    if (prefill['editInvoiceNo'] != null) {
+      final int invNo = prefill['editInvoiceNo'] as int;
+      final recentVM = context.read<RecentSalesViewModel>();
+      final sale = recentVM.getSaleByInvoiceNo(invNo);
+      if (sale != null) {
+        _startEditingSaleInBillingDesk(context, sale);
+        return;
+      }
+    }
 
     final salesVM = context.read<SalesViewModel>();
     salesVM.clearCart();
@@ -205,11 +257,12 @@ class _SalesViewState extends State<SalesView> {
 
   @override
   Widget build(BuildContext context) {
-    final navViewModel = context.watch<NavigationViewModel>();
-    final prefill = navViewModel.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'sales') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleSalesPrefill(context, prefill, navViewModel);
+        _handleSalesPrefill(context, prefill, context.read<NavigationViewModel>());
       });
     }
 
@@ -452,7 +505,7 @@ class _SalesViewState extends State<SalesView> {
           child: Container(
             width: 1.5,
             height: 14,
-            color: Colors.white.withOpacity(0.12),
+            color: Colors.white.withValues(alpha: 0.12),
           ),
         ),
       ),
@@ -511,10 +564,10 @@ class _SalesViewState extends State<SalesView> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.05)
+              ? AppTheme.primary.withValues(alpha: 0.05)
               : Colors.transparent,
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
@@ -574,7 +627,8 @@ class _SalesViewState extends State<SalesView> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  (sale.customerName != null && sale.customerName!.trim().isNotEmpty)
+                  (sale.customerName != null &&
+                          sale.customerName!.trim().isNotEmpty)
                       ? sale.customerName!
                       : 'Cash / Walk-in',
                   style: const TextStyle(
@@ -622,7 +676,7 @@ class _SalesViewState extends State<SalesView> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.04),
+                    color: Colors.white.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -762,28 +816,35 @@ class _SalesViewState extends State<SalesView> {
                   for (final invoiceNo in invoicesToDelete) {
                     await viewModel.deleteSale(invoiceNo);
                   }
+                  if (!mounted) return;
                   setState(() {
                     _selectedInvoices.clear();
                     _isSelectionMode = false;
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Successfully deleted ${invoicesToDelete.length} invoices.',
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Successfully deleted ${invoicesToDelete.length} invoices.',
+                        ),
+                        backgroundColor: AppTheme.success,
                       ),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
+                    );
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting invoices: $e'),
-                      backgroundColor: AppTheme.danger,
-                    ),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error deleting invoices: $e'),
+                        backgroundColor: AppTheme.danger,
+                      ),
+                    );
+                  }
                 } finally {
                   // Hide loading indicator
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
@@ -816,9 +877,9 @@ class _SalesViewState extends State<SalesView> {
             // Custom Header Row
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.02),
+                color: Colors.white.withValues(alpha: 0.02),
                 border: Border(
-                  bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                  bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
                 ),
               ),
               child: Row(
@@ -1078,7 +1139,7 @@ class _SalesViewState extends State<SalesView> {
     );
   }
 
-  void _confirmDeleteInvoice(
+  static void _confirmDeleteInvoice(
     BuildContext context,
     RecentSalesViewModel viewModel,
     int invoiceNo, {
@@ -1140,7 +1201,7 @@ class _SalesViewState extends State<SalesView> {
     return StatusManagementService.getStatusColor('sales', status);
   }
 
-  Widget _buildStatusChip(String status) {
+  static Widget _buildStatusChip(String status) {
     return AppStatusChip(
       status: status,
       moduleKey: 'sales',
@@ -1215,6 +1276,19 @@ class _SalesViewState extends State<SalesView> {
                       flex: 2,
                       child: _buildCheckoutSection(context, cartVM, recentVM),
                     ),
+                    if (_matchedCustomerProfile != null &&
+                        _matchedCustomerProfile!.events.isNotEmpty) ...[
+                      const SizedBox(width: 20),
+                      Expanded(
+                        flex: 2,
+                        child: CustomerHistorySidePanel(
+                          profile: _matchedCustomerProfile!,
+                          showCloseButton: true,
+                          onClose: () =>
+                              setState(() => _matchedCustomerProfile = null),
+                        ),
+                      ),
+                    ],
                   ],
                 )
               : SingleChildScrollView(
@@ -1632,6 +1706,11 @@ class _SalesViewState extends State<SalesView> {
     final bool isEdit = cartVM.isEditing;
     final bool isDateVis = UserPermissionService.isFieldVisible('sales', 'date');
     final bool isDateMod = UserPermissionService.canModifyField('sales', 'date', isEdit: isEdit);
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 700;
+    final bool isDesktop = screenWidth >= 900;
+    final bool hasHistory = _matchedCustomerProfile != null &&
+        _matchedCustomerProfile!.events.isNotEmpty;
 
     return StaggeredSlideFade(
       index: 1,
@@ -1687,9 +1766,40 @@ class _SalesViewState extends State<SalesView> {
               const SizedBox(height: 6),
               TextFormField(
                 controller: _customerNameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Customer Name',
-                  prefixIcon: Icon(Icons.person_outline, size: 18),
+                  prefixIcon: const Icon(Icons.person_outline, size: 18),
+                  suffixIcon: (isMobile && hasHistory)
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: TextButton.icon(
+                            onPressed: () => CustomerHistoryDialog.show(
+                              context,
+                              profile: _matchedCustomerProfile,
+                            ),
+                            icon: const Icon(Icons.history_rounded, size: 16),
+                            label: const Text(
+                              'History',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.primaryLight,
+                              backgroundColor: AppTheme.primaryLight
+                                  .withValues(alpha: 0.12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
                 ),
                 onChanged: (val) => cartVM.setCustomerName(val),
               ),
@@ -1703,6 +1813,8 @@ class _SalesViewState extends State<SalesView> {
                 keyboardType: TextInputType.phone,
                 onChanged: (val) => cartVM.setCustomerNumber(val),
               ),
+              if (!isDesktop || !hasHistory)
+                CustomerLookupBanner(profile: _matchedCustomerProfile),
               const SizedBox(height: 12),
 
               const Text(
@@ -2037,19 +2149,44 @@ class _SalesViewState extends State<SalesView> {
                         : () async {
                           final isEditing = cartVM.isEditing;
                           final double checkoutAmount = cartVM.totalAmount;
-                          final invoiceNo = await cartVM.checkout();
+                          int? invoiceNo;
+                          try {
+                            invoiceNo = await cartVM.checkout();
+                          } on OfflineException catch (_) {
+                            if (!context.mounted) return;
+                            AppToast.showWarning(
+                              context,
+                              title: 'Offline Mode',
+                              message: 'Internet connection required to generate Invoice Number and checkout.',
+                            );
+                            return;
+                          } on DuplicateKeyException catch (_) {
+                            if (!context.mounted) return;
+                            AppToast.showError(
+                              context,
+                              title: 'Invoice Conflict',
+                              message: 'Invoice Number was just claimed by another device. Please retry checkout.',
+                            );
+                            return;
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            AppToast.showError(
+                              context,
+                              title: 'Checkout Failed',
+                              message: 'Could not complete sale: $e',
+                            );
+                            return;
+                          }
+
                           if (!context.mounted) return;
                           if (invoiceNo != null) {
                             _clearLocalForm();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isEditing
-                                      ? 'Invoice #$invoiceNo updated successfully.'
-                                      : 'Order #$invoiceNo created in PENDING verification.',
-                                ),
-                                backgroundColor: AppTheme.success,
-                              ),
+                            AppToast.showSuccess(
+                              context,
+                              title: isEditing ? 'Invoice Updated' : 'Sale Completed',
+                              message: isEditing
+                                  ? 'Invoice #$invoiceNo updated successfully.'
+                                  : 'Order #$invoiceNo created successfully.',
                             );
 
                             // Reload ledger and return
@@ -2065,13 +2202,6 @@ class _SalesViewState extends State<SalesView> {
                               recentVM,
                               invoiceNo,
                               checkoutAmount,
-                            );
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Checkout failed.'),
-                                backgroundColor: AppTheme.danger,
-                              ),
                             );
                           }
                         },
@@ -2123,6 +2253,20 @@ class _SalesViewState extends State<SalesView> {
     RecentSalesViewModel viewModel,
     Sale sale,
   ) {
+    _showInvoiceDetailsDialog(
+      context,
+      viewModel,
+      sale,
+      onEditSale: () => _startEditingSaleInBillingDesk(context, sale),
+    );
+  }
+
+  static void _showInvoiceDetailsDialog(
+    BuildContext context,
+    RecentSalesViewModel viewModel,
+    Sale sale, {
+    VoidCallback? onEditSale,
+  }) {
     final items = viewModel.getSaleItems(sale.invoiceNo);
 
     showDialog(
@@ -2143,7 +2287,7 @@ class _SalesViewState extends State<SalesView> {
               ? const RoundedRectangleBorder()
               : RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.white.withOpacity(0.08)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
                 ),
           child: Container(
             width: isMobile
@@ -2156,88 +2300,102 @@ class _SalesViewState extends State<SalesView> {
                 ? const BoxConstraints()
                 : const BoxConstraints(maxWidth: 750, maxHeight: 600),
             padding: EdgeInsets.all(isMobile ? 16 : 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.receipt_long_rounded,
-                          color: AppTheme.primaryLight,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Invoice #${sale.invoiceNo}',
-                          style: TextStyle(
-                            fontSize: isMobile ? 18 : 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+            child: SelectionArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long_rounded,
+                            color: AppTheme.primaryLight,
+                            size: 22,
                           ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: AppTheme.textSecondary,
+                          const SizedBox(width: 10),
+                          Text(
+                            'Invoice #${sale.invoiceNo}',
+                            style: TextStyle(
+                              fontSize: isMobile ? 18 : 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppTheme.textSecondary,
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-                // Scrollable Content Section
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Customer Details Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'BILLED TO',
-                                  style: TextStyle(
-                                    color: AppTheme.textMuted,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  sale.customerName ?? 'Cash / Walk-in',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                if (sale.customerNumber != null &&
-                                    sale.customerNumber!.isNotEmpty) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Mob: ${sale.customerNumber}',
-                                    style: const TextStyle(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 12,
+                  // Scrollable Content Section
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Customer Details Row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'BILLED TO',
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
                                     ),
                                   ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    sale.customerName ?? 'Cash / Walk-in',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppTheme.textPrimary,
+                                    ),
+                                  ),
+                                  if (sale.customerNumber != null &&
+                                      sale.customerNumber!.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Tooltip(
+                                      message: 'View customer history for ${sale.customerNumber}',
+                                      child: InkWell(
+                                        onTap: () => CustomerHistoryDialog.show(
+                                          context,
+                                          phone: sale.customerNumber,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: DottedUnderline(
+                                          color: AppTheme.textSecondary,
+                                          child: Text(
+                                            sale.customerNumber!,
+                                            style: const TextStyle(
+                                              color: AppTheme.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
@@ -2301,10 +2459,10 @@ class _SalesViewState extends State<SalesView> {
                             margin: const EdgeInsets.only(bottom: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.015),
+                              color: Colors.white.withValues(alpha: 0.015),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.05),
+                                color: Colors.white.withValues(alpha: 0.05),
                               ),
                             ),
                             child: Row(
@@ -2562,7 +2720,15 @@ class _SalesViewState extends State<SalesView> {
                         final editBtn = ElevatedButton.icon(
                           onPressed: () {
                             Navigator.pop(context);
-                            _startEditingSaleInBillingDesk(context, sale);
+                            if (onEditSale != null) {
+                              onEditSale();
+                            } else {
+                              final navVM = context.read<NavigationViewModel>();
+                              navVM.setIndex(NavigationViewModel.sales, prefillData: {
+                                'target': 'sales',
+                                'editInvoiceNo': sale.invoiceNo,
+                              });
+                            }
                           },
                           icon: const Icon(Icons.edit_note_rounded, size: 16),
                           label: const Text('Edit Sale'),
@@ -2696,7 +2862,8 @@ class _SalesViewState extends State<SalesView> {
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }

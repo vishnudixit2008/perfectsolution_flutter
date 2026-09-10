@@ -22,11 +22,27 @@ import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
+import '../../../shared/components/app_toast.dart';
+import '../../../shared/components/customer_lookup_banner.dart';
+import '../../../shared/dialogs/customer_history_dialog.dart';
+import '../../../../data/models/app_exceptions.dart';
+import '../../../../data/models/customer_profile.dart';
+import '../../../../data/services/customer_directory_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../view_models/replacements_view_model.dart';
 
 class ReplacementsView extends StatefulWidget {
   const ReplacementsView({super.key});
+
+  /// Opens the detail dialog for a replacement record from anywhere in the app.
+  static void showDetailDialog(
+    BuildContext context,
+    Replacement repl, {
+    ReplacementsViewModel? viewModel,
+  }) {
+    final vm = viewModel ?? context.read<ReplacementsViewModel>();
+    _ReplacementsViewState._showDetailDialog(context, repl, vm);
+  }
 
   @override
   State<ReplacementsView> createState() => _ReplacementsViewState();
@@ -39,6 +55,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   double _jobNoWidth = 100.0;
   double _dateWidth = 120.0;
   double _nameWidth = 200.0;
+  // ignore: unused_field
   double _mobileWidth = 150.0;
   double _itemWidth = 250.0;
   // ignore: unused_field
@@ -117,10 +134,11 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
   @override
   Widget build(BuildContext context) {
-    final navVM = context.watch<NavigationViewModel>();
-    final prefill = navVM.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'replacement') {
-      _handlePrefillData(context, prefill, navVM);
+      _handlePrefillData(context, prefill, context.read<NavigationViewModel>());
     }
 
     return Consumer<ReplacementsViewModel>(
@@ -377,9 +395,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
           // Header Row (Status column removed - grouped under status headers)
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
@@ -409,15 +427,6 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                     (delta) => _updateColumnWidth(
                       'name',
                       (_nameWidth + delta).clamp(120.0, 400.0),
-                    ),
-                  ),
-                if (UserPermissionService.isFieldVisible('replacements', 'mobileNo'))
-                  _buildResizableHeader(
-                    'Mobile',
-                    _mobileWidth,
-                    (delta) => _updateColumnWidth(
-                      'mobile',
-                      (_mobileWidth + delta).clamp(100.0, 300.0),
                     ),
                   ),
                 if (UserPermissionService.isFieldVisible('replacements', 'item'))
@@ -467,7 +476,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
             ),
           ),
         ),
@@ -503,12 +512,6 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            if (UserPermissionService.isFieldVisible('replacements', 'mobileNo'))
-              Container(
-                width: _mobileWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(repl.mobileNo ?? '-'),
               ),
             if (UserPermissionService.isFieldVisible('replacements', 'item'))
               Container(
@@ -560,7 +563,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -690,7 +693,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _confirmDelete(
+  static void _confirmDelete(
     BuildContext context,
     String jobNo,
     ReplacementsViewModel viewModel,
@@ -739,7 +742,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _showDetailDialog(
+  static void _showDetailDialog(
     BuildContext context,
     Replacement repl,
     ReplacementsViewModel viewModel,
@@ -772,6 +775,11 @@ class _ReplacementsViewState extends State<ReplacementsView> {
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: repl.mobileNo!,
+                onValueTap: () => CustomerHistoryDialog.show(
+                  context,
+                  phone: repl.mobileNo,
+                ),
+                valueTooltip: 'View customer history for ${repl.mobileNo}',
                 trailing: InlineCallButton(
                   phone: repl.mobileNo!,
                   scaleFactor: scale,
@@ -934,33 +942,49 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _showAddEditDialog(
+  static Future<void> _showAddEditDialog(
     BuildContext context, {
     Replacement? existingReplacement,
     String? prefillName,
     String? prefillMobile,
-  }) {
+  }) async {
     final isEdit = existingReplacement != null;
     final actionKey = isEdit ? 'canEdit' : 'canAdd';
     if (!UserPermissionService.canPerformModuleAction('replacements', actionKey)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isEdit
-                ? 'Access Denied: You do not have permission to edit Replacement records.'
-                : 'Access Denied: You do not have permission to create new Replacement records.',
-          ),
-          backgroundColor: AppTheme.danger,
-        ),
+      AppToast.showError(
+        context,
+        title: 'Access Denied',
+        message: isEdit
+            ? 'You do not have permission to edit Replacement records.'
+            : 'You do not have permission to create new Replacement records.',
       );
       return;
     }
+
+    String? assignedJobNo;
+    if (!isEdit) {
+      final viewModel = context.read<ReplacementsViewModel>();
+      try {
+        assignedJobNo = await viewModel.fetchNextJobNo();
+      } catch (e) {
+        if (!context.mounted) return;
+        AppToast.showWarning(
+          context,
+          title: 'Offline Mode',
+          message: 'Internet connection required to create a new Replacement Job Number.',
+        );
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
 
     showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ReplacementFormDialog(
         existingReplacement: existingReplacement,
+        assignedJobNo: assignedJobNo,
         prefillName: prefillName,
         prefillMobile: prefillMobile,
       ),
@@ -981,10 +1005,10 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -999,7 +1023,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1038,7 +1062,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1047,7 +1071,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1067,7 +1091,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -1087,13 +1111,30 @@ Perfect Solution''';
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
-  void _launchWhatsApp(Replacement r) => launchWhatsAppForReplacement(r);
+  static void _launchWhatsApp(Replacement r) => launchWhatsAppForReplacement(r);
 
-  void _duplicate(BuildContext context, Replacement r) {
+  static Future<void> _duplicate(BuildContext context, Replacement r) async {
+    String? assignedJobNo;
+    final viewModel = context.read<ReplacementsViewModel>();
+    try {
+      assignedJobNo = await viewModel.fetchNextJobNo();
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.showWarning(
+        context,
+        title: 'Offline Mode',
+        message: 'Internet connection required to create a new Replacement Job Number.',
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ReplacementFormDialog(
+        assignedJobNo: assignedJobNo,
         prefillName: r.name,
         prefillMobile: r.mobileNo,
         prefillItem: r.item,
@@ -1103,7 +1144,7 @@ Perfect Solution''';
     );
   }
 
-  void _convertToSale(BuildContext context, Replacement r) {
+  static void _convertToSale(BuildContext context, Replacement r) {
     final navVM = context.read<NavigationViewModel>();
     navVM.setIndex(
       NavigationViewModel.sales,
@@ -1117,7 +1158,7 @@ Perfect Solution''';
     );
   }
 
-  void _enterInModule(BuildContext context, String target, Replacement r) {
+  static void _enterInModule(BuildContext context, String target, Replacement r) {
     final navVM = context.read<NavigationViewModel>();
     int index = target == 'inward'
         ? NavigationViewModel.inward
@@ -1159,8 +1200,8 @@ class _ActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          color: Colors.white.withValues(alpha: 0.04),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1185,6 +1226,7 @@ class _ActionButton extends StatelessWidget {
 
 class _ReplacementFormDialog extends StatefulWidget {
   final Replacement? existingReplacement;
+  final String? assignedJobNo;
   final String? prefillName;
   final String? prefillMobile;
   final String? prefillItem;
@@ -1193,6 +1235,7 @@ class _ReplacementFormDialog extends StatefulWidget {
 
   const _ReplacementFormDialog({
     this.existingReplacement,
+    this.assignedJobNo,
     this.prefillName,
     this.prefillMobile,
     this.prefillItem,
@@ -1219,6 +1262,8 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   String? _photoUrl;
   bool _isPhotoUploading = false;
 
+  CustomerProfile? _matchedCustomerProfile;
+
   @override
   void initState() {
     super.initState();
@@ -1231,6 +1276,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     _mobileController = TextEditingController(
       text: r?.mobileNo ?? widget.prefillMobile ?? '',
     );
+    _matchedCustomerProfile =
+        CustomerDirectoryService.instance.lookupCustomer(_mobileController.text);
+    _mobileController.addListener(_onMobileChanged);
     _itemController = TextEditingController(
       text: r?.item ?? widget.prefillItem ?? '',
     );
@@ -1246,8 +1294,22 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     _photoUrl = r?.photo;
   }
 
+  void _onMobileChanged() {
+    final text = _mobileController.text.trim();
+    final profile = CustomerDirectoryService.instance.lookupCustomer(text);
+    if (profile != _matchedCustomerProfile) {
+      setState(() {
+        _matchedCustomerProfile = profile;
+      });
+      if (profile != null && _nameController.text.trim().isEmpty) {
+        _nameController.text = profile.displayName;
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _mobileController.removeListener(_onMobileChanged);
     _nameController.dispose();
     _mobileController.dispose();
     _itemController.dispose();
@@ -1273,8 +1335,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     }
 
     final viewModel = context.read<ReplacementsViewModel>();
-    final String jobNo =
-        widget.existingReplacement?.jobNo ?? viewModel.getNextJobNo();
+    final String jobNo = widget.existingReplacement?.jobNo ??
+        widget.assignedJobNo ??
+        viewModel.getNextJobNo();
 
     final r = Replacement(
       jobNo: jobNo,
@@ -1298,7 +1361,36 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     );
 
     final bool isNewEntry = widget.existingReplacement == null;
-    await viewModel.saveReplacement(r);
+    try {
+      await viewModel.saveReplacement(r, isEdit: !isNewEntry);
+    } on DuplicateKeyException catch (_) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          title: 'Job Number Conflict',
+          message: 'Replacement Job #$jobNo was just claimed on another device. Please retry.',
+        );
+      }
+      return;
+    } on OfflineException catch (e) {
+      if (mounted) {
+        AppToast.showWarning(
+          context,
+          title: 'Offline',
+          message: e.message,
+        );
+      }
+      return;
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          title: 'Save Failed',
+          message: 'Failed to save replacement: $e',
+        );
+      }
+      return;
+    }
 
     // Auto-trigger WhatsApp message if adding new replacement entry as sale.perfectsolutionnoida@gmail.com
     if (isNewEntry) {
@@ -1311,15 +1403,12 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
 
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isNewEntry
-                ? 'Replacement created successfully'
-                : 'Replacement updated successfully',
-          ),
-          backgroundColor: AppTheme.success,
-        ),
+      AppToast.showSuccess(
+        context,
+        title: isNewEntry ? 'Replacement Created' : 'Replacement Updated',
+        message: isNewEntry
+            ? 'Replacement #$jobNo created successfully.'
+            : 'Replacement #$jobNo updated successfully.',
       );
     }
   }
@@ -1359,7 +1448,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   Widget build(BuildContext context) {
     final bool isEdit = widget.existingReplacement != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
-    final viewModel = context.watch<ReplacementsViewModel>();
+    final viewModel = context.read<ReplacementsViewModel>();
 
     final bool isDateVis = UserPermissionService.isFieldVisible('replacements', 'date');
     final bool isDateMod = UserPermissionService.canModifyField('replacements', 'date', isEdit: isEdit);
@@ -1402,7 +1491,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                 Text(
                   isEdit
                       ? widget.existingReplacement!.jobNo
-                      : viewModel.getNextJobNo(),
+                      : (widget.assignedJobNo ?? viewModel.getNextJobNo()),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryLight,
@@ -1427,7 +1516,42 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               controller: _nameController,
               readOnly: !isNameMod,
               enabled: isNameMod,
-              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              decoration: InputDecoration(
+                labelText: 'Customer Name *',
+                suffixIcon: (isMobile &&
+                        _matchedCustomerProfile != null &&
+                        _matchedCustomerProfile!.events.isNotEmpty)
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: TextButton.icon(
+                          onPressed: () => CustomerHistoryDialog.show(
+                            context,
+                            profile: _matchedCustomerProfile,
+                          ),
+                          icon: const Icon(Icons.history_rounded, size: 16),
+                          label: const Text(
+                            'History',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryLight,
+                            backgroundColor:
+                                AppTheme.primaryLight.withValues(alpha: 0.12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
               validator: (val) => val == null || val.trim().isEmpty
                   ? 'Please enter customer name'
                   : null,
@@ -1446,6 +1570,10 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
+            if (isMobile ||
+                _matchedCustomerProfile == null ||
+                _matchedCustomerProfile!.events.isEmpty)
+              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 12),
           ],
 
@@ -1507,7 +1635,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                 );
                 final effectiveStatus = match;
                 return DropdownButtonFormField<String>(
-                  value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                  initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Replacement Status'),
                   dropdownColor: const Color(0xFF131A2E),
@@ -1631,6 +1759,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       );
     }
 
+    final bool hasHistory = _matchedCustomerProfile != null &&
+        _matchedCustomerProfile!.events.isNotEmpty;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF131A2E),
       shape: RoundedRectangleBorder(
@@ -1644,9 +1775,33 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
       content: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: SingleChildScrollView(child: formContent),
+        constraints: BoxConstraints(maxWidth: hasHistory ? 1180 : 500),
+        width: MediaQuery.of(context).size.width * 0.92,
+        child: hasHistory
+            ? SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SingleChildScrollView(child: formContent),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: Color(0xFF334155),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: CustomerHistorySidePanel(
+                        profile: _matchedCustomerProfile!,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(child: formContent),
       ),
       actions: [
         TextButton(

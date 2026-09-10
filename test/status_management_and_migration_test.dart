@@ -139,7 +139,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Manage Inward Repairs Statuses'), findsOneWidget);
       expect(find.text('Add New Status'), findsOneWidget);
@@ -165,7 +166,8 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Manage Inward Repairs Statuses'), findsOneWidget);
 

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import '../models/app_exceptions.dart';
 import '../models/pricelist_item.dart';
 import '../models/sale.dart';
 import '../models/sale_item.dart';
@@ -117,21 +119,43 @@ class ShopRepository {
 
   // Sales
   int getNextInvoiceNo() => _localDb.getNextInvoiceNo();
+
+  /// Fetches next verified invoice number by querying cloud maximum
+  /// and comparing with local database maximum.
+  /// Throws [OfflineException] if cloud connection is unavailable.
+  Future<int> fetchNextInvoiceNo() async {
+    final remoteMax =
+        await SupabaseSyncService.instance.fetchMaxRemoteInvoiceNo();
+    if (remoteMax == null) {
+      throw const OfflineException(
+        'Cannot connect to server to verify Invoice Number. Internet connection required.',
+      );
+    }
+    final localMax = _localDb.getNextInvoiceNo() - 1;
+    return math.max(remoteMax, localMax) + 1;
+  }
+
   List<Sale> getSales() => _localDb.getSales();
   List<SaleItem> getSaleItems(int invoiceNo) =>
       _localDb.getSaleItems(invoiceNo);
-  Future<void> saveSale(Sale sale, List<SaleItem> items) async {
+  Future<void> saveSale(
+    Sale sale,
+    List<SaleItem> items, {
+    bool isEdit = false,
+  }) async {
     final updatedProducts = await _localDb.saveSale(sale, items);
     // Batch upsert sale items first so cloud has child rows before parent triggers Realtime
     await SupabaseSyncService.instance.saveSaleItemsForInvoice(
       sale.invoiceNo,
       items,
       localDb: _localDb,
+      isEdit: isEdit,
     );
     await SupabaseSyncService.instance.pushRecordToCloud(
       'sales',
       sale.toJson(),
       localDb: _localDb,
+      isInsert: !isEdit,
     );
     for (final p in updatedProducts) {
       await SupabaseSyncService.instance.pushRecordToCloud(
@@ -187,7 +211,7 @@ class ShopRepository {
   }
 
   Future<bool> updateSale(Sale sale, List<SaleItem> items) async {
-    await saveSale(sale, items);
+    await saveSale(sale, items, isEdit: true);
     return true;
   }
 
@@ -212,13 +236,28 @@ class ShopRepository {
 
   // Calls
   int getNextCallId() => _localDb.getNextCallId();
+
+  /// Fetches next verified call ID from cloud.
+  /// Throws [OfflineException] if cloud connection is unavailable.
+  Future<int> fetchNextCallId() async {
+    final remoteMax = await SupabaseSyncService.instance.fetchMaxRemoteCallId();
+    if (remoteMax == null) {
+      throw const OfflineException(
+        'Cannot connect to server to verify Call ID. Internet connection required.',
+      );
+    }
+    final localMax = _localDb.getNextCallId() - 1;
+    return math.max(remoteMax, localMax) + 1;
+  }
+
   List<CallModel> getCalls() => _localDb.getCalls();
-  Future<void> saveCall(CallModel call) async {
+  Future<void> saveCall(CallModel call, {bool isEdit = false}) async {
     await _localDb.saveCall(call);
     await SupabaseSyncService.instance.pushRecordToCloud(
       'calls',
       call.toJson(),
       localDb: _localDb,
+      isInsert: !isEdit,
     );
     if (call.photo != null && call.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);
@@ -244,24 +283,43 @@ class ShopRepository {
 
   // Inward Repairs
   int getNextInwardJobNo() => _localDb.getNextInwardJobNo();
+
+  /// Fetches next verified job number by querying cloud maximum
+  /// and comparing with local database maximum.
+  /// Throws [OfflineException] if cloud connection is unavailable.
+  Future<int> fetchNextInwardJobNo() async {
+    final remoteMax =
+        await SupabaseSyncService.instance.fetchMaxRemoteInwardJobNo();
+    if (remoteMax == null) {
+      throw const OfflineException(
+        'Cannot connect to server to verify Job Number. Internet connection required.',
+      );
+    }
+    final localMax = _localDb.getNextInwardJobNo() - 1;
+    return math.max(remoteMax, localMax) + 1;
+  }
+
   List<InwardRepair> getInwardRepairs() => _localDb.getInwardRepairs();
   List<InwardEstimateItem> getInwardEstimateItems(int jobNo) =>
       _localDb.getInwardEstimateItems(jobNo);
   Future<void> saveInwardRepair(
     InwardRepair repair,
-    List<InwardEstimateItem> items,
-  ) async {
+    List<InwardEstimateItem> items, {
+    bool isEdit = false,
+  }) async {
     await _localDb.saveInwardRepair(repair, items);
     // Batch upsert estimate items first so cloud has child rows before parent triggers Realtime
     await SupabaseSyncService.instance.saveEstimateItemsForJob(
       repair.jobNo,
       items,
       localDb: _localDb,
+      isEdit: isEdit,
     );
     await SupabaseSyncService.instance.pushRecordToCloud(
       'inward_repairs',
       repair.toJson(),
       localDb: _localDb,
+      isInsert: !isEdit,
     );
     if (repair.photo != null && repair.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);
@@ -288,13 +346,39 @@ class ShopRepository {
 
   // Replacements
   String getNextReplacementJobNo() => _localDb.getNextReplacementJobNo();
+
+  /// Fetches next verified replacement job number (e.g. Z1, Z2, ...)
+  /// from cloud maximum.
+  /// Throws [OfflineException] if cloud connection is unavailable.
+  Future<String> fetchNextReplacementJobNo() async {
+    final remoteMaxStr =
+        await SupabaseSyncService.instance.fetchMaxRemoteReplacementJobNo();
+    if (remoteMaxStr == null) {
+      throw const OfflineException(
+        'Cannot connect to server to verify Replacement Job Number. Internet connection required.',
+      );
+    }
+    int remoteNum = 0;
+    if (remoteMaxStr.startsWith('Z')) {
+      remoteNum = int.tryParse(remoteMaxStr.substring(1)) ?? 0;
+    }
+    final localJob = _localDb.getNextReplacementJobNo();
+    int localNum = 0;
+    if (localJob.startsWith('Z')) {
+      localNum = (int.tryParse(localJob.substring(1)) ?? 1) - 1;
+    }
+    final maxNum = math.max(remoteNum, localNum);
+    return 'Z${maxNum + 1}';
+  }
+
   List<Replacement> getReplacements() => _localDb.getReplacements();
-  Future<void> saveReplacement(Replacement repl) async {
+  Future<void> saveReplacement(Replacement repl, {bool isEdit = false}) async {
     await _localDb.saveReplacement(repl);
     await SupabaseSyncService.instance.pushRecordToCloud(
       'replacements',
       repl.toJson(),
       localDb: _localDb,
+      isInsert: !isEdit,
     );
     if (repl.photo != null && repl.photo!.contains('data:image/')) {
       GoogleDriveUploadService.syncPendingLocalPhotos(this);

@@ -22,6 +22,7 @@ import 'ui_preferences_service.dart';
 import 'auto_update_service.dart';
 import 'fcm_service.dart';
 import '../../ui/shared/dialogs/call_alert_dialog.dart';
+import '../models/app_exceptions.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
@@ -81,6 +82,17 @@ class SupabaseSyncService extends ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get supabaseUrl => _supabaseUrl ?? _defaultUrl;
   String? get supabaseAnonKey => _supabaseAnonKey ?? _defaultAnonKey;
+
+  /// Marks this service as initialized for sub-windows that share Supabase via
+  /// session recovery. Sub-windows should call this after recovering the session,
+  /// so that pushRecordToCloud / syncTableFromCloud work without starting a
+  /// competing Realtime subscription or heartbeat timer.
+  void markInitialized() {
+    _supabaseUrl = _defaultUrl;
+    _supabaseAnonKey = _defaultAnonKey;
+    _isInitialized = true;
+    _setStatus(SyncStatus.synced, 'Live Synced');
+  }
 
   /// Load credentials from local storage and initialize Supabase
   Future<void> init(LocalDatabaseService localDb) async {
@@ -1765,19 +1777,137 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  // ─── Remote Sequence Fetchers (Option A) ──────────────────────────────────
+  /// Fetches current maximum `job_no` from cloud `inward_repairs` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteInwardJobNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('inward_repairs')
+          .select('job_no')
+          .order('job_no', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['job_no'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteInwardJobNo error: $e');
+      throw OfflineException('Unable to reach server to verify Job Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `invoice_no` from cloud `sales` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteInvoiceNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('sales')
+          .select('invoice_no')
+          .order('invoice_no', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['invoice_no'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteInvoiceNo error: $e');
+      throw OfflineException('Unable to reach server to verify Invoice Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `job_no` (e.g. Z1, Z2, ...) from cloud `replacements` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<String?> fetchMaxRemoteReplacementJobNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('replacements')
+          .select('job_no')
+          .order('updated_at', ascending: false)
+          .limit(100)
+          .timeout(timeout);
+      int maxNum = 0;
+      for (final row in res) {
+        final keyStr = row['job_no']?.toString() ?? '';
+        if (keyStr.startsWith('Z')) {
+          final parsed = int.tryParse(keyStr.substring(1));
+          if (parsed != null && parsed > maxNum) {
+            maxNum = parsed;
+          }
+        }
+      }
+      return 'Z$maxNum';
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteReplacementJobNo error: $e');
+      throw OfflineException('Unable to reach server to verify Replacement Job Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `id` from cloud `calls` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteCallId({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('calls')
+          .select('id')
+          .order('id', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['id'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteCallId error: $e');
+      throw OfflineException('Unable to reach server to verify Call ID: $e');
+    }
+  }
+
   // ─── Offline-Aware Push ────────────────────────────────────────────────────
   /// Uploads a single record to Supabase table when created/edited locally.
-  /// If the device is offline (push fails), the operation is saved to the
-  /// offline queue and will be retried on next sync / app open.
+  /// If [isInsert] is true, executes strict `.insert()` to fail safely on
+  /// primary key collisions without overwriting existing data.
+  /// If the device is offline and [isInsert] is false, the operation is saved
+  /// to the offline queue and retried on next sync.
   Future<void> pushRecordToCloud(
     String tableName,
     Map<String, dynamic> data, {
     LocalDatabaseService? localDb,
+    bool isInsert = false,
   }) async {
     final payload = Map<String, dynamic>.from(data);
     payload['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
     if (!_isInitialized) {
+      if (isInsert) {
+        throw const OfflineException(
+          'Cannot insert new record while offline. Internet connection required.',
+        );
+      }
       if (localDb != null) {
         await localDb.enqueuePendingSync({
           'operation': 'upsert',
@@ -1793,16 +1923,45 @@ class SupabaseSyncService extends ChangeNotifier {
     try {
       _setStatus(SyncStatus.syncing, 'Syncing change...');
       final client = Supabase.instance.client;
-      try {
-        await client.from(tableName).upsert(payload);
-      } catch (e) {
-        // If cloud table doesn't have discount column yet, fallback without discount field
-        if (payload.containsKey('discount')) {
-          final fallbackData = Map<String, dynamic>.from(payload)
-            ..remove('discount');
-          await client.from(tableName).upsert(fallbackData);
-        } else {
-          rethrow;
+
+      if (isInsert) {
+        try {
+          await client.from(tableName).insert(payload);
+        } catch (e) {
+          final errStr = e.toString().toLowerCase();
+          if (errStr.contains('23505') ||
+              errStr.contains('duplicate key') ||
+              errStr.contains('unique constraint') ||
+              errStr.contains('already exists')) {
+            final pkVal = payload['invoice_no'] ??
+                payload['job_no'] ??
+                payload['id'];
+            throw DuplicateKeyException(
+              message: 'Primary key conflict in $tableName: Record $pkVal already exists in cloud.',
+              conflictingKey: pkVal,
+            );
+          }
+          // Fallback if cloud schema lacks discount column
+          if (payload.containsKey('discount')) {
+            final fallbackData = Map<String, dynamic>.from(payload)
+              ..remove('discount');
+            await client.from(tableName).insert(fallbackData);
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        try {
+          await client.from(tableName).upsert(payload);
+        } catch (e) {
+          // If cloud table doesn't have discount column yet, fallback without discount field
+          if (payload.containsKey('discount')) {
+            final fallbackData = Map<String, dynamic>.from(payload)
+              ..remove('discount');
+            await client.from(tableName).upsert(fallbackData);
+          } else {
+            rethrow;
+          }
         }
       }
 
@@ -1820,9 +1979,13 @@ class SupabaseSyncService extends ChangeNotifier {
 
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
+      if (e is DuplicateKeyException || e is OfflineException) {
+        _setStatus(SyncStatus.error, 'Conflict on $tableName: $e');
+        rethrow;
+      }
       if (kDebugMode) print('Push to cloud error ($tableName): $e — queuing for offline retry');
-      // Queue for retry when device comes back online
-      if (localDb != null) {
+      // Queue for retry when device comes back online (only for regular edits/upserts)
+      if (localDb != null && !isInsert) {
         await localDb.enqueuePendingSync({
           'operation': 'upsert',
           'table': tableName,
@@ -1833,6 +1996,7 @@ class SupabaseSyncService extends ChangeNotifier {
       } else {
         _setStatus(SyncStatus.error, 'Sync Error ($tableName): $e');
       }
+      rethrow;
     }
   }
 
@@ -1855,6 +2019,7 @@ class SupabaseSyncService extends ChangeNotifier {
     int invoiceNo,
     List<SaleItem> items, {
     LocalDatabaseService? localDb,
+    bool isEdit = false,
   }) async {
     if (!_isInitialized) {
       if (localDb != null) {
@@ -1891,22 +2056,25 @@ class SupabaseSyncService extends ChangeNotifier {
         await client.from('sale_items').upsert(payload, onConflict: 'id');
       }
 
-      // Step 2: Delete only removed items by comparing with incoming list
-      final incomingIds = items.map((e) => e.id).toSet();
-      final cloudItems = await client
-          .from('sale_items')
-          .select('id')
-          .eq('invoice_no', invoiceNo);
-      final cloudIds = (cloudItems as List)
-          .map((r) => r['id']?.toString())
-          .whereType<String>()
-          .toSet();
-      final toDelete = cloudIds.difference(incomingIds);
-      if (toDelete.isNotEmpty) {
-        await client
+      // Step 2: Delete only removed items when editing existing invoice.
+      // Strictly disabled on new sales (isEdit == false) to prevent wiping existing rows.
+      if (isEdit) {
+        final incomingIds = items.map((e) => e.id).toSet();
+        final cloudItems = await client
             .from('sale_items')
-            .delete()
-            .inFilter('id', toDelete.toList());
+            .select('id')
+            .eq('invoice_no', invoiceNo);
+        final cloudIds = (cloudItems as List)
+            .map((r) => r['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final toDelete = cloudIds.difference(incomingIds);
+        if (toDelete.isNotEmpty) {
+          await client
+              .from('sale_items')
+              .delete()
+              .inFilter('id', toDelete.toList());
+        }
       }
 
       _setStatus(SyncStatus.synced, 'Live Synced');
@@ -1951,6 +2119,7 @@ class SupabaseSyncService extends ChangeNotifier {
     int jobNo,
     List<InwardEstimateItem> items, {
     LocalDatabaseService? localDb,
+    bool isEdit = false,
   }) async {
     if (!_isInitialized) {
       // Offline: queue items so they sync when connectivity is restored.
@@ -1988,24 +2157,25 @@ class SupabaseSyncService extends ChangeNotifier {
         await client.from('inward_estimate_items').upsert(payload, onConflict: 'line_id');
       }
 
-      // Step 2: Delete only removed items by comparing with the incoming list.
-      // This is safer than DELETE-all-then-insert because if the upsert above
-      // succeeds but the delete fails, no data is lost (just orphaned rows).
-      final incomingLineIds = items.map((e) => e.lineId).toSet();
-      final cloudItems = await client
-          .from('inward_estimate_items')
-          .select('line_id')
-          .eq('job_no', jobNo);
-      final cloudLineIds = (cloudItems as List)
-          .map((r) => r['line_id']?.toString())
-          .whereType<String>()
-          .toSet();
-      final toDelete = cloudLineIds.difference(incomingLineIds);
-      if (toDelete.isNotEmpty) {
-        await client
+      // Step 2: Delete only removed items when editing existing repair.
+      // Strictly disabled on new jobs (isEdit == false) to prevent wiping existing rows.
+      if (isEdit) {
+        final incomingLineIds = items.map((e) => e.lineId).toSet();
+        final cloudItems = await client
             .from('inward_estimate_items')
-            .delete()
-            .inFilter('line_id', toDelete.toList());
+            .select('line_id')
+            .eq('job_no', jobNo);
+        final cloudLineIds = (cloudItems as List)
+            .map((r) => r['line_id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final toDelete = cloudLineIds.difference(incomingLineIds);
+        if (toDelete.isNotEmpty) {
+          await client
+              .from('inward_estimate_items')
+              .delete()
+              .inFilter('line_id', toDelete.toList());
+        }
       }
 
       _setStatus(SyncStatus.synced, 'Live Synced');

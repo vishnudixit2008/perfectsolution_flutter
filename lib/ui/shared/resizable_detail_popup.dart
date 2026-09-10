@@ -6,6 +6,8 @@ import '../../data/repositories/shop_repository.dart';
 import '../../data/services/map_directions_service.dart';
 import '../core/app_theme.dart';
 import '../core/motion/motion.dart';
+import 'components/dotted_underline.dart';
+export 'components/dotted_underline.dart';
 
 /// A shared resizable detail popup dialog that persists its size across sessions.
 /// All pages should use this widget for showing entry details.
@@ -176,30 +178,30 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                  fontSize: 17 * scale,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (widget.subtitle != null) ...[
-                                SizedBox(height: 2 * scale),
+                          child: SelectionArea(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  widget.subtitle!,
+                                  widget.title,
                                   style: TextStyle(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 11.5 * scale,
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 16 * scale,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
+                                if (widget.subtitle != null) ...[
+                                  SizedBox(height: 2 * scale),
+                                  Text(
+                                    widget.subtitle!,
+                                    style: TextStyle(
+                                      color: AppTheme.textMuted,
+                                      fontSize: 12 * scale,
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                         IconButton(
@@ -216,9 +218,11 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
 
                   // Scrollable content area
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.all(16 * scale),
-                      child: widget.contentBuilder(context, scale),
+                    child: SelectionArea(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(16 * scale),
+                        child: widget.contentBuilder(context, scale),
+                      ),
                     ),
                   ),
 
@@ -324,6 +328,8 @@ class ScaledInfoRow extends StatelessWidget {
   final double scaleFactor;
   final double labelWidth;
   final CrossAxisAlignment crossAxisAlignment;
+  final VoidCallback? onValueTap;
+  final String? valueTooltip;
 
   const ScaledInfoRow({
     super.key,
@@ -334,6 +340,8 @@ class ScaledInfoRow extends StatelessWidget {
     required this.scaleFactor,
     this.labelWidth = 160,
     this.crossAxisAlignment = CrossAxisAlignment.center,
+    this.onValueTap,
+    this.valueTooltip,
   });
 
   @override
@@ -361,14 +369,39 @@ class ScaledInfoRow extends StatelessWidget {
               children: [
                 Flexible(
                   child: valueWidget ??
-                      Text(
-                        value,
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12.5 * scaleFactor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      (onValueTap != null
+                          ? Tooltip(
+                              message: valueTooltip ?? 'Click to view customer history',
+                              child: InkWell(
+                                onTap: onValueTap,
+                                borderRadius: BorderRadius.circular(4 * scaleFactor),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 2 * scaleFactor,
+                                    vertical: 1 * scaleFactor,
+                                  ),
+                                  child: DottedUnderline(
+                                    scaleFactor: scaleFactor,
+                                    child: Text(
+                                      value,
+                                      style: TextStyle(
+                                        color: AppTheme.textPrimary,
+                                        fontSize: 12.5 * scaleFactor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              value,
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 12.5 * scaleFactor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )),
                 ),
                 ?trailing,
               ],

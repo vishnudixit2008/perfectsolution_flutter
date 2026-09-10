@@ -574,7 +574,7 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
 
             // Role picker
             DropdownButtonFormField<String>(
-              value: role,
+              initialValue: role,
               isExpanded: true,
               decoration: _inputDec('Role Type'),
               dropdownColor: const Color(0xFF131A2E),
@@ -1022,7 +1022,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                   const SizedBox(width: 16),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: role,
+                      initialValue: role,
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Role Type',
@@ -2022,7 +2022,7 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
                 Switch.adaptive(
                   value: isOnlyAssigned,
                   activeTrackColor: AppTheme.primary,
-                  activeColor: AppTheme.primaryLight,
+                  activeThumbColor: AppTheme.primaryLight,
                   onChanged: (val) {
                     setState(() {
                       onlyAssignedAccess[moduleKey] = val;

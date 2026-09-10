@@ -126,10 +126,11 @@ class _PurchasesViewState extends State<PurchasesView> {
 
   @override
   Widget build(BuildContext context) {
-    final navVM = context.watch<NavigationViewModel>();
-    final prefill = navVM.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'purchase') {
-      _handlePrefillData(context, prefill, navVM);
+      _handlePrefillData(context, prefill, context.read<NavigationViewModel>());
     }
 
     return Consumer<PurchasesViewModel>(
@@ -367,9 +368,9 @@ class _PurchasesViewState extends State<PurchasesView> {
           // Header Row (Status column removed - grouped under status headers)
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
@@ -447,7 +448,7 @@ class _PurchasesViewState extends State<PurchasesView> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
@@ -544,7 +545,7 @@ class _PurchasesViewState extends State<PurchasesView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -825,9 +826,9 @@ class _PurchasesViewState extends State<PurchasesView> {
                     vertical: 6 * scale,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
+                    color: Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1077,10 +1078,10 @@ class _PurchasesViewState extends State<PurchasesView> {
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1095,7 +1096,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1134,7 +1135,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1143,7 +1144,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1163,7 +1164,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -1352,6 +1353,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       }
     }
 
+    if (!mounted) return;
     if (targetItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select or type an item name')),
@@ -1612,7 +1614,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                       );
                       final effectiveStatus = match;
                       return DropdownButtonFormField<String>(
-                        value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                         isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Order Status'),
                         dropdownColor: const Color(0xFF131A2E),
@@ -1779,7 +1781,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
               Container(
                 height: 180,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.01),
+                  color: Colors.white.withValues(alpha: 0.01),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: ListView.builder(

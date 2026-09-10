@@ -201,43 +201,18 @@ class PricelistViewModel extends ChangeNotifier {
 
     // 3. Sorting
     list.sort((a, b) {
-      dynamic valA;
-      dynamic valB;
+      final (Comparable valA, Comparable valB) = switch (_sortColumn) {
+        'id' => (a.id, b.id),
+        'itemName' => (a.itemName.toLowerCase(), b.itemName.toLowerCase()),
+        'price' => (a.price, b.price),
+        'stockQty' => (a.stockQty, b.stockQty),
+        'category' => ((a.category ?? '').toLowerCase(), (b.category ?? '').toLowerCase()),
+        _ => (a.itemName.toLowerCase(), b.itemName.toLowerCase()),
+      };
 
-      switch (_sortColumn) {
-        case 'id':
-          valA = a.id;
-          valB = b.id;
-          break;
-        case 'itemName':
-          valA = a.itemName.toLowerCase();
-          valB = b.itemName.toLowerCase();
-          break;
-        case 'price':
-          valA = a.price;
-          valB = b.price;
-          break;
-        case 'stockQty':
-          valA = a.stockQty;
-          valB = b.stockQty;
-          break;
-        case 'category':
-          valA = (a.category ?? '').toLowerCase();
-          valB = (b.category ?? '').toLowerCase();
-          break;
-        default:
-          valA = a.itemName.toLowerCase();
-          valB = b.itemName.toLowerCase();
-      }
-
-      int comparison;
-      if (valA is String && valB is String) {
-        comparison = valA.compareTo(valB);
-        if (comparison == 0 && _sortColumn == 'category') {
-          comparison = a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
-        }
-      } else {
-        comparison = (valA as num).compareTo(valB as num);
+      int comparison = valA.compareTo(valB);
+      if (comparison == 0 && _sortColumn == 'category') {
+        comparison = a.itemName.toLowerCase().compareTo(b.itemName.toLowerCase());
       }
 
       return _sortAscending ? comparison : -comparison;

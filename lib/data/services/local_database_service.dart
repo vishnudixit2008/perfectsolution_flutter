@@ -311,163 +311,22 @@ class LocalDatabaseService {
   }
 
   // ignore: unused_element
-  Future<void> _seedSales() async {
-    try {
-      final salesJsonStr = await rootBundle.loadString('assets/sales.json');
-      final List<dynamic> salesJsonList = json.decode(salesJsonStr);
-      final Map<int, Map<String, dynamic>> salesMap = {};
-      for (var s in salesJsonList) {
-        final sale = Sale.fromJson(s);
-        salesMap[sale.invoiceNo] = sale.toJson();
-      }
-      await _salesBox.putAll(salesMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/sale_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<int, List<Map<String, dynamic>>> itemsGroupByInvoice = {};
-      for (var itemJson in itemsJsonList) {
-        final item = SaleItem.fromJson(itemJson);
-        if (!itemsGroupByInvoice.containsKey(item.invoiceNo)) {
-          itemsGroupByInvoice[item.invoiceNo] = [];
-        }
-        itemsGroupByInvoice[item.invoiceNo]!.add(item.toJson());
-      }
-
-      final Map<int, List<dynamic>> itemsMap = {};
-      itemsGroupByInvoice.forEach((invoiceNo, list) {
-        itemsMap[invoiceNo] = list;
-      });
-      await _saleItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed sales
-    }
-  }
+  Future<void> _seedSales() async {}
 
   // ignore: unused_element
-  Future<void> _seedCalls() async {
-    try {
-      final jsonString = await rootBundle.loadString('assets/calls.json');
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<int, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = CallModel.fromJson(jsonMap);
-        seedData[item.id] = item.toJson();
-      }
-      await _callsBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed calls
-    }
-  }
+  Future<void> _seedCalls() async {}
 
   // ignore: unused_element
-  Future<void> _seedInwardRepairs() async {
-    try {
-      final repairsJsonStr = await rootBundle.loadString(
-        'assets/inward_repairs.json',
-      );
-      final List<dynamic> repairsJsonList = json.decode(repairsJsonStr);
-      final Map<int, Map<String, dynamic>> repairsMap = {};
-      for (var s in repairsJsonList) {
-        final repair = InwardRepair.fromJson(s);
-        repairsMap[repair.jobNo] = repair.toJson();
-      }
-      await _inwardBox.putAll(repairsMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/inward_estimate_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<int, List<Map<String, dynamic>>> itemsGroupByJob = {};
-      for (var itemJson in itemsJsonList) {
-        final item = InwardEstimateItem.fromJson(itemJson);
-        if (!itemsGroupByJob.containsKey(item.jobNo)) {
-          itemsGroupByJob[item.jobNo] = [];
-        }
-        itemsGroupByJob[item.jobNo]!.add(item.toJson());
-      }
-
-      final Map<int, List<dynamic>> itemsMap = {};
-      itemsGroupByJob.forEach((jobNo, list) {
-        itemsMap[jobNo] = list;
-      });
-      await _inwardItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed inward repairs
-    }
-  }
+  Future<void> _seedInwardRepairs() async {}
 
   // ignore: unused_element
-  Future<void> _seedReplacements() async {
-    try {
-      final jsonString = await rootBundle.loadString(
-        'assets/replacements.json',
-      );
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<String, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = Replacement.fromJson(jsonMap);
-        seedData[item.jobNo] = item.toJson();
-      }
-      await _replacementBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed replacements
-    }
-  }
+  Future<void> _seedReplacements() async {}
 
   // ignore: unused_element
-  Future<void> _seedRequests() async {
-    try {
-      final jsonString = await rootBundle.loadString('assets/requests.json');
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<String, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = RequestOrder.fromJson(jsonMap);
-        seedData[item.id] = item.toJson();
-      }
-      await _requestBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed requests
-    }
-  }
+  Future<void> _seedRequests() async {}
 
   // ignore: unused_element
-  Future<void> _seedPurchases() async {
-    try {
-      final purchasesJsonStr = await rootBundle.loadString(
-        'assets/purchases.json',
-      );
-      final List<dynamic> purchasesJsonList = json.decode(purchasesJsonStr);
-      final Map<String, Map<String, dynamic>> purchasesMap = {};
-      for (var s in purchasesJsonList) {
-        final purchase = PurchaseOrder.fromJson(s);
-        purchasesMap[purchase.id] = purchase.toJson();
-      }
-      await _purchaseBox.putAll(purchasesMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/purchase_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<String, List<Map<String, dynamic>>> itemsGroupByPurchase = {};
-      for (var itemJson in itemsJsonList) {
-        final item = PurchaseOrderItem.fromJson(itemJson);
-        if (!itemsGroupByPurchase.containsKey(item.purchaseId)) {
-          itemsGroupByPurchase[item.purchaseId] = [];
-        }
-        itemsGroupByPurchase[item.purchaseId]!.add(item.toJson());
-      }
-
-      final Map<String, List<dynamic>> itemsMap = {};
-      itemsGroupByPurchase.forEach((purchaseId, list) {
-        itemsMap[purchaseId] = list;
-      });
-      await _purchaseItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed purchases
-    }
-  }
+  Future<void> _seedPurchases() async {}
 
   // --- Pricelist Methods ---
 

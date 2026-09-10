@@ -1241,11 +1241,8 @@ class _StatusManagementDialogState extends State<StatusManagementDialog> {
                         child: ReorderableListView.builder(
                           buildDefaultDragHandles: false,
                           itemCount: _statuses.length,
-                          onReorder: (oldIndex, newIndex) {
+                          onReorderItem: (oldIndex, newIndex) {
                             setState(() {
-                              if (oldIndex < newIndex) {
-                                newIndex -= 1;
-                              }
                               final item = _statuses.removeAt(oldIndex);
                               _statuses.insert(newIndex, item);
                             });

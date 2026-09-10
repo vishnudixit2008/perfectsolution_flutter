@@ -135,8 +135,13 @@ class CallsViewModel extends ChangeNotifier {
     return _repository.getNextCallId();
   }
 
+  /// Fetches next verified Call ID from cloud with online check.
+  Future<int> fetchNextCallId() async {
+    return await _repository.fetchNextCallId();
+  }
+
   Future<void> saveCall(CallModel call, {bool isNew = true}) async {
-    await _repository.saveCall(call);
+    await _repository.saveCall(call, isEdit: !isNew);
     await loadCalls();
 
     if (call.assignedTo.trim().isNotEmpty && call.assignedTo.trim() != 'N/A') {

@@ -92,10 +92,14 @@ class PhotoAttachmentWidget extends StatefulWidget {
     String url, {
     double? width,
     double? height,
+    int? cacheWidth,
+    int? cacheHeight,
     BoxFit fit = BoxFit.cover,
     Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
   }) {
     final String cleanUrl = url.trim();
+    final int? effectiveCacheWidth = cacheWidth ?? (width != null ? (width * 2).toInt() : null);
+    final int? effectiveCacheHeight = cacheHeight ?? (height != null ? (height * 2).toInt() : null);
 
     // 1. Base64 Data URI check
     if (cleanUrl.startsWith('data:image/')) {
@@ -108,6 +112,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
             bytes,
             width: width,
             height: height,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
             fit: fit,
             errorBuilder:
                 errorBuilder ??
@@ -140,6 +146,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
           file,
           width: width,
           height: height,
+          cacheWidth: effectiveCacheWidth,
+          cacheHeight: effectiveCacheHeight,
           fit: fit,
           errorBuilder:
               errorBuilder ??
@@ -162,6 +170,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
       directUrl,
       width: width,
       height: height,
+      cacheWidth: effectiveCacheWidth,
+      cacheHeight: effectiveCacheHeight,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
         // Fallback: If thumbnail URL fails, try direct lh3 URL
@@ -178,6 +188,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
             fallbackUrl,
             width: width,
             height: height,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
             fit: fit,
             errorBuilder:
                 errorBuilder ??

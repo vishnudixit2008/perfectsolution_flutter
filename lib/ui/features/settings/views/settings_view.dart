@@ -702,7 +702,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   Switch(
                     value: isKiosk,
-                    activeColor: AppTheme.secondary,
+                    activeThumbColor: AppTheme.secondary,
                     onChanged: (val) async {
                       await UiPreferencesService.setKioskMode(val);
                       if (val) {

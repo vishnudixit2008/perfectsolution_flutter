@@ -330,8 +330,10 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final int invoiceNo =
-          _editingInvoiceNo ?? _repository.getNextInvoiceNo();
+      final bool isEdit = _editingInvoiceNo != null;
+      final int invoiceNo = isEdit
+          ? _editingInvoiceNo!
+          : await _repository.fetchNextInvoiceNo();
       final DateTime saleDate = _editingSaleDate ?? DateTime.now();
       final String orderStatus =
           _editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
@@ -373,7 +375,7 @@ class SalesViewModel extends ChangeNotifier {
         photo: _editingPhoto,
       );
 
-      await _repository.saveSale(sale, finalItems);
+      await _repository.saveSale(sale, finalItems, isEdit: isEdit);
 
       // Clear Cart
       clearCart();
@@ -382,7 +384,7 @@ class SalesViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('Checkout error: $e');
       }
-      return null;
+      rethrow;
     } finally {
       _isSaving = false;
       notifyListeners();

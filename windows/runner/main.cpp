@@ -8,6 +8,10 @@
 #include "flutter_window.h"
 #include "utils.h"
 
+// Global registered message ID for "open new sub-window" cross-process signal.
+// Both the new process and the existing process use this same name so the ID matches.
+static UINT WM_NEW_SUBWINDOW = 0;
+
 static void SetupWindowsJumpList() {
   ICustomDestinationList* pDestList = nullptr;
   HRESULT hr = CoCreateInstance(CLSID_DestinationList, nullptr, CLSCTX_INPROC_SERVER,
@@ -73,6 +77,26 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+  // Register the cross-process "open new sub-window" message (both processes
+  // must call RegisterWindowMessage with the SAME string to get matching IDs).
+  WM_NEW_SUBWINDOW = ::RegisterWindowMessage(L"PerfectSolution_OpenNewSubWindow");
+
+  // ── Handle --new-window from Windows taskbar jump list ────────────────────
+  // When the user right-clicks the taskbar icon and picks "New Window", Windows
+  // launches a fresh process with the "--new-window" argument. Rather than
+  // starting a duplicate main window, we signal the EXISTING process to open
+  // a new sub-window and then exit cleanly.
+  if (command_line && wcsstr(command_line, L"--new-window") != nullptr) {
+    // Find the existing main Flutter window by its title.
+    HWND existingHwnd = ::FindWindow(nullptr, L"Perfect Solution");
+    if (existingHwnd != nullptr && ::IsWindow(existingHwnd)) {
+      ::PostMessage(existingHwnd, WM_NEW_SUBWINDOW, 0, 0);
+      ::CoUninitialize();
+      return EXIT_SUCCESS;  // Exit this helper process.
+    }
+    // No existing window found — fall through and start normally (first launch).
+  }
 
   // Setup Windows Taskbar Jump List tasks ("New Window")
   SetupWindowsJumpList();

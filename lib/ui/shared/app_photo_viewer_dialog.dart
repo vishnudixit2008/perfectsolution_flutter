@@ -105,8 +105,8 @@ class _AppPhotoViewerDialogState extends State<AppPhotoViewerDialog> {
       final x = -position.dx * 1.5;
       final y = -position.dy * 1.5;
       final zoomed = Matrix4.identity()
-        ..translate(x, y)
-        ..scale(2.5);
+        ..translateByDouble(x, y, 0.0, 1.0)
+        ..scaleByDouble(2.5, 2.5, 1.0, 1.0);
       controller.value = zoomed;
       if (mounted) {
         setState(() => _isCurrentZoomed = true);

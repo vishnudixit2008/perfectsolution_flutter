@@ -457,7 +457,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.danger.withOpacity(0.12),
+                color: AppTheme.danger.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(

@@ -22,11 +22,25 @@ import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
+import '../../../shared/components/customer_lookup_banner.dart';
+import '../../../shared/dialogs/customer_history_dialog.dart';
+import '../../../../data/models/customer_profile.dart';
+import '../../../../data/services/customer_directory_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../view_models/requests_view_model.dart';
 
 class RequestsView extends StatefulWidget {
   const RequestsView({super.key});
+
+  /// Opens the detail dialog for a request record from anywhere in the app.
+  static void showDetailDialog(
+    BuildContext context,
+    RequestOrder req, {
+    RequestsViewModel? viewModel,
+  }) {
+    final vm = viewModel ?? context.read<RequestsViewModel>();
+    _RequestsViewState._showDetailDialog(context, req, vm);
+  }
 
   @override
   State<RequestsView> createState() => _RequestsViewState();
@@ -40,6 +54,7 @@ class _RequestsViewState extends State<RequestsView> {
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _nameWidth = 180.0;
+  // ignore: unused_field
   double _mobileWidth = 130.0;
   double _itemWidth = 200.0;
   double _amountWidth = 120.0;
@@ -131,10 +146,11 @@ class _RequestsViewState extends State<RequestsView> {
 
   @override
   Widget build(BuildContext context) {
-    final navVM = context.watch<NavigationViewModel>();
-    final prefill = navVM.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'request') {
-      _handlePrefillData(context, prefill, navVM);
+      _handlePrefillData(context, prefill, context.read<NavigationViewModel>());
     }
 
     return Consumer<RequestsViewModel>(
@@ -386,9 +402,9 @@ class _RequestsViewState extends State<RequestsView> {
           // Header Row (Status column removed - grouped under status headers)
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
@@ -409,15 +425,6 @@ class _RequestsViewState extends State<RequestsView> {
                     (delta) => _updateColumnWidth(
                       'name',
                       (_nameWidth + delta).clamp(100.0, 300.0),
-                    ),
-                  ),
-                if (UserPermissionService.isFieldVisible('requests', 'mobileNo'))
-                  _buildResizableHeader(
-                    'Mobile',
-                    _mobileWidth,
-                    (delta) => _updateColumnWidth(
-                      'mobile',
-                      (_mobileWidth + delta).clamp(100.0, 250.0),
                     ),
                   ),
                 if (UserPermissionService.isFieldVisible('requests', 'item'))
@@ -476,7 +483,7 @@ class _RequestsViewState extends State<RequestsView> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
             ),
           ),
         ),
@@ -497,12 +504,6 @@ class _RequestsViewState extends State<RequestsView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            if (UserPermissionService.isFieldVisible('requests', 'mobileNo'))
-              Container(
-                width: _mobileWidth,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Text(req.mobileNo ?? '-'),
               ),
             if (UserPermissionService.isFieldVisible('requests', 'item'))
               Container(
@@ -565,7 +566,7 @@ class _RequestsViewState extends State<RequestsView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -716,7 +717,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  void _confirmDelete(
+  static void _confirmDelete(
     BuildContext context,
     String id,
     RequestsViewModel viewModel,
@@ -765,7 +766,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  void _showDetailDialog(
+  static void _showDetailDialog(
     BuildContext context,
     RequestOrder req,
     RequestsViewModel viewModel,
@@ -793,6 +794,11 @@ class _RequestsViewState extends State<RequestsView> {
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: req.mobileNo!,
+                onValueTap: () => CustomerHistoryDialog.show(
+                  context,
+                  phone: req.mobileNo,
+                ),
+                valueTooltip: 'View customer history for ${req.mobileNo}',
                 trailing: InlineCallButton(
                   phone: req.mobileNo!,
                   scaleFactor: scale,
@@ -968,7 +974,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  void _showAddEditDialog(
+  static void _showAddEditDialog(
     BuildContext context, {
     RequestOrder? existingRequest,
     String? prefillName,
@@ -1019,10 +1025,10 @@ class _RequestsViewState extends State<RequestsView> {
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1037,7 +1043,7 @@ class _RequestsViewState extends State<RequestsView> {
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1076,7 +1082,7 @@ class _RequestsViewState extends State<RequestsView> {
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1085,7 +1091,7 @@ class _RequestsViewState extends State<RequestsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1105,14 +1111,14 @@ class _RequestsViewState extends State<RequestsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
     );
   }
 
-  void _launchWhatsApp(RequestOrder r) {
+  static void _launchWhatsApp(RequestOrder r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
     final message =
@@ -1120,7 +1126,7 @@ class _RequestsViewState extends State<RequestsView> {
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
-  void _duplicate(BuildContext context, RequestOrder r) {
+  static void _duplicate(BuildContext context, RequestOrder r) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -1136,7 +1142,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  void _convertToSale(BuildContext context, RequestOrder r) {
+  static void _convertToSale(BuildContext context, RequestOrder r) {
     final navVM = context.read<NavigationViewModel>();
     navVM.setIndex(
       NavigationViewModel.sales,
@@ -1151,7 +1157,7 @@ class _RequestsViewState extends State<RequestsView> {
     );
   }
 
-  void _enterInModule(BuildContext context, String target, RequestOrder r) {
+  static void _enterInModule(BuildContext context, String target, RequestOrder r) {
     final navVM = context.read<NavigationViewModel>();
     int index = target == 'inward'
         ? NavigationViewModel.inward
@@ -1216,6 +1222,8 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
   String? _photoUrl;
   bool _isPhotoUploading = false;
 
+  CustomerProfile? _matchedCustomerProfile;
+
   @override
   void initState() {
     super.initState();
@@ -1229,6 +1237,9 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     _mobileController = TextEditingController(
       text: r?.mobileNo ?? widget.prefillMobile ?? '',
     );
+    _matchedCustomerProfile =
+        CustomerDirectoryService.instance.lookupCustomer(_mobileController.text);
+    _mobileController.addListener(_onMobileChanged);
     _itemController = TextEditingController(
       text: r?.item ?? widget.prefillItem ?? '',
     );
@@ -1257,8 +1268,22 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
         StatusManagementService.getDefaultStatus('requests');
   }
 
+  void _onMobileChanged() {
+    final text = _mobileController.text.trim();
+    final profile = CustomerDirectoryService.instance.lookupCustomer(text);
+    if (profile != _matchedCustomerProfile) {
+      setState(() {
+        _matchedCustomerProfile = profile;
+      });
+      if (profile != null && _nameController.text.trim().isEmpty) {
+        _nameController.text = profile.displayName;
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _mobileController.removeListener(_onMobileChanged);
     _nameController.dispose();
     _mobileController.dispose();
     _itemController.dispose();
@@ -1381,7 +1406,42 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
               controller: _nameController,
               readOnly: !isNameMod,
               enabled: isNameMod,
-              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              decoration: InputDecoration(
+                labelText: 'Customer Name *',
+                suffixIcon: (isMobile &&
+                        _matchedCustomerProfile != null &&
+                        _matchedCustomerProfile!.events.isNotEmpty)
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: TextButton.icon(
+                          onPressed: () => CustomerHistoryDialog.show(
+                            context,
+                            profile: _matchedCustomerProfile,
+                          ),
+                          icon: const Icon(Icons.history_rounded, size: 16),
+                          label: const Text(
+                            'History',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryLight,
+                            backgroundColor:
+                                AppTheme.primaryLight.withValues(alpha: 0.12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
               validator: (val) => val == null || val.trim().isEmpty
                   ? 'Please enter customer name'
                   : null,
@@ -1400,6 +1460,10 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
+            if (isMobile ||
+                _matchedCustomerProfile == null ||
+                _matchedCustomerProfile!.events.isEmpty)
+              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 12),
           ],
 
@@ -1481,7 +1545,7 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
                       );
                       final effectiveStatus = match;
                       return DropdownButtonFormField<String>(
-                        value: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
                         isExpanded: true,
                         decoration: const InputDecoration(labelText: 'Status'),
                         dropdownColor: const Color(0xFF131A2E),
@@ -1588,6 +1652,9 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
       );
     }
 
+    final bool hasHistory = _matchedCustomerProfile != null &&
+        _matchedCustomerProfile!.events.isNotEmpty;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF131A2E),
       shape: RoundedRectangleBorder(
@@ -1599,9 +1666,33 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
       content: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: SingleChildScrollView(child: formContent),
+        constraints: BoxConstraints(maxWidth: hasHistory ? 1180 : 500),
+        width: MediaQuery.of(context).size.width * 0.92,
+        child: hasHistory
+            ? SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SingleChildScrollView(child: formContent),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: Color(0xFF334155),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: CustomerHistorySidePanel(
+                        profile: _matchedCustomerProfile!,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(child: formContent),
       ),
       actions: [
         TextButton(

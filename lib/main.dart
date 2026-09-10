@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:app_links/app_links.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'data/repositories/shop_repository.dart';
@@ -15,6 +17,7 @@ import 'data/services/ui_preferences_service.dart';
 import 'data/services/user_permission_service.dart';
 import 'data/services/kiosk_overlay_helper.dart';
 import 'data/services/auto_update_service.dart';
+import 'data/services/customer_directory_service.dart';
 import 'ui/shared/status_management_dialog.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/icon_registry.dart';
@@ -41,6 +44,25 @@ void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) print('IconRegistry loaded: ${IconRegistry.icons.length}');
 
+  // ── Handle --new-window from Windows taskbar jump list ───────────────────
+  // The jump list item launches a NEW process with --new-window. We detect it
+  // here and ask the native side (via _nativeChannel) to open a sub-window in
+  // the EXISTING process. The existing process already has the handler registered
+  // via MultiWindowSyncService and will call createNewWindow() on our behalf.
+  if (!kIsWeb &&
+      Platform.isWindows &&
+      args.isNotEmpty &&
+      args.first == '--new-window') {
+    const MethodChannel nativeChannel = MethodChannel(
+      'com.perfectsolution/desktop_window_manager',
+    );
+    try {
+      await nativeChannel.invokeMethod('new_window_request');
+    } catch (_) {}
+    // This process is just a messenger; exit naturally after delivering the signal.
+    return;
+  }
+
   int? windowId;
   Map<String, dynamic> windowArgs = {};
   if (args.isNotEmpty && args.first == 'multi_window') {
@@ -63,6 +85,65 @@ void main(List<String> args) async {
   final localDb = LocalDatabaseService();
   await localDb.init(subWindowId: windowId);
 
+  // ── Sub-window auth pre-seeding ─────────────────────────────────────────
+  // CRITICAL: Before service init boxes are opened, get the current user's
+  // auth state from windowArgs (passed synchronously by main window on creation)
+  // or via IPC fallback, and seed this window's local Hive with the auth email
+  // and user record. This ensures:
+  //   • AuthViewModel finds auth_remember_me=true → skips LoginView immediately
+  //   • UserPermissionService finds the current user → permissions work
+  //   • Both happen synchronously before any Widget tree is built
+  String? subWindowSessionJson;
+  if (isSubWindow) {
+    String? email = windowArgs['auth_email'] as String?;
+    dynamic userData = windowArgs['auth_user_data'];
+    subWindowSessionJson = windowArgs['auth_session_json'] as String?;
+
+    // If not passed via windowArgs, fall back to querying main window via IPC
+    if (email == null || email.isEmpty) {
+      try {
+        final authResponseJson = await DesktopMultiWindow.invokeMethod(
+          0,
+          'get_auth_state',
+          null,
+        ).timeout(const Duration(seconds: 2));
+
+        if (authResponseJson != null) {
+          final authState =
+              jsonDecode(authResponseJson.toString()) as Map<String, dynamic>;
+          email = (authState['email'] as String?) ?? '';
+          userData = authState['user_data'];
+          subWindowSessionJson = authState['session_json'] as String?;
+        }
+      } catch (e) {
+        debugPrint(
+          'main [SubWindow #$windowId]: Auth pre-seeding IPC fallback failed: $e',
+        );
+      }
+    }
+
+    if (email != null && email.isNotEmpty) {
+      try {
+        // Seed ui_preferences box so AuthViewModel auto-authenticates
+        final prefBox = await Hive.openBox('ui_preferences');
+        await prefBox.put('auth_remember_me', true);
+        await prefBox.put('auth_remembered_email', email.toLowerCase().trim());
+
+        // Seed app_users_box so UserPermissionService has current user data
+        if (userData != null) {
+          final usersBox = await Hive.openBox('app_users_box');
+          await usersBox.put(email.toLowerCase().trim(), userData);
+          await usersBox.put('current_user_email', email.toLowerCase().trim());
+        }
+        debugPrint(
+          'main [SubWindow #$windowId]: Seeded auth for $email successfully',
+        );
+      } catch (e) {
+        debugPrint('main [SubWindow #$windowId]: Error saving auth seeds: $e');
+      }
+    }
+  }
+
   // 2. Open preference and service boxes in parallel
   await Future.wait([
     UiPreferencesService.init(),
@@ -74,17 +155,38 @@ void main(List<String> args) async {
     unawaited(GoogleDriveUploadService.init());
     await SupabaseSyncService.instance.init(localDb);
   } else {
-    // Sub-windows initialize Supabase client for reading if needed without duplicate sync loops
-    try {
-      await Supabase.initialize(
-        url: SupabaseSyncService.defaultUrl,
-        publishableKey: SupabaseSyncService.defaultAnonKey,
-        authOptions: const FlutterAuthClientOptions(
-          authFlowType: AuthFlowType.pkce,
-          localStorage: EmptyLocalStorage(),
-        ),
-      );
-    } catch (_) {}
+    // Sub-window: initialize Supabase client and recover session concurrently
+    // so runApp() executes immediately without waiting for Supabase init.
+    unawaited(() async {
+      try {
+        await Supabase.initialize(
+          url: SupabaseSyncService.defaultUrl,
+          publishableKey: SupabaseSyncService.defaultAnonKey,
+          authOptions: const FlutterAuthClientOptions(
+            authFlowType: AuthFlowType.pkce,
+          ),
+        );
+      } catch (_) {
+        // Supabase already initialized — safe to ignore
+      }
+
+      if (subWindowSessionJson != null && subWindowSessionJson.isNotEmpty) {
+        try {
+          await Supabase.instance.client.auth.recoverSession(
+            subWindowSessionJson,
+          );
+          debugPrint(
+            'main [SubWindow #$windowId]: Supabase session recovered successfully',
+          );
+        } catch (e) {
+          debugPrint(
+            'main [SubWindow #$windowId]: Session recovery failed: $e',
+          );
+        }
+      }
+
+      SupabaseSyncService.instance.markInitialized();
+    }());
   }
 
   // Initialize Desktop Multi-Window Service with localDb reference
@@ -110,6 +212,9 @@ void main(List<String> args) async {
 
   // Initialize Repository
   final repository = ShopRepository(localDb: localDb);
+
+  // Initialize Customer Directory Service
+  CustomerDirectoryService.instance.init(repository);
 
   runApp(
     MultiProvider(

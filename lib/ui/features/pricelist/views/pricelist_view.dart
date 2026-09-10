@@ -325,6 +325,14 @@ class _PricelistViewState extends State<PricelistView> {
               return c.toLowerCase().contains(searchQuery.trim().toLowerCase());
             }).toList();
 
+            final Map<String, int> catCounts = {};
+            for (final it in viewModel.items) {
+              final cat = it.category?.trim().toLowerCase();
+              if (cat != null && cat.isNotEmpty) {
+                catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+              }
+            }
+
             return AlertDialog(
               backgroundColor: const Color(0xFF131A2E),
               shape: RoundedRectangleBorder(
@@ -392,9 +400,7 @@ class _PricelistViewState extends State<PricelistView> {
                               },
                             ),
                           ...filteredCats.map((cat) {
-                            final int count = viewModel.items
-                                .where((it) => it.category?.trim().toLowerCase() == cat.trim().toLowerCase())
-                                .length;
+                            final int count = catCounts[cat.trim().toLowerCase()] ?? 0;
                             return _buildCategoryDialogTile(
                               title: cat,
                               isSelected: currentCategory == cat,
@@ -529,7 +535,7 @@ class _PricelistViewState extends State<PricelistView> {
           child: Container(
             width: 1.5,
             height: 14,
-            color: Colors.white.withOpacity(0.12),
+            color: Colors.white.withValues(alpha: 0.12),
           ),
         ),
       ),
@@ -608,10 +614,10 @@ class _PricelistViewState extends State<PricelistView> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.05)
+              ? AppTheme.primary.withValues(alpha: 0.05)
               : Colors.transparent,
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
@@ -682,7 +688,7 @@ class _PricelistViewState extends State<PricelistView> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryLight.withOpacity(0.1),
+                      color: AppTheme.primaryLight.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -751,9 +757,9 @@ class _PricelistViewState extends State<PricelistView> {
           // Custom Header Row
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
@@ -883,28 +889,35 @@ class _PricelistViewState extends State<PricelistView> {
                   for (final id in idsToDelete) {
                     await viewModel.deleteItem(id);
                   }
+                  if (!mounted) return;
                   setState(() {
                     _selectedItemIds.clear();
                     _isSelectionMode = false;
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Successfully deleted ${idsToDelete.length} items.',
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Successfully deleted ${idsToDelete.length} items.',
+                        ),
+                        backgroundColor: AppTheme.success,
                       ),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
+                    );
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting items: $e'),
-                      backgroundColor: AppTheme.danger,
-                    ),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error deleting items: $e'),
+                        backgroundColor: AppTheme.danger,
+                      ),
+                    );
+                  }
                 } finally {
                   // Hide loading indicator
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
@@ -1099,7 +1112,7 @@ class _PricelistViewState extends State<PricelistView> {
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Container(
             width: isMobile ? screenWidth * 0.95 : screenWidth * 0.85,
@@ -1118,7 +1131,7 @@ class _PricelistViewState extends State<PricelistView> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.12),
+                            color: AppTheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -1184,7 +1197,7 @@ class _PricelistViewState extends State<PricelistView> {
                                         vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(0.15),
+                                        color: AppTheme.primary.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -1210,9 +1223,9 @@ class _PricelistViewState extends State<PricelistView> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.03),
+                            color: Colors.white.withValues(alpha: 0.03),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1284,9 +1297,9 @@ class _PricelistViewState extends State<PricelistView> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.02),
+                              color: Colors.white.withValues(alpha: 0.02),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withOpacity(0.04)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                             ),
                             child: Text(
                               item.itemDescription!,
@@ -1796,10 +1809,10 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1814,7 +1827,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1853,7 +1866,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1862,7 +1875,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1882,7 +1895,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -2005,7 +2018,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
             hintStyle: const TextStyle(color: AppTheme.textMuted),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.textMuted.withOpacity(0.4)),
+              borderSide: BorderSide(color: AppTheme.textMuted.withValues(alpha: 0.4)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -2090,7 +2103,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
                               vertical: 10,
                             ),
                             color: isSelected
-                                ? AppTheme.primaryLight.withOpacity(0.12)
+                                ? AppTheme.primaryLight.withValues(alpha: 0.12)
                                 : Colors.transparent,
                             child: Row(
                               children: [
