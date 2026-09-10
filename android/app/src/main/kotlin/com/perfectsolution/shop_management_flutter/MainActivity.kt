@@ -1,5 +1,7 @@
 package com.perfectsolution.shop_management_flutter
 
+import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -13,12 +15,43 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.perfectsolution.kiosk/overlay"
+    companion object {
+        const val CHANNEL = "com.perfectsolution.kiosk/overlay"
+        var channelInstance: MethodChannel? = null
+    }
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        channelInstance = channel
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "checkNotificationPermission" -> {
+                    val areEnabled = androidx.core.app.NotificationManagerCompat.from(this).areNotificationsEnabled()
+                    result.success(areEnabled)
+                }
+                "openNotificationSettings" -> {
+                    try {
+                        val intent = Intent().apply {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                            } else {
+                                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                                data = Uri.parse("package:$packageName")
+                            }
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                    }
+                    result.success(null)
+                }
                 "checkOverlayPermission" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         result.success(Settings.canDrawOverlays(this))
@@ -130,50 +163,7 @@ class MainActivity : FlutterActivity() {
                             )
                         }
 
-                        // 3. Post High-Priority FullScreenIntent Notification (guaranteed bypass for Android 10+ Background Start restrictions)
-                        val alertChannelId = "kiosk_qr_alert_channel"
-                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
-                        if (notificationManager != null) {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                val alertChannel = android.app.NotificationChannel(
-                                    alertChannelId,
-                                    "Payment QR Alerts",
-                                    android.app.NotificationManager.IMPORTANCE_HIGH
-                                ).apply {
-                                    description = "Pops up incoming customer payment QR codes"
-                                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                                    enableVibration(true)
-                                }
-                                notificationManager.createNotificationChannel(alertChannel)
-                            }
-
-                            val fullScreenIntent = Intent(this, MainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
-                            }
-                            val pendingIntent = android.app.PendingIntent.getActivity(
-                                this,
-                                1001,
-                                fullScreenIntent,
-                                android.app.PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) android.app.PendingIntent.FLAG_IMMUTABLE else 0)
-                            )
-
-                            val notification = androidx.core.app.NotificationCompat.Builder(this, alertChannelId)
-                                .setSmallIcon(android.R.drawable.ic_dialog_info)
-                                .setContentTitle("Payment QR Ready")
-                                .setContentText("Customer payment QR code is displayed")
-                                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
-                                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_CALL)
-                                .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
-                                .setFullScreenIntent(pendingIntent, true)
-                                .setAutoCancel(true)
-                                .build()
-
-                            notificationManager.notify(1001, notification)
-                        }
-
-                        // 4. Direct Activity start
+                        // 3. Direct Activity start (no notification posted)
                         val intent = Intent(this, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
@@ -185,9 +175,299 @@ class MainActivity : FlutterActivity() {
                         result.success(false)
                     }
                 }
+                "checkFullScreenIntentPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        try {
+                            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                            val method = nm?.javaClass?.getMethod("canUseFullScreenIntent")
+                            val canUse = method?.invoke(nm) as? Boolean ?: true
+                            result.success(canUse)
+                        } catch (e: Exception) {
+                            result.success(true)
+                        }
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "requestFullScreenIntentPermission" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                                data = Uri.parse("package:$packageName")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:$packageName")
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(intent)
+                        }
+                    }
+                    result.success(null)
+                }
+                "checkInstallPermission" -> {
+                    val canInstall = ApkInstallerHelper.canRequestPackageInstalls(this)
+                    result.success(canInstall)
+                }
+                "requestInstallPermission" -> {
+                    ApkInstallerHelper.openInstallPermissionSettings(this)
+                    result.success(null)
+                }
+                "installApkSilently" -> {
+                    val apkPath = call.argument<String>("apkPath")
+                    if (apkPath.isNullOrEmpty()) {
+                        result.error("INVALID_PATH", "APK path is required", null)
+                    } else {
+                        val initiated = ApkInstallerHelper.installApk(this, apkPath)
+                        result.success(initiated)
+                    }
+                }
+                "stopNativeAlert" -> {
+                    CallFirebaseMessagingService.stopNativeAlert()
+                    result.success(true)
+                }
+                "getInitialCallPayload" -> {
+                    val payload = pendingCallPayload
+                    pendingCallPayload = null
+                    result.success(payload)
+                }
+                "getInitialKioskPayload" -> {
+                    val payload = pendingKioskPayload
+                    pendingKioskPayload = null
+                    result.success(payload)
+                }
+                "getDeviceBrand" -> {
+                    result.success(Build.MANUFACTURER.lowercase())
+                }
+                "openOemBackgroundPopupSettings" -> {
+                    val opened = openOemBackgroundPopupSettings()
+                    result.success(opened)
+                }
+                "openOemAutostartSettings" -> {
+                    val opened = openOemAutostartSettings()
+                    result.success(opened)
+                }
+                "getInitialCallPayload" -> {
+                    val payload = pendingCallPayload
+                    pendingCallPayload = null
+                    result.success(payload)
+                }
+                "getInitialKioskPayload" -> {
+                    val payload = pendingKioskPayload
+                    pendingKioskPayload = null
+                    result.success(payload)
+                }
                 else -> result.notImplemented()
             }
         }
+
+        // Check if there is an initial payload to dispatch
+        val initialKiosk = intent?.getStringExtra("kiosk_qr_data")
+        val initialCall = intent?.getStringExtra("call_data") ?: intent?.getStringExtra("notification_payload")
+
+        if (!initialKiosk.isNullOrEmpty()) {
+            pendingKioskPayload = initialKiosk
+            flutterEngine.dartExecutor.binaryMessenger.let { messenger ->
+                MethodChannel(messenger, CHANNEL).invokeMethod("onKioskQrPayload", initialKiosk)
+            }
+        } else if (!initialCall.isNullOrEmpty()) {
+            pendingCallPayload = initialCall
+            flutterEngine.dartExecutor.binaryMessenger.let { messenger ->
+                MethodChannel(messenger, CHANNEL).invokeMethod("onCallAlertPayload", initialCall)
+            }
+        }
+    }
+
+    private var pendingCallPayload: String? = null
+    private var pendingKioskPayload: String? = null
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        applyWakeScreenFlags()
+        extractPayloads(intent)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        applyWakeScreenFlags()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyWakeScreenFlags()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        applyWakeScreenFlags()
+        extractPayloads(intent)
+    }
+
+    private fun extractPayloads(intent: Intent?) {
+        val kioskPayload = intent?.getStringExtra("kiosk_qr_data")
+        val callPayload = intent?.getStringExtra("call_data")
+            ?: intent?.getStringExtra("notification_payload")
+            ?: intent?.getStringExtra("payload")
+
+        if (!kioskPayload.isNullOrEmpty()) {
+            pendingKioskPayload = kioskPayload
+            flutterEngine?.let { engine ->
+                MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
+                    .invokeMethod("onKioskQrPayload", kioskPayload)
+            }
+        } else if (!callPayload.isNullOrEmpty()) {
+            pendingCallPayload = callPayload
+            flutterEngine?.let { engine ->
+                MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL)
+                    .invokeMethod("onCallAlertPayload", callPayload)
+            }
+        }
+    }
+
+    private fun applyWakeScreenFlags() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (powerManager != null) {
+                @Suppress("DEPRECATION")
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                            PowerManager.ON_AFTER_RELEASE,
+                    "PerfectSolution:MainActivityWakeLock"
+                )
+                wakeLock.acquire(15000)
+            }
+        } catch (e: Exception) {}
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+            keyguardManager?.requestDismissKeyguard(this, null)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
+    }
+
+    private fun openOemBackgroundPopupSettings(): Boolean {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        try {
+            if (manufacturer.contains("vivo") || manufacturer.contains("iqoo")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.SoftPermissionDetailActivity"))
+                    putExtra("packagename", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+                val intent2 = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.PurviewTabActivity"))
+                    putExtra("packagename", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent2.resolveActivity(packageManager) != null) {
+                    startActivity(intent2)
+                    return true
+                }
+            } else if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")) {
+                val intent = Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                    setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity")
+                    putExtra("extra_pkgname", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } else if (manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.single.PermissionTopActivity"))
+                    putExtra("package_name", packageName)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            }
+        } catch (e: Exception) {}
+
+        // Fallback to standard Application Details
+        try {
+            val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(fallbackIntent)
+            return true
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private fun openOemAutostartSettings(): Boolean {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        try {
+            if (manufacturer.contains("vivo") || manufacturer.contains("iqoo")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+                val intent2 = Intent().apply {
+                    setComponent(ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent2.resolveActivity(packageManager) != null) {
+                    startActivity(intent2)
+                    return true
+                }
+            } else if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            } else if (manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus")) {
+                val intent = Intent().apply {
+                    setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"))
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (intent.resolveActivity(packageManager) != null) {
+                    startActivity(intent)
+                    return true
+                }
+            }
+        } catch (e: Exception) {}
+
+        // Fallback to standard battery optimization screen
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                return true
+            }
+        } catch (e: Exception) {}
+        return false
     }
 }
 

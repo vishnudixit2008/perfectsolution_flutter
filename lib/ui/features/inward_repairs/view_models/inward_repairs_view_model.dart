@@ -55,11 +55,17 @@ class InwardRepairsViewModel extends ChangeNotifier {
     return _repository.getNextInwardJobNo();
   }
 
+  /// Fetches next verified Job Number directly from cloud with online check.
+  Future<int> fetchNextJobNo() async {
+    return await _repository.fetchNextInwardJobNo();
+  }
+
   Future<void> saveRepair(
     InwardRepair repair,
-    List<InwardEstimateItem> items,
-  ) async {
-    await _repository.saveInwardRepair(repair, items);
+    List<InwardEstimateItem> items, {
+    bool isEdit = false,
+  }) async {
+    await _repository.saveInwardRepair(repair, items, isEdit: isEdit);
     await loadRepairs();
   }
 

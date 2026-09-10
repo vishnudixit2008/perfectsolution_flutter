@@ -11,8 +11,13 @@ import '../../../shared/components/app_list_card.dart';
 import '../../../shared/components/app_stock_badge.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
+import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/user_permission_service.dart';
+import '../../../../data/services/ui_preferences_service.dart';
 import 'product_history_dialog.dart';
 
 import '../../../../data/services/pdf_stock_list_helper.dart';
@@ -32,9 +37,36 @@ class _PricelistViewState extends State<PricelistView> {
   bool _isSelectionMode = false;
   final Set<int> _selectedItemIds = {};
 
+  void _loadSavedColumnWidths() {
+    _nameColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'name') ?? 350.0;
+    _priceColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'price') ?? 150.0;
+    _stockColumnWidth =
+        UiPreferencesService.getColumnWidth('pricelist', 'stock') ?? 150.0;
+  }
+
+  void _updateColumnWidth(String columnKey, double newWidth) {
+    setState(() {
+      switch (columnKey) {
+        case 'name':
+          _nameColumnWidth = newWidth;
+          break;
+        case 'price':
+          _priceColumnWidth = newWidth;
+          break;
+        case 'stock':
+          _stockColumnWidth = newWidth;
+          break;
+      }
+    });
+    UiPreferencesService.setColumnWidth('pricelist', columnKey, newWidth);
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PricelistViewModel>().loadItems();
     });
@@ -90,9 +122,9 @@ class _PricelistViewState extends State<PricelistView> {
                       label: isDesktop ? 'Export Stock PDF' : 'Stock PDF',
                       icon: Icons.picture_as_pdf_outlined,
                       isOutlined: true,
-                      backgroundColor: const Color(0xFF1E293B),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       foregroundColor: AppTheme.textPrimary,
-                      borderColor: Colors.white.withValues(alpha: 0.15),
+                      borderColor: Colors.white.withValues(alpha: 0.12),
                       onPressed: () async {
                         final items = viewModel.filteredItems.isNotEmpty
                             ? viewModel.filteredItems
@@ -143,9 +175,9 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel,
     bool isDesktop,
   ) {
-    final List<String> cats = ['All Categories', ...viewModel.categories];
     final String currentCategory =
         viewModel.selectedCategory ?? 'All Categories';
+    final bool hasCategoryFilter = viewModel.selectedCategory != null;
 
     Widget searchField = AppAnimatedSearchBar(
       controller: _searchController,
@@ -154,32 +186,83 @@ class _PricelistViewState extends State<PricelistView> {
       hintText: 'Search by product name, description, or category...',
     );
 
-    Widget categoryFilter = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: currentCategory,
-          dropdownColor: const Color(0xFF131A2E),
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppTheme.textSecondary,
+    Widget categoryFilterButton = BouncyPressable(
+      scaleFactor: 0.98,
+      onTap: () => _showSearchableCategoryDialog(context, viewModel),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: hasCategoryFilter
+              ? AppTheme.primary.withValues(alpha: 0.12)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: hasCategoryFilter
+                ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.08),
+            width: 1.0,
           ),
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
-          onChanged: (val) {
-            if (val == 'All Categories') {
-              viewModel.setSelectedCategory(null);
-            } else {
-              viewModel.setSelectedCategory(val);
-            }
-          },
-          items: cats.map((cat) {
-            return DropdownMenuItem<String>(value: cat, child: Text(cat));
-          }).toList(),
+          boxShadow: hasCategoryFilter
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.category_outlined,
+              size: 16,
+              color: hasCategoryFilter
+                  ? AppTheme.primaryLight
+                  : AppTheme.textMuted.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                currentCategory,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: hasCategoryFilter ? FontWeight.w600 : FontWeight.w400,
+                  color: hasCategoryFilter
+                      ? AppTheme.primaryLight
+                      : AppTheme.textPrimary,
+                  letterSpacing: -0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (hasCategoryFilter) ...[
+              BouncyPressable(
+                scaleFactor: 0.88,
+                onTap: () => viewModel.setSelectedCategory(null),
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Icon(
+                    Icons.cancel_rounded,
+                    size: 15,
+                    color: AppTheme.primaryLight.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: hasCategoryFilter
+                  ? AppTheme.primaryLight
+                  : AppTheme.textMuted.withValues(alpha: 0.8),
+              size: 18,
+            ),
+          ],
         ),
       ),
     );
@@ -188,8 +271,8 @@ class _PricelistViewState extends State<PricelistView> {
       return Row(
         children: [
           Expanded(flex: 3, child: searchField),
-          const SizedBox(width: 16),
-          Expanded(flex: 1, child: categoryFilter),
+          const SizedBox(width: 12),
+          Expanded(flex: 1, child: categoryFilterButton),
         ],
       );
     } else {
@@ -211,39 +294,8 @@ class _PricelistViewState extends State<PricelistView> {
                     'Category',
                     style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                   ),
-                  const SizedBox(height: 4),
-                  DropdownButtonFormField<String>(
-                    initialValue: currentCategory,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF1B243B),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                      ),
-                    ),
-                    items: cats.map((cat) {
-                      return DropdownMenuItem(value: cat, child: Text(cat));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val == 'All Categories') {
-                        viewModel.setSelectedCategory(null);
-                      } else {
-                        viewModel.setSelectedCategory(val);
-                      }
-                    },
-                  ),
+                  const SizedBox(height: 6),
+                  categoryFilterButton,
                 ],
               ),
             ),
@@ -253,74 +305,218 @@ class _PricelistViewState extends State<PricelistView> {
     }
   }
 
-  Widget _buildEmptyState(BuildContext context, PricelistViewModel viewModel) {
-    final bool isDbEmpty = viewModel.items.isEmpty;
+  void _showSearchableCategoryDialog(
+    BuildContext context,
+    PricelistViewModel viewModel,
+  ) {
+    showAppModalDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        String searchQuery = '';
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final List<String> allCats = viewModel.categories;
+            final String currentCategory =
+                viewModel.selectedCategory ?? 'All Categories';
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            isDbEmpty
-                ? Icons.cloud_download_outlined
-                : Icons.inventory_2_outlined,
-            size: 64,
-            color: isDbEmpty
-                ? AppTheme.primaryLight
-                : AppTheme.textMuted.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isDbEmpty ? 'Catalog Database Empty' : 'No matching products found',
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isDbEmpty
-                ? 'Import your default inventory catalog from the Excel template.'
-                : 'Try clearing your search query or filters.',
-            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          if (isDbEmpty) ...[
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () async {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: AppTheme.primary),
+            final filteredCats = allCats.where((c) {
+              if (searchQuery.trim().isEmpty) return true;
+              return c.toLowerCase().contains(searchQuery.trim().toLowerCase());
+            }).toList();
+
+            final Map<String, int> catCounts = {};
+            for (final it in viewModel.items) {
+              final cat = it.category?.trim().toLowerCase();
+              if (cat != null && cat.isNotEmpty) {
+                catCounts[cat] = (catCounts[cat] ?? 0) + 1;
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF131A2E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+              contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.category_outlined,
+                    color: AppTheme.primaryLight,
+                    size: 20,
                   ),
-                );
-                await viewModel.resetDatabase();
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Successfully loaded default shop inventory from Excel seed.',
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Select Category',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
                     ),
-                    backgroundColor: AppTheme.success,
                   ),
-                );
-              },
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Import Default Catalog'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppTheme.textMuted,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                height: 440,
+                child: Column(
+                  children: [
+                    AppAnimatedSearchBar(
+                      hintText: 'Search category name...',
+                      onChanged: (q) {
+                        setDialogState(() {
+                          searchQuery = q;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          if (searchQuery.trim().isEmpty ||
+                              'all categories'.contains(searchQuery.trim().toLowerCase()))
+                            _buildCategoryDialogTile(
+                              title: 'All Categories',
+                              isSelected: currentCategory == 'All Categories',
+                              itemCount: viewModel.items.length,
+                              onTap: () {
+                                viewModel.setSelectedCategory(null);
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ...filteredCats.map((cat) {
+                            final int count = catCounts[cat.trim().toLowerCase()] ?? 0;
+                            return _buildCategoryDialogTile(
+                              title: cat,
+                              isSelected: currentCategory == cat,
+                              itemCount: count,
+                              onTap: () {
+                                viewModel.setSelectedCategory(cat);
+                                Navigator.pop(context);
+                              },
+                            );
+                          }),
+                          if (filteredCats.isEmpty &&
+                              !('all categories'.contains(searchQuery.trim().toLowerCase())))
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Center(
+                                child: Text(
+                                  'No categories found matching "$searchQuery"',
+                                  style: const TextStyle(
+                                    color: AppTheme.textMuted,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryDialogTile({
+    required String title,
+    required bool isSelected,
+    required int itemCount,
+    required VoidCallback onTap,
+  }) {
+    return BouncyPressable(
+      scaleFactor: 0.98,
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.primary.withValues(alpha: 0.15)
+              : Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.primaryLight.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.06),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isSelected
+                      ? AppTheme.primaryLight
+                      : AppTheme.textPrimary,
+                  fontSize: 13.5,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 ),
               ),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppTheme.primaryLight.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$itemCount items',
+                style: TextStyle(
+                  color: isSelected
+                      ? AppTheme.primaryLight
+                      : AppTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.check_rounded,
+                color: AppTheme.primaryLight,
+                size: 16,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, PricelistViewModel viewModel) {
+    final canAdd = UserPermissionService.canPerformModuleAction('pricelist', 'canAdd');
+    return AppEmptyState(
+      icon: Icons.inventory_2_outlined,
+      title: 'No Products Found',
+      message: 'No catalog items match your search or filter criteria.',
+      actionLabel: canAdd ? 'Add Product' : null,
+      onAction: canAdd ? () => _showAddEditItemDialog(context, viewModel) : null,
     );
   }
 
@@ -339,7 +535,7 @@ class _PricelistViewState extends State<PricelistView> {
           child: Container(
             width: 1.5,
             height: 14,
-            color: Colors.white.withOpacity(0.12),
+            color: Colors.white.withValues(alpha: 0.12),
           ),
         ),
       ),
@@ -418,10 +614,10 @@ class _PricelistViewState extends State<PricelistView> {
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primary.withOpacity(0.05)
+              ? AppTheme.primary.withValues(alpha: 0.05)
               : Colors.transparent,
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
@@ -446,67 +642,80 @@ class _PricelistViewState extends State<PricelistView> {
                 ),
               ),
             // Product Name cell
-            Container(
-              width: _nameColumnWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                item.itemName,
-                style: const TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Cash Price cell
-            Container(
-              width: _priceColumnWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '₹${item.price.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            // Stock Qty cell (expanded to fill remaining space)
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+            if (UserPermissionService.isFieldVisible('pricelist', 'itemName'))
+              Container(
+                width: _nameColumnWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 alignment: Alignment.centerLeft,
+                child: Text(
+                  item.itemName,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            // Cash Price cell
+            if (UserPermissionService.isFieldVisible('pricelist', 'price'))
+              Container(
+                width: _priceColumnWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '₹${item.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            // Stock Qty cell (expanded to fill remaining space)
+            if (UserPermissionService.isFieldVisible('pricelist', 'stockQty'))
+              Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryLight.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${item.stockQty} units',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: AppTheme.primaryLight,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryLight.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${item.stockQty} units',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppTheme.primaryLight,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             const SizedBox(width: 8),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCategorySectionHeader(String category, [int totalQty = 0]) {
+    return AppStatusSectionHeader(
+      title: category,
+      count: totalQty,
+      singularLabel: 'unit',
+      pluralLabel: 'units',
+      color: AppTheme.primaryLight,
     );
   }
 
@@ -526,36 +735,13 @@ class _PricelistViewState extends State<PricelistView> {
       groupedItems[cat]!.add(item);
     }
 
-    // Build list of widgets (category headers + rows)
-    final List<Widget> listWidgets = [];
+    final listEntries = <_PricelistListItem>[];
     groupedItems.forEach((category, categoryItems) {
-      // Category Header row
-      listWidgets.add(
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.02),
-            border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.04)),
-              bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
-            ),
-          ),
-          child: Text(
-            category.toUpperCase(),
-            style: const TextStyle(
-              color: AppTheme.primaryLight,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              letterSpacing: 1.0,
-            ),
-          ),
-        ),
-      );
-
-      // Category Items
+      final int totalQty =
+          categoryItems.fold(0, (sum, item) => sum + item.stockQty);
+      listEntries.add(_PricelistListItem.header(category, totalQty));
       for (var item in categoryItems) {
-        listWidgets.add(_buildItemRow(context, viewModel, item));
+        listEntries.add(_PricelistListItem.item(item));
       }
     });
 
@@ -571,9 +757,9 @@ class _PricelistViewState extends State<PricelistView> {
           // Custom Header Row
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
@@ -605,56 +791,64 @@ class _PricelistViewState extends State<PricelistView> {
                       },
                     ),
                   ),
-                _buildResizableHeader(
-                  viewModel,
-                  'Product Name',
-                  'itemName',
-                  _nameColumnWidth,
-                  (delta) => setState(
-                    () => _nameColumnWidth = (_nameColumnWidth + delta).clamp(
-                      150.0,
-                      800.0,
+                if (UserPermissionService.isFieldVisible('pricelist', 'itemName'))
+                  _buildResizableHeader(
+                    viewModel,
+                    'Product Name',
+                    'itemName',
+                    _nameColumnWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameColumnWidth + delta).clamp(150.0, 800.0),
                     ),
                   ),
-                ),
-                _buildResizableHeader(
-                  viewModel,
-                  'Cash Price',
-                  'price',
-                  _priceColumnWidth,
-                  (delta) => setState(
-                    () => _priceColumnWidth = (_priceColumnWidth + delta).clamp(
-                      100.0,
-                      400.0,
+                if (UserPermissionService.isFieldVisible('pricelist', 'price'))
+                  _buildResizableHeader(
+                    viewModel,
+                    'Cash Price',
+                    'price',
+                    _priceColumnWidth,
+                    (delta) => _updateColumnWidth(
+                      'price',
+                      (_priceColumnWidth + delta).clamp(100.0, 400.0),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 16),
-                    alignment: Alignment.centerLeft,
-                    child: _buildResizableHeader(
-                      viewModel,
-                      'Stock Qty',
-                      'stockQty',
-                      _stockColumnWidth,
-                      (delta) => setState(
-                        () => _stockColumnWidth = (_stockColumnWidth + delta)
-                            .clamp(100.0, 400.0),
+                if (UserPermissionService.isFieldVisible('pricelist', 'stockQty'))
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 16),
+                      alignment: Alignment.centerLeft,
+                      child: _buildResizableHeader(
+                        viewModel,
+                        'Stock Qty',
+                        'stockQty',
+                        _stockColumnWidth,
+                        (delta) => _updateColumnWidth(
+                          'stock',
+                          (_stockColumnWidth + delta).clamp(100.0, 400.0),
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
 
-          // Scrollable Body Rows
+          // Scrollable Body Rows (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 80),
-              child: Column(children: listWidgets),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final entry = listEntries[index];
+                if (entry.categoryHeader != null) {
+                  return _buildCategorySectionHeader(
+                    entry.categoryHeader!,
+                    entry.categoryCount ?? 0,
+                  );
+                }
+                return _buildItemRow(context, viewModel, entry.item!);
+              },
             ),
           ),
         ],
@@ -695,28 +889,35 @@ class _PricelistViewState extends State<PricelistView> {
                   for (final id in idsToDelete) {
                     await viewModel.deleteItem(id);
                   }
+                  if (!mounted) return;
                   setState(() {
                     _selectedItemIds.clear();
                     _isSelectionMode = false;
                   });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Successfully deleted ${idsToDelete.length} items.',
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Successfully deleted ${idsToDelete.length} items.',
+                        ),
+                        backgroundColor: AppTheme.success,
                       ),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
+                    );
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error deleting items: $e'),
-                      backgroundColor: AppTheme.danger,
-                    ),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error deleting items: $e'),
+                        backgroundColor: AppTheme.danger,
+                      ),
+                    );
+                  }
                 } finally {
                   // Hide loading indicator
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
@@ -774,109 +975,120 @@ class _PricelistViewState extends State<PricelistView> {
           : 'General';
       categoryGroups.putIfAbsent(cat, () => []).add(item);
     }
-    final categoryKeys = categoryGroups.keys.toList();
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 120),
-      itemCount: categoryKeys.length,
-      itemBuilder: (context, catIdx) {
-        final catTitle = categoryKeys[catIdx];
-        final catItems = categoryGroups[catTitle]!;
+    final listEntries = <_PricelistListItem>[];
+    categoryGroups.forEach((category, categoryItems) {
+      final int totalQty =
+          categoryItems.fold(0, (sum, item) => sum + item.stockQty);
+      listEntries.add(_PricelistListItem.header(category, totalQty));
+      for (final item in categoryItems) {
+        listEntries.add(_PricelistListItem.item(item));
+      }
+    });
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 8, bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppTheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                catTitle.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                  color: AppTheme.primaryLight,
-                ),
-              ),
-            ),
-            ...catItems.map((item) {
-              final bool isSelected = _selectedItemIds.contains(item.id);
-              final metadata = <Widget>[];
-
-              metadata.add(
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '₹${item.price.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryLight,
-                      ),
-                    ),
-                    AppStockBadge(stockQty: item.stockQty),
-                  ],
-                ),
-              );
-
-              if (item.itemDescription != null &&
-                  item.itemDescription!.trim().isNotEmpty) {
-                metadata.add(const SizedBox(height: 6));
-                metadata.add(
-                  Text(
-                    item.itemDescription!,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              }
-
-              if (item.photoList.isNotEmpty) {
-                metadata.add(const SizedBox(height: 6));
-                metadata.add(PhotoGallerySection(photoUrls: item.photoList));
-              }
-
-              return AppListCard(
-                title: item.itemName,
-                metadataRows: metadata,
-                onTap: () {
-                  if (_isSelectionMode) {
-                    setState(() {
-                      if (isSelected) {
-                        _selectedItemIds.remove(item.id);
-                      } else {
-                        _selectedItemIds.add(item.id);
-                      }
-                    });
-                  } else {
-                    _showDetailPopup(context, item, viewModel);
-                  }
-                },
-                onEdit: () => _showAddEditItemDialog(
-                  context,
-                  viewModel,
-                  existingItem: item,
-                ),
-                onDelete: () => _confirmDeleteItem(context, viewModel, item),
-              );
-            }),
-          ],
-        );
+    return RefreshIndicator(
+      color: AppTheme.primaryLight,
+      backgroundColor: const Color(0xFF131A2E),
+      onRefresh: () async {
+        final localDb = context.read<ShopRepository>().localDb;
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
+        if (context.mounted) viewModel.loadItems();
       },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 120),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final entry = listEntries[index];
+          if (entry.categoryHeader != null) {
+            return _buildCategorySectionHeader(
+              entry.categoryHeader!,
+              entry.categoryCount ?? 0,
+            );
+          }
+          return _buildMobileCardItem(context, viewModel, entry.item!, itemIndex: index);
+        },
+      ),
     );
   }
+
+  Widget _buildMobileCardItem(
+    BuildContext context,
+    PricelistViewModel viewModel,
+    PricelistItem item, {
+    int itemIndex = 0,
+  }) {
+    final bool isSelected = _selectedItemIds.contains(item.id);
+    final metadata = <Widget>[];
+
+    metadata.add(
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '₹${item.price.toStringAsFixed(2)}',
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryLight,
+            ),
+          ),
+          AppStockBadge(stockQty: item.stockQty),
+        ],
+      ),
+    );
+
+    if (item.itemDescription != null &&
+        item.itemDescription!.trim().isNotEmpty) {
+      metadata.add(const SizedBox(height: 6));
+      metadata.add(
+        Text(
+          item.itemDescription!,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 12,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+
+    if (item.photoList.isNotEmpty) {
+      metadata.add(const SizedBox(height: 6));
+      metadata.add(PhotoGallerySection(photoUrls: item.photoList));
+    }
+
+    return AppListCard(
+      index: itemIndex,
+      title: item.itemName,
+      metadataRows: metadata,
+      onTap: () {
+        if (_isSelectionMode) {
+          setState(() {
+            if (isSelected) {
+              _selectedItemIds.remove(item.id);
+            } else {
+              _selectedItemIds.add(item.id);
+            }
+          });
+        } else {
+          _showDetailPopup(context, item, viewModel);
+        }
+      },
+      onEdit: UserPermissionService.canPerformModuleAction('pricelist', 'canEdit')
+          ? () => _showAddEditItemDialog(
+              context,
+              viewModel,
+              existingItem: item,
+            )
+          : null,
+      onDelete: UserPermissionService.canPerformModuleAction('pricelist', 'canDelete')
+          ? () => _confirmDeleteItem(context, viewModel, item)
+          : null,
+    );
+  }
+
 
   void _showDetailPopup(
     BuildContext context,
@@ -900,7 +1112,7 @@ class _PricelistViewState extends State<PricelistView> {
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Container(
             width: isMobile ? screenWidth * 0.95 : screenWidth * 0.85,
@@ -919,7 +1131,7 @@ class _PricelistViewState extends State<PricelistView> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.12),
+                            color: AppTheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -985,7 +1197,7 @@ class _PricelistViewState extends State<PricelistView> {
                                         vertical: 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primary.withOpacity(0.15),
+                                        color: AppTheme.primary.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -1011,9 +1223,9 @@ class _PricelistViewState extends State<PricelistView> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.03),
+                            color: Colors.white.withValues(alpha: 0.03),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1085,9 +1297,9 @@ class _PricelistViewState extends State<PricelistView> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.02),
+                              color: Colors.white.withValues(alpha: 0.02),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white.withOpacity(0.04)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                             ),
                             child: Text(
                               item.itemDescription!,
@@ -1219,6 +1431,15 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel,
     PricelistItem item,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('pricelist', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Catalog Items.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) {
@@ -1264,11 +1485,27 @@ class _PricelistViewState extends State<PricelistView> {
     PricelistViewModel viewModel, {
     PricelistItem? existingItem,
   }) {
+    final isEdit = existingItem != null;
+    final actionKey = isEdit ? 'canEdit' : 'canAdd';
+    if (!UserPermissionService.canPerformModuleAction('pricelist', actionKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEdit
+                ? 'Access Denied: You do not have permission to edit Catalog Items.'
+                : 'Access Denied: You do not have permission to add new Catalog Items.',
+          ),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+    final canDelete = UserPermissionService.canPerformModuleAction('pricelist', 'canDelete');
     showAddEditPricelistItemDialog(
       context,
       viewModel,
       existingItem: existingItem,
-      onDeleteRequested: existingItem != null
+      onDeleteRequested: existingItem != null && canDelete
           ? () => _confirmDeleteItem(context, viewModel, existingItem)
           : null,
     );
@@ -1298,9 +1535,6 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
       : null;
   final priceController = TextEditingController(
     text: existingItem?.price.toString() ?? '',
-  );
-  final stockController = TextEditingController(
-    text: existingItem?.stockQty.toString() ?? '0',
   );
   String? photoUrl = existingItem?.photo;
   bool isPhotoUploading = false;
@@ -1336,7 +1570,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                     ? 'General'
                     : selectedCategory!.trim(),
                 price: double.tryParse(priceController.text) ?? 0.0,
-                stockQty: int.tryParse(stockController.text) ?? 0,
+                stockQty: existingItem?.stockQty ?? 0,
                 openingStock: existingItem?.openingStock ?? 0,
                 itemDescription: descController.text.trim().isEmpty
                     ? null
@@ -1364,17 +1598,20 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             }
           }
 
-          final bool isItemVis = UserPermissionService.isFieldVisible('pricelist', 'item');
-          final bool isItemMod = UserPermissionService.canModifyField('pricelist', 'item', isEdit: isEdit);
+          final bool isItemVis = UserPermissionService.isFieldVisible('pricelist', 'itemName');
+          final bool isItemMod = UserPermissionService.canModifyField('pricelist', 'itemName', isEdit: isEdit);
 
           final bool isCatVis = UserPermissionService.isFieldVisible('pricelist', 'category');
           final bool isCatMod = UserPermissionService.canModifyField('pricelist', 'category', isEdit: isEdit);
 
-          final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'cashPrice');
-          final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'cashPrice', isEdit: isEdit);
+          final bool isPriceVis = UserPermissionService.isFieldVisible('pricelist', 'price');
+          final bool isPriceMod = UserPermissionService.canModifyField('pricelist', 'price', isEdit: isEdit);
 
           final bool isDescVis = UserPermissionService.isFieldVisible('pricelist', 'itemDescription');
           final bool isDescMod = UserPermissionService.canModifyField('pricelist', 'itemDescription', isEdit: isEdit);
+
+          final bool isPhotoVis = UserPermissionService.isFieldVisible('pricelist', 'photo');
+          final bool isPhotoMod = UserPermissionService.canModifyField('pricelist', 'photo', isEdit: isEdit);
 
           final Widget formContent = Form(
             key: formKey,
@@ -1406,51 +1643,36 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                     child: _CategoryDropdown(
                       categories: viewModel.categories,
                       selectedCategory: selectedCategory,
-                      onChanged: (val) => setDialogState(() => selectedCategory = val),
+                      onChanged: (val) => selectedCategory = val,
                     ),
                   ),
                   const SizedBox(height: 12),
                 ],
 
-                Row(
-                  children: [
-                    if (isPriceVis)
-                      Expanded(
-                        child: TextFormField(
-                          controller: priceController,
-                          readOnly: !isPriceMod,
-                          enabled: isPriceMod,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Base Price (₹) *',
-                            hintText: 'e.g. 350',
-                          ),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Enter price';
-                            }
-                            if (double.tryParse(val.trim()) == null) {
-                              return 'Invalid price';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                    if (isPriceVis) const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: stockController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Stock Qty',
-                          hintText: 'e.g. 10',
-                        ),
-                      ),
+                if (isPriceVis) ...[
+                  TextFormField(
+                    controller: priceController,
+                    readOnly: !isPriceMod,
+                    enabled: isPriceMod,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                  ],
-                ),
+                    decoration: const InputDecoration(
+                      labelText: 'Base Price (₹) *',
+                      hintText: 'e.g. 350',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Enter price';
+                      }
+                      if (double.tryParse(val.trim()) == null) {
+                        return 'Invalid price';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 const SizedBox(height: 12),
 
                 if (isDescVis) ...[
@@ -1468,20 +1690,24 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
                 ],
 
                 // Photo attachment widget
-                PhotoAttachmentWidget(
-                  initialPhotoUrl: photoUrl,
-                  onUploadingChanged: (uploading) {
-                    setDialogState(() {
-                      isPhotoUploading = uploading;
-                    });
-                  },
-                  onPhotoChanged: (url) {
-                    setDialogState(() {
-                      photoUrl = url;
-                    });
-                  },
-                  label: 'Product Image',
-                ),
+                if (isPhotoVis)
+                  PhotoAttachmentWidget(
+                    category: 'pricelist',
+                    initialPhotoUrl: photoUrl,
+                    onUploadingChanged: (uploading) {
+                      setDialogState(() {
+                        isPhotoUploading = uploading;
+                      });
+                    },
+                    onPhotoChanged: isPhotoMod
+                        ? (url) {
+                            setDialogState(() {
+                              photoUrl = url;
+                            });
+                          }
+                        : null,
+                    label: 'Product Image',
+                  ),
               ],
             ),
           );
@@ -1583,10 +1809,10 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1601,7 +1827,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1640,7 +1866,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1649,7 +1875,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1669,7 +1895,7 @@ Future<PricelistItem?> showAddEditPricelistItemDialog(
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -1712,7 +1938,11 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedCategory != widget.selectedCategory) {
       if (_textController.text != (widget.selectedCategory ?? '')) {
-        _textController.text = widget.selectedCategory ?? '';
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _textController.text != (widget.selectedCategory ?? '')) {
+            _textController.text = widget.selectedCategory ?? '';
+          }
+        });
       }
     }
   }
@@ -1788,7 +2018,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
             hintStyle: const TextStyle(color: AppTheme.textMuted),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: AppTheme.textMuted.withOpacity(0.4)),
+              borderSide: BorderSide(color: AppTheme.textMuted.withValues(alpha: 0.4)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -1873,7 +2103,7 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
                               vertical: 10,
                             ),
                             color: isSelected
-                                ? AppTheme.primaryLight.withOpacity(0.12)
+                                ? AppTheme.primaryLight.withValues(alpha: 0.12)
                                 : Colors.transparent,
                             child: Row(
                               children: [
@@ -1981,4 +2211,16 @@ class _CategoryDropdownState extends State<_CategoryDropdown> {
       ),
     );
   }
+}
+
+class _PricelistListItem {
+  final String? categoryHeader;
+  final int? categoryCount;
+  final PricelistItem? item;
+
+  _PricelistListItem.header(this.categoryHeader, [this.categoryCount = 0])
+      : item = null;
+  _PricelistListItem.item(this.item)
+      : categoryHeader = null,
+        categoryCount = null;
 }

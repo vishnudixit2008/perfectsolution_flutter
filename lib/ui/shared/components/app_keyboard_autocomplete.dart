@@ -11,7 +11,7 @@ class AppKeyboardAutocomplete extends StatefulWidget {
   final double width;
   final bool isMobile;
   final bool Function(PricelistItem)? customFilter;
-
+  final bool allowNewItem;
   final bool clearOnSelect;
   final bool autoFocusAfterSelect;
 
@@ -24,6 +24,7 @@ class AppKeyboardAutocomplete extends StatefulWidget {
     this.width = 450,
     this.isMobile = false,
     this.customFilter,
+    this.allowNewItem = false,
     this.clearOnSelect = false,
     this.autoFocusAfterSelect = false,
   });
@@ -60,9 +61,7 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
 
   void _scrollToHighlighted() {
     if (!_scrollController.hasClients) return;
-    // Calculate target offset so highlighted item stays around second-last position in viewport
     const double visibleHeight = 280.0;
-    // Offset to position highlighted item near second-last slot (1 slot above bottom edge)
     final double targetOffset = (_highlightedIndex * _itemHeight) - (visibleHeight - (2 * _itemHeight));
     
     final double minScroll = 0.0;
@@ -123,6 +122,8 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
         }
 
         final List<MapEntry<PricelistItem, int>> matches = [];
+        bool exactMatchFound = false;
+
         for (final item in widget.catalogItems) {
           if (widget.customFilter != null && !widget.customFilter!(item)) {
             continue;
@@ -132,6 +133,10 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
           final catLower = (item.category ?? '').toLowerCase();
           final descLower = (item.itemDescription ?? '').toLowerCase();
           final combined = '$nameLower $catLower $descLower ${item.id}';
+
+          if (nameLower == query.toLowerCase()) {
+            exactMatchFound = true;
+          }
 
           bool allMatched = true;
           for (final token in tokens) {
@@ -158,7 +163,22 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
         }
 
         matches.sort((a, b) => b.value.compareTo(a.value));
-        _currentOptions = matches.map((e) => e.key).toList();
+        final result = matches.map((e) => e.key).toList();
+
+        if (widget.allowNewItem && !exactMatchFound && query.isNotEmpty) {
+          result.add(
+            PricelistItem(
+              id: -1,
+              itemName: query,
+              price: 0,
+              stockQty: 0,
+              openingStock: 0,
+              category: 'New Item',
+            ),
+          );
+        }
+
+        _currentOptions = result;
         if (_highlightedIndex >= _currentOptions.length) {
           _highlightedIndex = 0;
         }
@@ -273,7 +293,62 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
                 itemBuilder: (BuildContext context, int index) {
                   final PricelistItem option = listOptions[index];
                   final bool isHighlighted = index == _highlightedIndex;
-                  final bool isLowStock = option.stockQty <= option.openingStock;
+                  final bool isNewItem = option.id == -1;
+                  final bool isLowStock = !isNewItem && option.stockQty <= option.openingStock;
+
+                  if (isNewItem) {
+                    return Container(
+                      height: _itemHeight,
+                      color: isHighlighted
+                          ? AppTheme.primary.withValues(alpha: 0.35)
+                          : AppTheme.primary.withValues(alpha: 0.08),
+                      child: ListTile(
+                        dense: widget.isMobile,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 0,
+                        ),
+                        leading: const Icon(
+                          Icons.add_circle_rounded,
+                          color: AppTheme.primaryLight,
+                          size: 20,
+                        ),
+                        title: Text(
+                          '+ Add "${option.itemName}" as new product',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryLight,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Create and stock-in new product',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryLight.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'NEW',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
+                        ),
+                        onTap: () {
+                          onSelected(option);
+                        },
+                      ),
+                    );
+                  }
 
                   return Container(
                     height: _itemHeight,

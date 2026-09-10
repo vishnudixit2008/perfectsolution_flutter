@@ -5,6 +5,7 @@ import '../../../../data/models/sale.dart';
 import '../../../../data/models/sale_item.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/smart_search_utils.dart';
+import '../../../shared/status_management_dialog.dart';
 
 class SalesViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -17,6 +18,9 @@ class SalesViewModel extends ChangeNotifier {
         loadCatalog();
       } else if (table == 'app_users') {
         loadCatalog();
+      }
+      if (table == 'custom_services' || table == 'shop_settings' || table == 'all') {
+        loadSavedServices();
       }
     });
   }
@@ -101,7 +105,7 @@ class SalesViewModel extends ChangeNotifier {
       final item = _cartItems[existingIdx];
       _cartItems[existingIdx] = item.copyWith(
         quantity: item.quantity + 1,
-        totalAmount: (item.quantity + 1) * (item.customPrice ?? item.itemPrice),
+        totalAmount: (item.quantity + 1) * item.activePrice,
       );
     } else {
       // Create new line item (temp invoiceNo = 0, will assign on checkout)
@@ -141,6 +145,13 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Delete Custom Service
+  Future<void> deleteCustomService(String serviceName) async {
+    await _repository.deleteCustomServiceName(serviceName);
+    loadSavedServices();
+    notifyListeners();
+  }
+
   // Add SaleItem to Cart (for prefilling estimates/products/services)
   void addSaleItemToCart({
     int? itemId,
@@ -148,18 +159,36 @@ class SalesViewModel extends ChangeNotifier {
     required String itemDescription,
     required int quantity,
     required double itemPrice,
+    double? customPrice,
     String? notes,
   }) {
     final int qty = quantity > 0 ? quantity : 1;
+    final double effectivePrice = customPrice ?? itemPrice;
+
+    int? resolvedItemId = itemId;
+    if (resolvedItemId == null && lineType == 'Product') {
+      final target = itemDescription.trim().toLowerCase();
+      if (target.isNotEmpty) {
+        final match = _repository
+            .getPricelist()
+            .where((p) => p.itemName.trim().toLowerCase() == target)
+            .firstOrNull;
+        if (match != null) {
+          resolvedItemId = match.id;
+        }
+      }
+    }
+
     final newItem = SaleItem(
       id: '${lineType.toLowerCase()}_${DateTime.now().microsecondsSinceEpoch}_${_cartItems.length}_${_cartItems.hashCode}',
       invoiceNo: 0,
-      itemId: itemId,
+      itemId: resolvedItemId,
       lineType: lineType,
       itemDescription: itemDescription,
       quantity: qty,
       itemPrice: itemPrice,
-      totalAmount: qty * itemPrice,
+      customPrice: customPrice,
+      totalAmount: qty * effectivePrice,
       notes: notes,
     );
     _cartItems.add(newItem);
@@ -204,6 +233,7 @@ class SalesViewModel extends ChangeNotifier {
       final double activeRate = price ?? item.itemPrice;
       _cartItems[idx] = item.copyWith(
         customPrice: price,
+        clearCustomPrice: price == null,
         totalAmount: item.quantity * activeRate,
       );
       notifyListeners();
@@ -300,13 +330,32 @@ class SalesViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final int invoiceNo =
-          _editingInvoiceNo ?? _repository.getNextInvoiceNo();
+      final bool isEdit = _editingInvoiceNo != null;
+      final int invoiceNo = isEdit
+          ? _editingInvoiceNo!
+          : await _repository.fetchNextInvoiceNo();
       final DateTime saleDate = _editingSaleDate ?? DateTime.now();
-      final String orderStatus = _editingOrderStatus ?? 'PENDING';
+      final String orderStatus =
+          _editingOrderStatus ?? StatusManagementService.getDefaultStatus('sales');
 
+      final List<PricelistItem> catalog = _repository.getPricelist();
       final List<SaleItem> finalItems = _cartItems.map((item) {
-        return item.copyWith(invoiceNo: invoiceNo);
+        int? resolvedId = item.itemId;
+        if (resolvedId == null && item.lineType == 'Product') {
+          final target = (item.itemDescription ?? '').trim().toLowerCase();
+          if (target.isNotEmpty) {
+            final match = catalog
+                .where((p) => p.itemName.trim().toLowerCase() == target)
+                .firstOrNull;
+            if (match != null) {
+              resolvedId = match.id;
+            }
+          }
+        }
+        return item.copyWith(
+          invoiceNo: invoiceNo,
+          itemId: resolvedId,
+        );
       }).toList();
 
       final sale = Sale(
@@ -326,7 +375,7 @@ class SalesViewModel extends ChangeNotifier {
         photo: _editingPhoto,
       );
 
-      await _repository.saveSale(sale, finalItems);
+      await _repository.saveSale(sale, finalItems, isEdit: isEdit);
 
       // Clear Cart
       clearCart();
@@ -335,7 +384,7 @@ class SalesViewModel extends ChangeNotifier {
       if (kDebugMode) {
         print('Checkout error: $e');
       }
-      return null;
+      rethrow;
     } finally {
       _isSaving = false;
       notifyListeners();

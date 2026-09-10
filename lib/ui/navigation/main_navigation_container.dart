@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 import '../core/motion/motion.dart';
@@ -25,6 +27,8 @@ import '../features/dashboard/view_models/recent_sales_view_model.dart';
 import '../features/sales/view_models/sales_view_model.dart';
 import '../features/pricelist/view_models/pricelist_view_model.dart';
 import '../shared/components/app_bottom_nav_bar.dart';
+import '../shared/components/desktop_update_progress_widget.dart';
+import '../shared/components/mobile_update_banner.dart';
 import '../shared/update_dialog.dart';
 import '../features/settings/views/upi_qr_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -36,6 +40,7 @@ import '../features/auth/view_models/auth_view_model.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
+import 'package:shop_management_flutter/data/services/auto_update_service.dart';
 
 class MainNavigationContainer extends StatefulWidget {
   const MainNavigationContainer({super.key});
@@ -55,14 +60,17 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   @override
   void initState() {
     super.initState();
+    AutoUpdateService.instance.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Cold app launch: always check for update and bypass 1-hour skip suppression
-      UpdateDialog.showIfNeeded(context, isAppLaunch: true);
+      // Mobile / Android update check (desktop is handled by AutoUpdateService in background)
+      if (!kIsWeb && Platform.isAndroid) {
+        UpdateDialog.showIfNeeded(context, isAppLaunch: true);
+      }
       _setupKioskBroadcastListener();
     });
-    // Check for app updates every 1 hour while the app is kept running
+    // Check for app updates every 1 hour while mobile app is kept running
     _updateCheckTimer = Timer.periodic(const Duration(hours: 1), (_) {
-      if (mounted) {
+      if (mounted && !kIsWeb && Platform.isAndroid) {
         UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
     });
@@ -71,9 +79,32 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   void _setupKioskBroadcastListener() {
     KioskBroadcastService.instance.init();
 
+    bool isCurrentDeviceSaleKiosk() {
+      return UiPreferencesService.isKioskMode();
+    }
+
+    // Check if there is an unhandled pending QR payload from cold start
+    if (KioskBroadcastService.instance.latestPendingQrPayload != null) {
+      final pending = KioskBroadcastService.instance.latestPendingQrPayload!;
+      KioskBroadcastService.instance.clearPendingQr();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!isCurrentDeviceSaleKiosk()) return;
+        final timeout = UiPreferencesService.getKioskTimeoutSeconds();
+        _openKioskQrModal(
+          amount: pending.amount,
+          invoiceNo: pending.invoiceNo,
+          customerName: pending.customerName,
+          autoCloseSeconds: timeout,
+          upiId: pending.upiId,
+          upiName: pending.upiName,
+        );
+      });
+    }
+
     _kioskShowSubscription = KioskBroadcastService.instance.onShowQr.listen((payload) {
       if (!mounted) return;
-      if (!UiPreferencesService.isKioskMode()) return;
+      if (!isCurrentDeviceSaleKiosk()) return;
 
       // Bring Android app to front over other apps if minimized
       KioskOverlayHelper.bringAppToFront();
@@ -104,7 +135,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 
     _kioskDismissSubscription = KioskBroadcastService.instance.onDismissQr.listen((_) {
       if (!mounted) return;
-      if (!UiPreferencesService.isKioskMode()) return;
+      if (!isCurrentDeviceSaleKiosk()) return;
 
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
@@ -215,9 +246,9 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       if (context.mounted) {
         _reloadAllViewModels(context);
       }
-      // Re-check for updates after manual sync tap (isAppLaunch: false respects 1-hour skip suppression)
+      // Re-check for updates after manual sync tap (forceCheck: true guarantees instant popup if an update exists)
       if (context.mounted) {
-        await UpdateDialog.showIfNeeded(context, isAppLaunch: false);
+        await UpdateDialog.showIfNeeded(context, isAppLaunch: false, forceCheck: true);
       }
     } catch (_) {
       // Handled silently by SupabaseSyncService status updates
@@ -334,10 +365,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isDesktop = screenWidth >= 750;
-    final navViewModel = context.watch<NavigationViewModel>();
-    final int currentIndex = navViewModel.currentIndex;
+    final int currentIndex = context.select<NavigationViewModel, int>(
+      (vm) => vm.currentIndex,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
@@ -355,38 +387,10 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 12.0,
                   isDesktop ? 16.0 : 0.0,
                 ),
-                child: AnimatedSwitcher(
-                  duration: AppleMotion.medium,
-                  switchInCurve: AppleMotion.easeOut,
-                  switchOutCurve: Curves.easeInQuad,
-                  transitionBuilder: (child, animation) {
-                    final curved = CurvedAnimation(
-                      parent: animation,
-                      curve: AppleMotion.easeOut,
-                    );
-                    final slide = Tween<Offset>(
-                      begin: const Offset(0.018, 0),
-                      end: Offset.zero,
-                    ).animate(curved);
-                    final scale = Tween<double>(
-                      begin: 0.985,
-                      end: 1.0,
-                    ).animate(curved);
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: slide,
-                        child: ScaleTransition(
-                          scale: scale,
-                          child: child,
-                        ),
-                      ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(currentIndex),
-                    child: _buildActiveView(currentIndex),
-                  ),
+                child: _LazyIndexedStack(
+                  index: currentIndex.clamp(0, _views.length - 1),
+                  count: _views.length,
+                  builder: (i) => _buildActiveView(i),
                 ),
               ),
             ),
@@ -394,7 +398,13 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
         ],
       ),
       bottomNavigationBar: !isDesktop
-          ? AppBottomNavBar(currentIndex: currentIndex)
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const MobileUpdateBanner(),
+                AppBottomNavBar(currentIndex: currentIndex),
+              ],
+            )
           : null,
     );
   }
@@ -454,7 +464,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.danger.withOpacity(0.12),
+                color: AppTheme.danger.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -723,89 +733,25 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                 final item = visibleItems[index];
                 final int navIndex = item['index'] as int;
                 final bool isActive = currentIndex == navIndex;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 2.0,
-                  ),
-                  child: BouncyPressable(
-                    scaleFactor: 0.94,
-                    onTap: () {
-                      if (navIndex == 3) {
-                        try {
-                          context.read<PricelistViewModel>().resetSortAndFilters();
-                        } catch (_) {}
-                      }
-                      context.read<NavigationViewModel>().setIndex(navIndex);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? AppTheme.primary.withValues(alpha: 0.14)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isActive
-                              ? AppTheme.primary.withValues(alpha: 0.28)
-                              : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 3.5,
-                            height: isActive ? 16 : 0,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? AppTheme.primaryLight
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          SizedBox(width: isActive ? 10 : 4),
-                          AnimatedScale(
-                            scale: isActive ? 1.08 : 1.0,
-                            duration: const Duration(milliseconds: 200),
-                            curve: AppleMotion.spring,
-                            child: Icon(
-                              item['icon'],
-                              color: isActive
-                                  ? AppTheme.primaryLight
-                                  : AppTheme.textSecondary,
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              item['title'],
-                              style: TextStyle(
-                                color: isActive
-                                    ? AppTheme.textPrimary
-                                    : AppTheme.textSecondary,
-                                fontWeight: isActive
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                fontSize: 13,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                return _DesktopNavItem(
+                  icon: item['icon'] as IconData,
+                  title: item['title'] as String,
+                  isActive: isActive,
+                  onTap: () {
+                    if (navIndex == 3) {
+                      try {
+                        context.read<PricelistViewModel>().resetSortAndFilters();
+                      } catch (_) {}
+                    }
+                    context.read<NavigationViewModel>().setIndex(navIndex);
+                  },
                 );
               },
             ),
           ),
+
+          // Background Auto-Update Progress / Action Widget (Desktop Only)
+          const DesktopUpdateProgressWidget(),
 
           // Footer / User info
           const Divider(color: Colors.white10, height: 1),
@@ -918,3 +864,417 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     );
   }
 }
+
+/// Apple-style lazy-loading page transition stack.
+///
+/// **Desktop — Apple macOS directional slide**:
+/// Incoming page glides in from the right (4% horizontal offset) while the
+/// outgoing page gently recedes to the left (2% offset). Both crossfade
+/// simultaneously. This is exactly how macOS Settings, Finder sidebars,
+/// and apps like Linear / Arc navigate between content panes.
+/// Duration: 280ms with iOS-grade easeOutExpo — snappy but clearly visible.
+///
+/// **Mobile — vertical spring slide** (unchanged):
+/// 360ms liquid spring: fade + 2.5% vertical slide + subtle scale.
+///
+/// **Perf architecture**:
+/// - Pages built lazily (only on first visit, cached forever — no rebuilds).
+/// Apple-style lazy-loading directional page transition stack.
+///
+/// **Why previous version lagged and went back and forth**:
+/// It scheduled `_ctrl.forward(from: 0.0)` in `addPostFrameCallback`.
+/// This caused Frame 0 to draw the new page at 100% (since _ctrl.value was 1.0),
+/// then Frame 1 reset _ctrl to 0.0 (popping the old page back in), and then
+/// animated forward — causing a noticeable 1-second lag and a back-and-forth flicker.
+///
+/// **Fix**:
+/// 1. Synchronously reset and start `_ctrl.forward(from: 0.0)` in `didUpdateWidget`.
+/// 2. Directional awareness: forward tab movements glide from right (+X), backward from left (-X).
+/// 3. Zero-rebuild layer transitions: uses `FadeTransition` & `SlideTransition` directly.
+/// 4. Auto-cleanup: `statusListener` clears `_previousIndex = null` on completion so
+///    the old page immediately goes into zero-cost `Offstage(offstage: true)`.
+class _LazyIndexedStack extends StatefulWidget {
+  final int index;
+  final int count;
+  final Widget Function(int) builder;
+
+  const _LazyIndexedStack({
+    required this.index,
+    required this.count,
+    required this.builder,
+  });
+
+  @override
+  State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
+}
+
+class _LazyIndexedStackState extends State<_LazyIndexedStack>
+    with SingleTickerProviderStateMixin {
+  final Map<int, Widget> _cache = {};
+  late int _activeIndex;
+  int? _previousIndex;
+
+  late final AnimationController _ctrl;
+
+  // ── Desktop animations (incoming page) ──────────────────────────────────────
+  late Animation<double> _incomingFade;
+  late Animation<Offset> _incomingSlide;
+
+  // ── Desktop animations (outgoing page) ──────────────────────────────────────
+  late Animation<double> _outgoingFade;
+  late Animation<Offset> _outgoingSlide;
+
+  // ── Mobile animations ────────────────────────────────────────────────────────
+  Animation<Offset>? _mobileSlide;
+  Animation<double>? _mobileScale;
+  Animation<double>? _mobileFade;
+
+  // easeOutExpo — Apple macOS standard deceleration curve
+  static const Curve _expoOut = Cubic(0.16, 1.0, 0.3, 1.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _activeIndex = widget.index;
+    _previousIndex = null;
+
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: AppleMotion.isDesktop
+          ? const Duration(milliseconds: 240)
+          : const Duration(milliseconds: 320),
+    );
+
+    _ctrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted && _previousIndex != null) {
+          setState(() {
+            _previousIndex = null;
+          });
+        }
+      }
+    });
+
+    _setupAnimations(isForward: true);
+    _ctrl.value = 1.0; // start fully visible
+  }
+
+  void _setupAnimations({required bool isForward}) {
+    if (AppleMotion.isDesktop) {
+      final double inOffset = isForward ? 0.03 : -0.03;
+      final double outOffset = isForward ? -0.02 : 0.02;
+
+      final curved = CurvedAnimation(
+        parent: _ctrl,
+        curve: _expoOut,
+      );
+
+      // ── Incoming page: glides in smoothly from direction ────────────────
+      _incomingFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.75, curve: Curves.easeOut),
+        ),
+      );
+      _incomingSlide = Tween<Offset>(
+        begin: Offset(inOffset, 0.0),
+        end: Offset.zero,
+      ).animate(curved);
+
+      // ── Outgoing page: recedes gently in opposite direction ──────────────
+      _outgoingFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.45, curve: Curves.easeIn),
+        ),
+      );
+      _outgoingSlide = Tween<Offset>(
+        begin: Offset.zero,
+        end: Offset(outOffset, 0.0),
+      ).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: Curves.easeInQuad,
+        ),
+      );
+
+      _mobileFade = _incomingFade;
+    } else {
+      // ── Mobile: vertical spring slide ───────────────────────────────────
+      final curved = CurvedAnimation(
+        parent: _ctrl,
+        curve: const Cubic(0.175, 0.885, 0.32, 1.15),
+      );
+      _mobileFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _ctrl,
+          curve: const Interval(0.0, 0.65, curve: Curves.easeOut),
+        ),
+      );
+      _mobileSlide = Tween<Offset>(
+        begin: const Offset(0.0, 0.025),
+        end: Offset.zero,
+      ).animate(curved);
+      _mobileScale = Tween<double>(begin: 0.975, end: 1.0).animate(curved);
+
+      _incomingFade = _mobileFade!;
+      _incomingSlide = _mobileSlide!;
+      _outgoingFade = _mobileFade!;
+      _outgoingSlide = _mobileSlide!;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _LazyIndexedStack oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _previousIndex = oldWidget.index;
+      _activeIndex = widget.index;
+      final isForward = widget.index >= oldWidget.index;
+      _setupAnimations(isForward: isForward);
+      _ctrl.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Widget _buildPage(int i) {
+    return _cache.putIfAbsent(i, () => widget.builder(i));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final built = <int>{..._cache.keys, _activeIndex};
+    if (_previousIndex != null) {
+      built.add(_previousIndex!);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: built.map((i) {
+        final isActive = i == _activeIndex;
+        final isExiting = i == _previousIndex && !isActive;
+
+        Widget page = RepaintBoundary(child: _buildPage(i));
+        page = TickerMode(enabled: isActive || isExiting, child: page);
+
+        if (!isActive && !isExiting) {
+          return Offstage(offstage: true, child: page);
+        }
+
+        if (AppleMotion.isDesktop) {
+          if (isExiting) {
+            // Outgoing: recede + fade out
+            return FadeTransition(
+              opacity: _outgoingFade,
+              child: SlideTransition(
+                position: _outgoingSlide,
+                child: page,
+              ),
+            );
+          }
+          // Incoming: glide in + fade in
+          return FadeTransition(
+            opacity: _incomingFade,
+            child: SlideTransition(
+              position: _incomingSlide,
+              child: page,
+            ),
+          );
+        }
+
+        // Mobile: vertical spring slide (only active page animates)
+        if (!isActive) {
+          return Offstage(offstage: true, child: page);
+        }
+        if (_mobileSlide != null && _mobileScale != null && _mobileFade != null) {
+          page = ScaleTransition(
+            scale: _mobileScale!,
+            child: SlideTransition(position: _mobileSlide!, child: page),
+          );
+        }
+        return FadeTransition(opacity: _mobileFade!, child: page);
+      }).toList(),
+    );
+  }
+}
+
+
+
+/// Desktop sidebar nav item with a single AnimationController per item.
+/// Updates only via [didUpdateWidget] — zero parent tree rebuild cost.
+/// Renders:
+///   - Animated active highlight pill (opacity + scaleX)
+///   - Animated left indicator bar (height 0→16px via SizeTransition)
+///   - Icon color morph via ColorTween
+///   - Label weight change
+class _DesktopNavItem extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DesktopNavItem({
+    required this.icon,
+    required this.title,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  State<_DesktopNavItem> createState() => _DesktopNavItemState();
+}
+
+class _DesktopNavItemState extends State<_DesktopNavItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _highlightOpacity;
+  late final Animation<double> _highlightScaleX;
+  late final Animation<double> _barHeight;
+  late final Animation<Color?> _iconColor;
+
+  static const _inactiveColor = Color(0xFF8B95A8);
+  static const _activeColor = AppTheme.primaryLight;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: AppleMotion.navItemDuration,
+    );
+
+    final curved = CurvedAnimation(
+      parent: _ctrl,
+      curve: const Cubic(0.25, 1.0, 0.5, 1.0),
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    _highlightOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
+    _highlightScaleX = Tween<double>(begin: 0.88, end: 1.0).animate(curved);
+    _barHeight = Tween<double>(begin: 0.0, end: 16.0).animate(curved);
+    _iconColor = ColorTween(begin: _inactiveColor, end: _activeColor)
+        .animate(CurvedAnimation(
+      parent: _ctrl,
+      curve: Curves.easeOutCubic,
+    ));
+
+    if (widget.isActive) _ctrl.value = 1.0;
+  }
+
+  @override
+  void didUpdateWidget(covariant _DesktopNavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _ctrl.forward();
+    } else if (oldWidget.isActive && !widget.isActive) {
+      _ctrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 2.0),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (context, child) {
+              return Stack(
+                children: [
+                  // Animated highlight pill background
+                  Positioned.fill(
+                    child: Opacity(
+                      opacity: _highlightOpacity.value,
+                      child: Transform.scale(
+                        scaleX: _highlightScaleX.value,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppTheme.primary
+                                  .withValues(alpha: 0.28),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Content row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    child: Row(
+                      children: [
+                        // Animated indicator bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: SizedBox(
+                            width: 3.5,
+                            height: 16,
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: Container(
+                                width: 3.5,
+                                height: _barHeight.value,
+                                decoration: BoxDecoration(
+                                  color: _iconColor.value ??
+                                      _inactiveColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                            width: _highlightOpacity.value > 0.5 ? 10 : 4),
+                        // Icon with color morph
+                        Icon(
+                          widget.icon,
+                          color: _iconColor.value ?? _inactiveColor,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 12),
+                        // Label
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: TextStyle(
+                              color: _iconColor.value ?? _inactiveColor,
+                              fontWeight: _highlightOpacity.value > 0.5
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../../../data/models/call_model.dart';
 import '../../../../data/repositories/shop_repository.dart';
@@ -18,14 +17,32 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
+import '../../../shared/components/app_toast.dart';
+import '../../../shared/components/customer_lookup_banner.dart';
+import '../../../shared/dialogs/customer_history_dialog.dart';
+import '../../../../data/models/app_exceptions.dart';
+import '../../../../data/models/customer_profile.dart';
+import '../../../../data/services/customer_directory_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 
 class CallsView extends StatefulWidget {
   const CallsView({super.key});
+
+  /// Opens the detail dialog for a call record from anywhere in the app.
+  static void showDetailPopup(
+    BuildContext context,
+    CallModel call, {
+    CallsViewModel? viewModel,
+  }) {
+    final vm = viewModel ?? context.read<CallsViewModel>();
+    _CallsViewState._showDetailPopup(context, call, vm);
+  }
 
   @override
   State<CallsView> createState() => _CallsViewState();
@@ -164,10 +181,14 @@ class _CallsViewState extends State<CallsView> {
               (c.mobileNo?.toLowerCase().contains(query) ?? false) ||
               (c.query?.toLowerCase().contains(query) ?? false) ||
               (c.address?.toLowerCase().contains(query) ?? false) ||
+              (c.status.toLowerCase().contains(query)) ||
               (c.assignedTo.toLowerCase().contains(query)) ||
               UserPermissionService.formatStaffName(c.assignedTo)
                   .toLowerCase()
                   .contains(query);
+
+          final matchesStatus = _selectedStatus == 'All' ||
+              c.status.trim().toLowerCase() == _selectedStatus.trim().toLowerCase();
 
           bool matchesAssigned = true;
           if (_selectedAssigned == 'Unassigned') {
@@ -182,16 +203,17 @@ class _CallsViewState extends State<CallsView> {
                     _selectedAssigned.trim().toLowerCase();
           }
 
-          if (_selectedStatus == 'All') {
-            return matchesSearch && matchesAssigned;
-          }
-          return matchesSearch &&
-              matchesAssigned &&
-              c.status.toLowerCase() == _selectedStatus.toLowerCase();
+          return matchesSearch && matchesStatus && matchesAssigned;
         }).toList();
 
-        // Sort by ID descending (newest calls first)
-        filteredCalls.sort((a, b) => b.id.compareTo(a.id));
+        // Sort by date descending (newest calls first), tie-break with ID descending
+        filteredCalls.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.id.compareTo(a.id);
+        });
 
         final groupedCalls = _getGroupedCalls(filteredCalls);
 
@@ -248,208 +270,14 @@ class _CallsViewState extends State<CallsView> {
                 ],
               ),
 
-              // Search & Filters
+              // Search Bar
               if (isDesktop)
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppAnimatedSearchBar(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        onClear: () => setState(() {}),
-                        hintText: 'Search customer, mobile, query, staff...',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    // Status Filter Button
-                    Container(
-                      height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedStatus != 'All'
-                            ? AppTheme.primary.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _selectedStatus != 'All'
-                              ? AppTheme.primaryLight.withValues(alpha: 0.4)
-                              : Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedStatus,
-                          isDense: true,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontSize: 12.5,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          dropdownColor: const Color(0xFF131A2E),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: AppTheme.textMuted,
-                          ),
-                          selectedItemBuilder: (context) {
-                            return _allStatuses.map((status) {
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Status: ',
-                                    style: TextStyle(
-                                      color: AppTheme.textMuted,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: status != 'All'
-                                          ? AppTheme.primaryLight
-                                          : AppTheme.textPrimary,
-                                      fontSize: 12,
-                                      fontWeight: status != 'All'
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList();
-                          },
-                          items: _allStatuses.map((status) {
-                            return DropdownMenuItem<String>(
-                              value: status,
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedStatus = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    if (!isOnlyAssignedRestricted) ...[
-                      const SizedBox(width: 10),
-                      // Assigned Staff Filter Button
-                      Container(
-                        height: 40,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        decoration: BoxDecoration(
-                          color: _selectedAssigned != 'All'
-                              ? AppTheme.primary.withValues(alpha: 0.15)
-                              : Colors.white.withValues(alpha: 0.02),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _selectedAssigned != 'All'
-                                ? AppTheme.primaryLight.withValues(alpha: 0.4)
-                                : Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedAssigned,
-                            isDense: true,
-                            style: const TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 12.5,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            dropdownColor: const Color(0xFF131A2E),
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: _selectedAssigned != 'All'
-                                  ? AppTheme.primaryLight
-                                  : AppTheme.textMuted,
-                            ),
-                            selectedItemBuilder: (context) {
-                              return viewModel.availableAssignedPersons.map((a) {
-                                final displayName = a == 'All' || a == 'Unassigned'
-                                    ? a
-                                    : UserPermissionService.formatStaffName(a);
-                                return Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.person_search_rounded,
-                                      size: 15,
-                                      color: _selectedAssigned != 'All'
-                                          ? AppTheme.primaryLight
-                                          : AppTheme.textMuted,
-                                    ),
-                                    const SizedBox(width: 5),
-                                    const Text(
-                                      'Staff: ',
-                                      style: TextStyle(
-                                        color: AppTheme.textMuted,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 90),
-                                      child: Text(
-                                        displayName,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: _selectedAssigned != 'All'
-                                              ? AppTheme.primaryLight
-                                              : AppTheme.textPrimary,
-                                          fontSize: 12,
-                                          fontWeight: _selectedAssigned != 'All'
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }).toList();
-                            },
-                            items: viewModel.availableAssignedPersons.map((a) {
-                              final displayName = a == 'All' || a == 'Unassigned'
-                                  ? a
-                                  : UserPermissionService.formatStaffName(a);
-                              return DropdownMenuItem<String>(
-                                value: a,
-                                child: Text(
-                                  displayName,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedAssigned = val;
-                                });
-                                viewModel.setSelectedAssigned(val);
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                AppAnimatedSearchBar(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  onClear: () => setState(() {}),
+                  hintText: 'Search by customer, mobile, query, staff, status...',
+                  margin: const EdgeInsets.only(bottom: 10),
                 )
               else
                 AppSearchFilterBar(
@@ -549,13 +377,10 @@ class _CallsViewState extends State<CallsView> {
                                   ),
                                 ),
                                 items: viewModel.availableAssignedPersons.map((
-                                  a,
+                                  displayName,
                                 ) {
-                                  final displayName = a == 'All' || a == 'Unassigned'
-                                      ? a
-                                      : UserPermissionService.formatStaffName(a);
                                   return DropdownMenuItem(
-                                    value: a,
+                                    value: displayName,
                                     child: Text(displayName),
                                   );
                                 }).toList(),
@@ -611,19 +436,36 @@ class _CallsViewState extends State<CallsView> {
 
     for (final call in calls) {
       final statusName = call.status.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(call);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+        final defaultStatus = StatusManagementService.getDefaultStatus('calls');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(call);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(call);
         }
-        grouped[statusName]!.add(call);
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
+        if (dateComp != 0) return dateComp;
+        return b.id.compareTo(a.id);
+      });
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
@@ -631,76 +473,17 @@ class _CallsViewState extends State<CallsView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Call' : 'Calls'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Call',
+      pluralLabel: 'Calls',
+      color: _getStatusColor(status),
     );
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('calls', status);
   }
 
   Widget _buildEmptyState() {
@@ -718,121 +501,129 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     Map<String, List<CallModel>> groupedCalls,
   ) {
-    final double totalWidth =
-        _dateWidth +
-        _nameWidth +
-        _mobileWidth +
-        _queryWidth +
-        _assignedWidth;
+    final listEntries = <_CallListItem>[];
+    for (final entry in groupedCalls.entries) {
+      listEntries.add(_CallListItem.header(entry.key, entry.value.length));
+      for (final call in entry.value) {
+        listEntries.add(_CallListItem.card(call));
+      }
+    }
 
-    return Container(
-      width: double.infinity,
-      decoration: AppTheme.glassCardDecoration(
-        color: const Color(0x0AFFFFFF),
-        borderRadius: 12,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final bool isOnlyAssignedRestricted =
-              UserPermissionService.isOnlyAssignedRestricted('calls');
-          final double tableWidth = constraints.maxWidth > totalWidth
-              ? constraints.maxWidth
-              : totalWidth;
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
+    final bool isOnlyAssignedRestricted =
+        UserPermissionService.isOnlyAssignedRestricted('calls');
+
+    final double totalTableWidth =
+        (UserPermissionService.isFieldVisible('calls', 'date') ? _dateWidth : 0.0) +
+        (UserPermissionService.isFieldVisible('calls', 'name') ? _nameWidth : 0.0) +
+        (UserPermissionService.isFieldVisible('calls', 'mobileNo') ? _mobileWidth : 0.0) +
+        (UserPermissionService.isFieldVisible('calls', 'query') ? _queryWidth : 0.0) +
+        (UserPermissionService.isFieldVisible('calls', 'assignedTo') ? _assignedWidth : 0.0) +
+        40.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double effectiveWidth = totalTableWidth > constraints.maxWidth
+            ? totalTableWidth
+            : constraints.maxWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: effectiveWidth,
+            child: Container(
+              width: effectiveWidth,
+              decoration: AppTheme.glassCardDecoration(
+                color: const Color(0x0AFFFFFF),
+                borderRadius: 12,
+              ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
                   // Table Headers (Status column removed - grouped under status headers)
                   Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.06),
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildResizableHeader(
-                          'Date',
-                          _dateWidth,
-                          (delta) => _updateColumnWidth(
-                            'date',
-                            (_dateWidth + delta).clamp(80.0, 200.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Customer Name',
-                          _nameWidth,
-                          (delta) => _updateColumnWidth(
-                            'name',
-                            (_nameWidth + delta).clamp(120.0, 400.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Mobile',
-                          _mobileWidth,
-                          (delta) => _updateColumnWidth(
-                            'mobile',
-                            (_mobileWidth + delta).clamp(100.0, 300.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Query',
-                          _queryWidth,
-                          (delta) => _updateColumnWidth(
-                            'query',
-                            (_queryWidth + delta).clamp(120.0, 500.0),
-                          ),
-                        ),
-                        _buildResizableHeader(
-                          'Assigned To',
-                          _assignedWidth,
-                          (delta) => _updateColumnWidth(
-                            'assigned',
-                            (_assignedWidth + delta).clamp(120.0, 400.0),
-                          ),
-                          onTapDown: !isOnlyAssignedRestricted
-                              ? (details) => _showAssignedFilterMenu(
-                                    context,
-                                    viewModel,
-                                    details.globalPosition,
-                                  )
-                              : null,
-                          isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Scrollable Body grouped by Status
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          for (final entry in groupedCalls.entries) ...[
-                            _buildStatusSectionHeader(entry.key, entry.value.length),
-                            for (final call in entry.value) ...[
-                              _buildDesktopTableRow(context, viewModel, call),
-                            ],
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.02),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
               ),
             ),
-          );
-        },
+            child: Row(
+              children: [
+                if (UserPermissionService.isFieldVisible('calls', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'name'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(120.0, 400.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'query'))
+                  _buildResizableHeader(
+                    'Query',
+                    _queryWidth,
+                    (delta) => _updateColumnWidth(
+                      'query',
+                      (_queryWidth + delta).clamp(120.0, 500.0),
+                    ),
+                  ),
+                if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
+                  _buildResizableHeader(
+                    'Assigned To',
+                    _assignedWidth,
+                    (delta) => _updateColumnWidth(
+                      'assigned',
+                      (_assignedWidth + delta).clamp(120.0, 400.0),
+                    ),
+                    onTapDown: !isOnlyAssignedRestricted
+                        ? (details) => _showAssignedFilterMenu(
+                              context,
+                              viewModel,
+                              details.globalPosition,
+                            )
+                        : null,
+                    isFilterActive: !isOnlyAssignedRestricted && _selectedAssigned != 'All',
+                  ),
+              ],
+            ),
+          ),
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 24),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.call!);
+              },
+            ),
+          ),
+        ],
       ),
+    ),
+  ),
+);
+      },
     );
   }
+
 
   Widget _buildDesktopTableRow(
     BuildContext context,
@@ -852,48 +643,47 @@ class _CallsViewState extends State<CallsView> {
         ),
         child: Row(
           children: [
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                call.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            if (UserPermissionService.isFieldVisible('calls', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(call.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _queryWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                call.query ?? '-',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Container(
-              width: _assignedWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                UserPermissionService.formatStaffName(call.assignedTo),
-                style: const TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
+            if (UserPermissionService.isFieldVisible('calls', 'name'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  call.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('calls', 'query'))
+              Container(
+                width: _queryWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  call.query ?? '-',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'assignedTo'))
+              Container(
+                width: _assignedWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  UserPermissionService.formatStaffName(call.assignedTo),
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ),
@@ -1022,28 +812,33 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     Map<String, List<CallModel>> groupedCalls,
   ) {
+    final listEntries = <_CallListItem>[];
+    for (final entry in groupedCalls.entries) {
+      listEntries.add(_CallListItem.header(entry.key, entry.value.length));
+      for (final call in entry.value) {
+        listEntries.add(_CallListItem.card(call));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadCalls();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedCalls.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final call in entry.value) ...[
-                _buildMobileCallCard(context, viewModel, call),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileCallCard(context, viewModel, item.call!, itemIndex: index);
+        },
       ),
     );
   }
@@ -1051,8 +846,9 @@ class _CallsViewState extends State<CallsView> {
   Widget _buildMobileCallCard(
     BuildContext context,
     CallsViewModel viewModel,
-    CallModel call,
-  ) {
+    CallModel call, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(call.date);
     final metadata = <Widget>[];
 
@@ -1073,6 +869,36 @@ class _CallsViewState extends State<CallsView> {
               style: const TextStyle(
                 fontSize: 12,
                 color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (UserPermissionService.isFieldVisible('calls', 'address') &&
+        call.address != null &&
+        call.address!.trim().isNotEmpty &&
+        call.address != 'N/A') {
+      if (metadata.isNotEmpty) metadata.add(const SizedBox(height: 4));
+      metadata.add(
+        Row(
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              size: 13,
+              color: AppTheme.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                call.address!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -1113,13 +939,17 @@ class _CallsViewState extends State<CallsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('calls', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('calls', 'canDelete');
+
     return AppListCard(
+      index: itemIndex,
       title: call.name,
       statusBadge: _buildStatusChip(call.status),
       metadataRows: metadata,
       onTap: () => _showDetailPopup(context, call, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingCall: call),
-      onDelete: () => _confirmDeleteCall(context, viewModel, call.id),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingCall: call) : null,
+      onDelete: canDelete ? () => _confirmDeleteCall(context, viewModel, call.id) : null,
     );
   }
 
@@ -1130,6 +960,15 @@ class _CallsViewState extends State<CallsView> {
     CallsViewModel viewModel,
     int id,
   ) {
+    if (!UserPermissionService.canPerformModuleAction('calls', 'canDelete')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: You do not have permission to delete Calls.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1171,29 +1010,13 @@ class _CallsViewState extends State<CallsView> {
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor;
-    switch (status.toLowerCase()) {
-      case 'complete':
-        chipColor = AppTheme.success;
-        break;
-      case 'pre-complete':
-        chipColor = const Color(0xFF2196F3);
-        break;
-      case 'pending payment':
-        chipColor = const Color(0xFFFF9800);
-        break;
-      case 'pending':
-        chipColor = AppTheme.warning;
-        break;
-      default:
-        chipColor = AppTheme.textMuted;
-    }
+    final chipColor = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: chipColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: chipColor.withValues(alpha: 0.2)),
+        color: chipColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3)),
       ),
       child: Text(
         status,
@@ -1318,7 +1141,7 @@ class _CallsViewState extends State<CallsView> {
   }
 
   // Opens the resizable detail popup for a call entry
-  void _showDetailPopup(
+  static void _showDetailPopup(
     BuildContext context,
     CallModel call,
     CallsViewModel viewModel,
@@ -1335,103 +1158,141 @@ class _CallsViewState extends State<CallsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: call.name,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: call.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Address',
-              value: call.address ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Query / Problem',
-              value: call.query ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Assigned To',
-              value: UserPermissionService.formatStaffName(call.assignedTo),
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Estimate Amount',
-              value: call.estimate ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: call.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: call.notes ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (call.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('calls', 'name') && call.name.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: call.name,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'mobileNo') && call.mobileNo != null && call.mobileNo!.trim().isNotEmpty && call.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: call.mobileNo!,
+                onValueTap: () => CustomerHistoryDialog.show(
+                  context,
+                  phone: call.mobileNo,
+                ),
+                valueTooltip: 'View customer history for ${call.mobileNo}',
+                trailing: InlineCallButton(
+                  phone: call.mobileNo!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'address') && call.address != null && call.address!.trim().isNotEmpty && call.address != 'N/A')
+              ScaledInfoRow(
+                label: 'Address',
+                value: call.address!,
+                trailing: InlineDirectionsButton(
+                  address: call.address!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'query') && call.query != null && call.query!.trim().isNotEmpty && call.query != 'N/A')
+              ScaledInfoRow(
+                label: 'Query / Problem',
+                value: call.query!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'assignedTo') && call.assignedTo.trim().isNotEmpty && call.assignedTo != 'N/A')
+              ScaledInfoRow(
+                label: 'Assigned To',
+                value: UserPermissionService.formatStaffName(call.assignedTo),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'estimate') && call.estimate != null && call.estimate!.trim().isNotEmpty && call.estimate != 'N/A')
+              ScaledInfoRow(
+                label: 'Estimate Amount',
+                value: call.estimate!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: call.status,
+                valueWidget: AppStatusChip(
+                  status: call.status,
+                  moduleKey: 'calls',
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'notes') && call.notes != null && call.notes!.trim().isNotEmpty && call.notes != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes',
+                value: call.notes!,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('calls', 'photo') && call.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: call.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
             // Action buttons
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(call.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicateCall(context, call);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.request_page,
-                  label: 'Enter in Request',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'request', call),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', call),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('calls', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('calls', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('calls', 'canConvertToSale');
+              final canTransferInward = UserPermissionService.canPerformModuleAction('calls', 'canTransferInward');
+              final canTransferRequest = UserPermissionService.canPerformModuleAction('calls', 'canTransferRequest');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('calls', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferInward && !canTransferRequest && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(call),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicateCall(context, call);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, call),
+                    ),
+                  if (canTransferInward)
+                    ScaledActionButton(
+                      icon: Icons.build,
+                      label: 'Enter in Inward',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'inward', call),
+                    ),
+                  if (canTransferRequest)
+                    ScaledActionButton(
+                      icon: Icons.request_page,
+                      label: 'Enter in Request',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'request', call),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', call),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -1484,31 +1345,49 @@ class _CallsViewState extends State<CallsView> {
     );
   }
 
-  void _showAddEditDialog(BuildContext context, {CallModel? existingCall}) {
+  static Future<void> _showAddEditDialog(BuildContext context, {CallModel? existingCall}) async {
     final isEdit = existingCall != null;
     final actionKey = isEdit ? 'canEdit' : 'canAdd';
     if (!UserPermissionService.canPerformModuleAction('calls', actionKey)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isEdit
-                ? 'Access Denied: You do not have permission to edit Calls.'
-                : 'Access Denied: You do not have permission to log new Calls.',
-          ),
-          backgroundColor: AppTheme.danger,
-        ),
+      AppToast.showError(
+        context,
+        title: 'Access Denied',
+        message: isEdit
+            ? 'You do not have permission to edit Calls.'
+            : 'You do not have permission to log new Calls.',
       );
       return;
     }
 
+    int? assignedCallId;
+    if (!isEdit) {
+      final viewModel = context.read<CallsViewModel>();
+      try {
+        assignedCallId = await viewModel.fetchNextCallId();
+      } catch (e) {
+        if (!context.mounted) return;
+        AppToast.showWarning(
+          context,
+          title: 'Offline Mode',
+          message: 'Internet connection required to log a new Call.',
+        );
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
+
     showAppModalDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _CallFormDialog(existingCall: existingCall),
+      builder: (_) => _CallFormDialog(
+        existingCall: existingCall,
+        assignedCallId: assignedCallId,
+      ),
     );
   }
 
-  void _deleteCall(
+  static void _deleteCall(
     BuildContext context,
     CallsViewModel viewModel,
     int id,
@@ -1564,12 +1443,7 @@ class _CallsViewState extends State<CallsView> {
     }
   }
 
-  void _launchPhone(String number) async {
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  void _launchWhatsApp(CallModel call) {
+  static void _launchWhatsApp(CallModel call) {
     final mobileNo = call.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
     final message =
@@ -1577,12 +1451,29 @@ class _CallsViewState extends State<CallsView> {
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
-  void _duplicateCall(BuildContext context, CallModel call) {
+  static Future<void> _duplicateCall(BuildContext context, CallModel call) async {
+    int? assignedCallId;
+    final viewModel = context.read<CallsViewModel>();
+    try {
+      assignedCallId = await viewModel.fetchNextCallId();
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.showWarning(
+        context,
+        title: 'Offline Mode',
+        message: 'Internet connection required to log a new Call.',
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _CallFormDialog(
         existingCall: null,
+        assignedCallId: assignedCallId,
         prefillName: call.name,
         prefillMobile: call.mobileNo,
         prefillAddress: call.address,
@@ -1594,7 +1485,7 @@ class _CallsViewState extends State<CallsView> {
     );
   }
 
-  void _enterInModule(BuildContext context, String module, CallModel call) {
+  static void _enterInModule(BuildContext context, String module, CallModel call) {
     final navVM = context.read<NavigationViewModel>();
     Navigator.pop(context);
 
@@ -1628,16 +1519,22 @@ class _CallsViewState extends State<CallsView> {
     }
   }
 
-  void _convertToSale(BuildContext context, CallModel call) {
+  static void _convertToSale(BuildContext context, CallModel call) {
     final navVM = context.read<NavigationViewModel>();
     Navigator.pop(context);
+    final double? estAmount = call.estimate != null
+        ? double.tryParse(call.estimate!.replaceAll(RegExp(r'[^0-9.]'), ''))
+        : null;
     navVM.setIndex(
       NavigationViewModel.sales,
       prefillData: {
         'target': 'sales',
         'customerName': call.name,
         'customerNumber': call.mobileNo,
-        'itemName': 'Call log conversion - ${call.name}',
+        'itemName': (call.query != null && call.query!.trim().isNotEmpty)
+            ? 'Call Enquiry: ${call.query}'
+            : 'Call log conversion - ${call.name}',
+        if (estAmount != null && estAmount > 0) 'amount': estAmount,
       },
     );
   }
@@ -1649,6 +1546,7 @@ class _CallsViewState extends State<CallsView> {
 
 class _CallFormDialog extends StatefulWidget {
   final CallModel? existingCall;
+  final int? assignedCallId;
   final String? prefillName;
   final String? prefillMobile;
   final String? prefillAddress;
@@ -1659,6 +1557,7 @@ class _CallFormDialog extends StatefulWidget {
 
   const _CallFormDialog({
     this.existingCall,
+    this.assignedCallId,
     this.prefillName,
     this.prefillMobile,
     this.prefillAddress,
@@ -1685,6 +1584,7 @@ class _CallFormDialogState extends State<_CallFormDialog> {
   late String _status;
   String? _photoUrl;
   bool _isPhotoUploading = false;
+  CustomerProfile? _matchedCustomerProfile;
 
   List<String> get _staffOptions {
     final list = UserPermissionService.getStaffDisplayNames();
@@ -1752,10 +1652,33 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     _status =
         call?.status ??
         StatusManagementService.getDefaultStatus('calls');
+    _matchedCustomerProfile =
+        CustomerDirectoryService.instance.lookupCustomer(_mobileController.text);
+    _mobileController.addListener(_onMobileChanged);
+  }
+
+  void _onMobileChanged() {
+    final text = _mobileController.text.trim();
+    final profile = CustomerDirectoryService.instance.lookupCustomer(text);
+    if (profile != _matchedCustomerProfile) {
+      setState(() {
+        _matchedCustomerProfile = profile;
+      });
+      if (profile != null) {
+        if (_nameController.text.trim().isEmpty) {
+          _nameController.text = profile.displayName;
+        }
+        if (profile.lastAddress != null &&
+            _addressController.text.trim().isEmpty) {
+          _addressController.text = profile.lastAddress!;
+        }
+      }
+    }
   }
 
   @override
   void dispose() {
+    _mobileController.removeListener(_onMobileChanged);
     _nameController.dispose();
     _mobileController.dispose();
     _addressController.dispose();
@@ -1798,6 +1721,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
     final bool isNotesVis = UserPermissionService.isFieldVisible('calls', 'notes');
     final bool isNotesMod = UserPermissionService.canModifyField('calls', 'notes', isEdit: isEdit);
 
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('calls', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('calls', 'photo', isEdit: isEdit);
+
     final formContent = Form(
       key: _formKey,
       child: Column(
@@ -1820,7 +1746,41 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               readOnly: !isNameMod,
               enabled: isNameMod,
               style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: _buildInputDecoration('Customer Name *'),
+              decoration: _buildInputDecoration('Customer Name *').copyWith(
+                suffixIcon: (isMobile &&
+                        _matchedCustomerProfile != null &&
+                        _matchedCustomerProfile!.events.isNotEmpty)
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: TextButton.icon(
+                          onPressed: () => CustomerHistoryDialog.show(
+                            context,
+                            profile: _matchedCustomerProfile,
+                          ),
+                          icon: const Icon(Icons.history_rounded, size: 16),
+                          label: const Text(
+                            'History',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryLight,
+                            backgroundColor: AppTheme.primaryLight
+                                .withValues(alpha: 0.12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
               validator: (val) => (val == null || val.trim().isEmpty)
                   ? 'Please enter customer name'
                   : null,
@@ -1836,6 +1796,10 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               keyboardType: TextInputType.phone,
               decoration: _buildInputDecoration('Mobile Number'),
             ),
+            if (isMobile ||
+                _matchedCustomerProfile == null ||
+                _matchedCustomerProfile!.events.isEmpty)
+              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 16),
           ],
           if (isAddressVis) ...[
@@ -1906,33 +1870,31 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               if (isEstimateVis && isStatusVis) const SizedBox(width: 16),
               if (isStatusVis)
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isExpanded: true,
-                    dropdownColor: const Color(0xFF131A2E),
-                    style: const TextStyle(color: AppTheme.textPrimary),
-                    decoration: _buildInputDecoration('Status'),
-                    onChanged: isStatusMod
-                        ? (val) {
-                            if (val != null) {
-                              setState(() {
-                                _status = val;
-                              });
-                            }
-                          }
-                        : null,
-                    items:
-                        (() {
-                          final list =
-                              UserPermissionService.getAllowedSelectableStatuses(
-                            'calls',
-                          );
-                          final List<String> selectableList = List.from(list);
-                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                            selectableList.insert(0, _status);
-                          }
-                          return selectableList;
-                        })().map((st) {
+                  child: Builder(
+                    builder: (context) {
+                      final list = UserPermissionService.getAllowedSelectableStatuses('calls');
+                      final List<String> selectableList = List.from(list);
+                      final match = selectableList.firstWhere(
+                        (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
+                        orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
+                      );
+                      final effectiveStatus = match;
+                      return DropdownButtonFormField<String>(
+                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF131A2E),
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                        decoration: _buildInputDecoration('Status'),
+                        onChanged: isStatusMod
+                            ? (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _status = val;
+                                  });
+                                }
+                              }
+                            : null,
+                        items: selectableList.map((st) {
                           return DropdownMenuItem<String>(
                             value: st,
                             child: Text(
@@ -1942,6 +1904,8 @@ class _CallFormDialogState extends State<_CallFormDialog> {
                             ),
                           );
                         }).toList(),
+                      );
+                    },
                   ),
                 ),
             ],
@@ -1958,18 +1922,22 @@ class _CallFormDialogState extends State<_CallFormDialog> {
             ),
             const SizedBox(height: 16),
           ],
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Enquiry / Product Screenshot or Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
+          if (isPhotoVis)
+            PhotoAttachmentWidget(
+              category: 'calls',
+              initialPhotoUrl: _photoUrl,
+              label: 'Enquiry / Product Screenshot or Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      _photoUrl = urls;
+                    }
+                  : null,
+            ),
         ],
       ),
     );
@@ -2021,6 +1989,9 @@ class _CallFormDialogState extends State<_CallFormDialog> {
       );
     }
 
+    final bool hasHistory = _matchedCustomerProfile != null &&
+        _matchedCustomerProfile!.events.isNotEmpty;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF131A2E),
       shape: RoundedRectangleBorder(
@@ -2032,9 +2003,33 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
       content: Container(
-        constraints: const BoxConstraints(maxWidth: 620),
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: SingleChildScrollView(child: formContent),
+        constraints: BoxConstraints(maxWidth: hasHistory ? 1180 : 620),
+        width: MediaQuery.of(context).size.width * 0.92,
+        child: hasHistory
+            ? SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SingleChildScrollView(child: formContent),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: Color(0xFF334155),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: CustomerHistorySidePanel(
+                        profile: _matchedCustomerProfile!,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(child: formContent),
       ),
       actions: [
         TextButton(
@@ -2110,9 +2105,13 @@ class _CallFormDialogState extends State<_CallFormDialog> {
 
     setState(() => _isSaving = true);
 
+    int? activeCallId;
     try {
       final viewModel = context.read<CallsViewModel>();
-      final int callId = widget.existingCall?.id ?? viewModel.getNextCallId();
+      final int callId = widget.existingCall?.id ??
+          widget.assignedCallId ??
+          viewModel.getNextCallId();
+      activeCallId = callId;
 
       final assignedVal = _assignedController.text.trim().isNotEmpty
           ? _assignedController.text.trim()
@@ -2142,27 +2141,41 @@ class _CallFormDialogState extends State<_CallFormDialog> {
         photo: _photoUrl,
       );
 
-      await viewModel.saveCall(newCall);
+      final bool isNewEntry = widget.existingCall == null;
+      await viewModel.saveCall(newCall, isNew: isNewEntry);
 
       if (context.mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.existingCall != null
-                  ? 'Call record updated'
-                  : 'Call logged successfully',
-            ),
-          ),
+        AppToast.showSuccess(
+          context,
+          title: !isNewEntry ? 'Call Updated' : 'Call Logged',
+          message: !isNewEntry
+              ? 'Call record #$callId updated successfully.'
+              : 'Call #$callId logged successfully.',
+        );
+      }
+    } on DuplicateKeyException catch (_) {
+      if (context.mounted) {
+        AppToast.showError(
+          context,
+          title: 'Call ID Conflict',
+          message: 'Call #${activeCallId ?? ""} was just claimed on another device. Please retry.',
+        );
+      }
+    } on OfflineException catch (e) {
+      if (context.mounted) {
+        AppToast.showWarning(
+          context,
+          title: 'Offline',
+          message: e.message,
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving call: $e'),
-            backgroundColor: AppTheme.danger,
-          ),
+        AppToast.showError(
+          context,
+          title: 'Save Failed',
+          message: 'Error saving call: $e',
         );
       }
     } finally {
@@ -2171,4 +2184,15 @@ class _CallFormDialogState extends State<_CallFormDialog> {
       }
     }
   }
+}
+
+class _CallListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final CallModel? call;
+
+  _CallListItem.header(this.statusHeader, this.statusCount) : call = null;
+  _CallListItem.card(this.call)
+      : statusHeader = null,
+        statusCount = null;
 }

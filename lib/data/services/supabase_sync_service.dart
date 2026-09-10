@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/call_model.dart';
@@ -20,9 +20,34 @@ import '../services/user_permission_service.dart';
 import '../repositories/shop_repository.dart';
 import '../../ui/shared/status_management_dialog.dart';
 import 'ui_preferences_service.dart';
+import 'auto_update_service.dart';
+import 'fcm_service.dart';
+import '../../ui/shared/dialogs/call_alert_dialog.dart';
+import '../models/app_exceptions.dart';
 
 enum SyncStatus { offline, syncing, synced, error }
 
+/// ============================================================================
+/// CRITICAL ARCHITECTURE NOTICE FOR ALL DEVELOPERS & AI MODELS:
+/// ----------------------------------------------------------------------------
+/// This service is the core synchronization engine between local Hive storage
+/// and the self-hosted Supabase backend (running on Linux over direct IPv6).
+///
+/// KEY RULES & INVARIANTS:
+/// 1. DO NOT MODIFY SYNC OR MERGE LOGIC WITHOUT EXPLICIT PERMISSION FROM USER.
+/// 2. BATCHED QUERIES: syncAllTablesFromCloud() MUST run in 3 batched groups
+///    (max 4 concurrent requests). DO NOT revert to an unconstrained Future.wait
+///    of all 12 tables, as mobile network socket limits (max 6 connections)
+///    will starve the Realtime WebSocket channel and trigger timeouts.
+/// 3. DELTA SYNC: Every table query MUST include `updated_at >= lastSyncIso`
+///    to avoid re-downloading entire tables.
+/// 4. MERGE IN PLACE: Always save with `clearOthers: false` to preserve local
+///    offline edits and avoid wiping records.
+/// 5. TOMBSTONES: Deletions use the `deleted_records` table to ensure atomic
+///    and precise item removal across all devices without blind wipes.
+/// 6. ENDPOINT: The primary backend is `https://api.perfectsolutionnoida.in`
+///    (Cloudflare Zero Trust Tunnel). Do not change without user approval.
+/// ============================================================================
 class SupabaseSyncService extends ChangeNotifier {
   /// ─── OFFLINE SANDBOX / LOCAL TESTING TOGGLE ─────────────────────────────
   /// When true:
@@ -30,18 +55,20 @@ class SupabaseSyncService extends ChangeNotifier {
   /// 2. Realtime WebSocket subscription is skipped.
   /// 3. Push operations are NOT queued in the pending sync queue (sandbox isolation).
   /// 4. When set back to false, the app reconnects to Supabase cleanly without pushing test records.
-  static const bool kOfflineDevMode = true;
+  static const bool kOfflineDevMode = false;
 
   static const String _boxName = 'ui_preferences';
   static const String _urlKey = 'supabase_project_url';
   static const String _keyKey = 'supabase_anon_key';
-  static const String _defaultUrl =
-      'https://seminar-antidote-abrasion.ngrok-free.dev';
+  static const String _defaultUrl = 'https://api.perfectsolutionnoida.in';
   static const String _defaultAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzg4MDE5NTIzLCJleHAiOjIxMDMzNzk1MjN9.eGJCMvVSVQe3lezs_UfCv5TeYRsoB9beJtlZuALKZ28';
 
   static final SupabaseSyncService instance = SupabaseSyncService._internal();
   SupabaseSyncService._internal();
+
+  static String get defaultUrl => _defaultUrl;
+  static String get defaultAnonKey => _defaultAnonKey;
 
   String? _supabaseUrl;
   String? _supabaseAnonKey;
@@ -57,12 +84,24 @@ class SupabaseSyncService extends ChangeNotifier {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   bool _isReconnecting = false;
+  bool _isRealtimeSubscribed = false;
 
   SyncStatus get status => _status;
   String get statusMessage => _statusMessage;
   bool get isInitialized => _isInitialized;
   String? get supabaseUrl => _supabaseUrl ?? _defaultUrl;
   String? get supabaseAnonKey => _supabaseAnonKey ?? _defaultAnonKey;
+
+  /// Marks this service as initialized for sub-windows that share Supabase via
+  /// session recovery. Sub-windows should call this after recovering the session,
+  /// so that pushRecordToCloud / syncTableFromCloud work without starting a
+  /// competing Realtime subscription or heartbeat timer.
+  void markInitialized() {
+    _supabaseUrl = _defaultUrl;
+    _supabaseAnonKey = _defaultAnonKey;
+    _isInitialized = true;
+    _setStatus(SyncStatus.synced, 'Live Synced');
+  }
 
   /// Load credentials from local storage and initialize Supabase
   Future<void> init(LocalDatabaseService localDb) async {
@@ -127,6 +166,9 @@ class SupabaseSyncService extends ChangeNotifier {
           publishableKey: _supabaseAnonKey!,
           authOptions: const FlutterAuthClientOptions(
             authFlowType: AuthFlowType.pkce,
+          ),
+          realtimeClientOptions: const RealtimeClientOptions(
+            timeout: Duration(seconds: 30),
           ),
         );
       } catch (_) {
@@ -195,10 +237,10 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Verifies Realtime WebSocket subscription is active, recreating channel if missing.
+  /// Verifies Realtime WebSocket subscription is active, recreating channel if missing or closed.
   void ensureRealtimeConnected(LocalDatabaseService localDb) {
     if (!_isInitialized) return;
-    if (_realtimeChannel == null && !_isReconnecting) {
+    if (!_isRealtimeSubscribed && !_isReconnecting) {
       _subscribeRealtime(localDb);
     }
   }
@@ -207,10 +249,19 @@ class SupabaseSyncService extends ChangeNotifier {
   /// We do NOT push all local data — cloud is the single source of truth.
   Future<void> _performBackgroundSync(LocalDatabaseService localDb) async {
     try {
-      // 1. Pull authoritative data from cloud into local
-      await syncAllTablesFromCloud(localDb);
-      // 2. Flush any operations queued while the device was offline
+      // 1.5s delay to allow initial dashboard UI and animations to render smoothly
+      await Future.delayed(const Duration(milliseconds: 1500));
+      // 1. Flush any operations queued while the device was offline FIRST
       await flushOfflineQueue(localDb);
+      // 2. Small gap so Supabase can propagate records that were just pushed.
+      //    Without this, a full sync immediately after flush may not yet see
+      //    the newly-pushed rows and will delete them locally (clearOthers:true).
+      await Future.delayed(const Duration(milliseconds: 500));
+      // 3. Pull authoritative data from cloud into local.
+      //    If a fallback Hive box was opened (possibly empty), force a full
+      //    re-download to restore any data that may be missing locally.
+      final forceFullSync = localDb.hadFallbackBoxOpen;
+      await syncAllTablesFromCloud(localDb, force: forceFullSync);
     } catch (e) {
       if (kDebugMode) print('Background sync error: $e');
       _setStatus(SyncStatus.error, 'Background Sync Error: $e');
@@ -231,8 +282,8 @@ class SupabaseSyncService extends ChangeNotifier {
     }
 
     final now = DateTime.now();
-    // Anti-spam debounce: If clicked rapidly within 3 seconds, do instant local UI refresh without network hammering
-    if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 3) {
+    // Anti-spam debounce: If clicked rapidly within 2 seconds, do instant local UI refresh
+    if (!forceFullDownload && _lastManualTapTime != null && now.difference(_lastManualTapTime!).inSeconds < 2) {
       ShopRepository.notifyTableChanged('all');
       _setStatus(SyncStatus.synced, 'Live Synced');
       return;
@@ -253,28 +304,15 @@ class SupabaseSyncService extends ChangeNotifier {
       }
     }
 
-    _setStatus(SyncStatus.syncing, 'Checking connection & syncing...');
-
-    // Proactively probe server reachability for instant online/offline reflection
-    try {
-      final client = Supabase.instance.client;
-      await client.from('shop_settings').select('key').limit(1).timeout(const Duration(milliseconds: 2500));
-    } catch (e) {
-      if (kDebugMode) print('Manual sync connectivity probe failed: $e');
-      _setStatus(SyncStatus.error, 'Server Offline / Unreachable: $e');
-      ShopRepository.notifyTableChanged('all');
-      return;
-    }
+    _setStatus(SyncStatus.syncing, 'Syncing...');
 
     try {
-      await syncAllTablesFromCloud(localDb, force: forceFullDownload)
-          .timeout(const Duration(seconds: 15));
-      await flushOfflineQueue(localDb)
-          .timeout(const Duration(seconds: 10));
+      await syncAllTablesFromCloud(localDb, force: forceFullDownload, forceDelta: !forceFullDownload);
+      await flushOfflineQueue(localDb);
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Manual sync error: $e');
-      _setStatus(SyncStatus.error, 'Sync Error: $e');
+      _setStatus(SyncStatus.offline, 'Server Offline');
     } finally {
       // Always broadcast full UI refresh using local device resources (0 cloud egress)
       ShopRepository.notifyTableChanged('all');
@@ -284,9 +322,7 @@ class SupabaseSyncService extends ChangeNotifier {
   void _setStatus(SyncStatus status, String message) {
     _status = status;
     _statusMessage = message;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifyListeners();
-    });
+    notifyListeners();
   }
 
   /// Subscribes to real-time table mutations broadcast by Supabase.
@@ -296,26 +332,253 @@ class SupabaseSyncService extends ChangeNotifier {
     if (!_isInitialized) return;
     try {
       final client = Supabase.instance.client;
+      _reconnectTimer?.cancel();
+      _offlineDebounceTimer?.cancel();
+
       if (_realtimeChannel != null) {
-        try {
-          _realtimeChannel!.unsubscribe();
-          client.removeChannel(_realtimeChannel!);
-        } catch (_) {}
+        final oldChannel = _realtimeChannel;
         _realtimeChannel = null;
+        _isRealtimeSubscribed = false;
+        try {
+          oldChannel?.unsubscribe();
+          if (oldChannel != null) {
+            client.removeChannel(oldChannel);
+          }
+        } catch (_) {}
       }
 
       final pendingTables = <String>{};
 
-      _realtimeChannel = client.channel('public-db-changes')
+      final newChannel = client.channel('public-db-changes');
+      _realtimeChannel = newChannel;
+
+      newChannel
         ..onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          callback: (payload) {
+          callback: (payload) async {
+            if (_realtimeChannel != newChannel) return;
             final table = payload.table;
-            if (kDebugMode) print('Realtime change event on table: $table');
+            final eventType = payload.eventType;
+            final newRecord = payload.newRecord;
+            final oldRecord = payload.oldRecord;
+
+            if (kDebugMode) print('Realtime event on table: $table ($eventType)');
+
+            if (table == 'app_versions') {
+              AutoUpdateService.instance.checkForUpdates(force: true);
+              return;
+            }
+
+            // Direct in-memory fast path for immediate 0ms UI reflection
+            try {
+              if (eventType == PostgresChangeEvent.delete) {
+                // Use each table's specific PK column. Supabase may return an
+                // empty oldRecord if RLS doesn't allow returning old values —
+                // in that case fall back to newRecord (available on some configs).
+                final record = oldRecord.isNotEmpty ? oldRecord : newRecord;
+                String? rid;
+                switch (table) {
+                  case 'inward_repairs':
+                    rid = record['job_no']?.toString();
+                  case 'inward_estimate_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final jobNo = int.tryParse(record['job_no']?.toString() ?? '');
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deleteInwardEstimateItem(lineId, jobNo);
+                      ShopRepository.notifyTableChanged('inward_repairs');
+                      ShopRepository.notifyTableChanged('all');
+                    }
+                  case 'calls':
+                    rid = record['id']?.toString();
+                  case 'sales':
+                    rid = record['invoice_no']?.toString();
+                  case 'sale_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final invoiceNo = int.tryParse(record['invoice_no']?.toString() ?? '');
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deleteSaleItem(lineId, invoiceNo);
+                      ShopRepository.notifyTableChanged('sales');
+                      ShopRepository.notifyTableChanged('all');
+                    }
+                  case 'replacements':
+                    rid = record['job_no']?.toString();
+                  case 'requests':
+                    rid = record['id']?.toString();
+                  case 'purchases':
+                    rid = record['id']?.toString();
+                  case 'purchase_order_items':
+                    final lineId = record['line_id']?.toString() ?? record['id']?.toString();
+                    final purchaseId = record['purchase_id']?.toString();
+                    if (lineId != null && lineId.isNotEmpty) {
+                      await localDb.deletePurchaseOrderItem(lineId, purchaseId);
+                      ShopRepository.notifyTableChanged('purchases');
+                      ShopRepository.notifyTableChanged('all');
+                    }
+                  case 'pricelist':
+                    rid = record['id']?.toString();
+                  case 'dealers':
+                    rid = record['id']?.toString();
+                }
+                if (rid != null && rid.isNotEmpty) {
+                  switch (table) {
+                    case 'inward_repairs':
+                      await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+                    case 'calls':
+                      await localDb.deleteCall(int.tryParse(rid) ?? -1);
+                    case 'sales':
+                      await localDb.deleteSale(int.tryParse(rid) ?? -1);
+                    case 'replacements':
+                      await localDb.deleteReplacement(rid);
+                    case 'requests':
+                      await localDb.deleteRequestOrder(rid);
+                    case 'purchases':
+                      await localDb.deletePurchaseOrder(rid);
+                    case 'pricelist':
+                      await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+                    case 'dealers':
+                      await localDb.deleteDealer(rid);
+                  }
+                  ShopRepository.notifyTableChanged(table);
+                  ShopRepository.notifyTableChanged('all');
+                } else {
+                  if (kDebugMode) print('[Realtime] DELETE on $table — could not determine PK from record; skipping local delete. Will catch on next delta sync.');
+                }
+              } else if (newRecord.isNotEmpty) {
+                // If direct payload contains full record, save immediately into Hive
+                switch (table) {
+                  case 'inward_repairs':
+                    final repair = InwardRepair.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveInwardRepairHeaderOnly(repair);
+                    ShopRepository.notifyTableChanged('inward_repairs');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'inward_estimate_items':
+                    final item = InwardEstimateItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveInwardEstimateItemOnly(item);
+                    ShopRepository.notifyTableChanged('inward_repairs');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'calls':
+                    final call = CallModel.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveCall(call);
+                    ShopRepository.notifyTableChanged('calls');
+                    ShopRepository.notifyTableChanged('all');
+                    if (UserPermissionService.shouldReceiveCallAlertPopup() &&
+                        UserPermissionService.isEntryDirectlyAssignedToUser(call.assignedTo)) {
+                      final context = FcmService.navigatorKey?.currentContext;
+                      if (context != null && context.mounted) {
+                        CallAlertDialog.show(context, call);
+                      }
+                    }
+                  case 'sales':
+                    final sale = Sale.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveSaleHeaderOnly(sale);
+                    ShopRepository.notifyTableChanged('sales');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'sale_items':
+                    final item = SaleItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveSaleItemOnly(item);
+                    ShopRepository.notifyTableChanged('sales');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'replacements':
+                    final rep = Replacement.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveReplacement(rep);
+                    ShopRepository.notifyTableChanged('replacements');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'requests':
+                    final req = RequestOrder.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveRequestOrder(req);
+                    ShopRepository.notifyTableChanged('requests');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'purchases':
+                    final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.savePurchaseOrderHeaderOnly(pur);
+                    ShopRepository.notifyTableChanged('purchases');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'purchase_order_items':
+                    final item = PurchaseOrderItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.savePurchaseOrderItemOnly(item);
+                    ShopRepository.notifyTableChanged('purchases');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'pricelist':
+                    final item = PricelistItem.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.savePricelistItem(item);
+                    ShopRepository.notifyTableChanged('pricelist_items');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'dealers':
+                    final dealer = Dealer.fromJson(Map<String, dynamic>.from(newRecord));
+                    await localDb.saveDealer(dealer);
+                    ShopRepository.notifyTableChanged('dealers');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'app_users':
+                    await UserPermissionService.syncUsersFromCloud(force: true);
+                    ShopRepository.notifyTableChanged('app_users');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'shop_settings':
+                    final key = newRecord['key']?.toString();
+                    var value = newRecord['value'];
+                    if (value is String) {
+                      final trimmed = value.trim();
+                      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                        try {
+                          value = jsonDecode(trimmed);
+                        } catch (_) {}
+                      }
+                    }
+                    if (key == 'shop_status_colors' && value != null) {
+                      await StatusManagementService.loadFromStatusColorsMap(value);
+                    } else if (key == 'shop_custom_statuses' && value != null) {
+                      await StatusManagementService.loadFromCustomStatusesMap(value);
+                    } else if (key == 'shop_default_statuses' && value != null) {
+                      await StatusManagementService.loadFromDefaultStatusesMap(value);
+                    } else if (key == 'upi_ids_list' && value is List) {
+                      await localDb.saveUpiIdsList(List<String>.from(value.map((e) => e.toString())), syncToCloud: false);
+                    } else if (key == 'active_upi_id' && value != null) {
+                      await localDb.setActiveUpiId(value.toString(), syncToCloud: false);
+                    } else if (key == 'google_review_listing' && value != null) {
+                      await localDb.setGoogleReviewListing(value.toString(), syncToCloud: false);
+                    } else if (key == 'upi_names_map' && value is Map) {
+                      final map = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
+                      await localDb.saveUpiNamesMap(map, syncToCloud: false);
+                    } else if (key == 'custom_services_list' && value is List) {
+                      final cloudList = List<String>.from(value.map((e) => e.toString()));
+                      await localDb.setCustomServicesList(cloudList, syncToCloud: false);
+                      ShopRepository.notifyTableChanged('custom_services');
+                    }
+                    ShopRepository.notifyTableChanged('shop_settings');
+                    ShopRepository.notifyTableChanged('all');
+                  case 'deleted_records':
+                    final targetTable = newRecord['table_name']?.toString();
+                    final rid = newRecord['record_id']?.toString();
+                    if (targetTable != null && rid != null) {
+                      switch (targetTable) {
+                        case 'inward_repairs':
+                          await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+                        case 'calls':
+                          await localDb.deleteCall(int.tryParse(rid) ?? -1);
+                        case 'sales':
+                          await localDb.deleteSale(int.tryParse(rid) ?? -1);
+                        case 'replacements':
+                          await localDb.deleteReplacement(rid);
+                        case 'requests':
+                          await localDb.deleteRequestOrder(rid);
+                        case 'purchases':
+                          await localDb.deletePurchaseOrder(rid);
+                        case 'pricelist':
+                          await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+                      }
+                      ShopRepository.notifyTableChanged(targetTable);
+                      ShopRepository.notifyTableChanged('all');
+                    }
+                }
+              }
+            } catch (e) {
+              if (kDebugMode) print('Error applying realtime in-memory change: $e');
+            }
+
+            // Also schedule background delta fetch for child relations (estimate items, sale items, etc.)
             pendingTables.add(table);
             _debounceTimer?.cancel();
-            _debounceTimer = Timer(const Duration(milliseconds: 250), () async {
+            _debounceTimer = Timer(const Duration(milliseconds: 150), () async {
               final tablesToSync = Set<String>.from(pendingTables);
               pendingTables.clear();
               for (final t in tablesToSync) {
@@ -325,7 +588,10 @@ class SupabaseSyncService extends ChangeNotifier {
           },
         )
         ..subscribe((status, [error]) {
+          if (_realtimeChannel != newChannel) return; // Ignore teardown callbacks from stale channels
+
           if (status == RealtimeSubscribeStatus.subscribed) {
+            _isRealtimeSubscribed = true;
             _reconnectAttempts = 0;
             _isReconnecting = false;
             _offlineDebounceTimer?.cancel();
@@ -335,12 +601,16 @@ class SupabaseSyncService extends ChangeNotifier {
               _setStatus(SyncStatus.synced, 'Live Synced');
             }
             unawaited(flushOfflineQueue(localDb));
+            unawaited(syncAllTablesFromCloud(localDb, forceDelta: true));
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
+            _isRealtimeSubscribed = false;
             if (kDebugMode) {
               print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting with backoff...');
             }
+
+            _setStatus(SyncStatus.offline, 'Server Offline');
 
             if (_isReconnecting) return;
             _isReconnecting = true;
@@ -359,14 +629,6 @@ class SupabaseSyncService extends ChangeNotifier {
                   print('Supabase Realtime: attempting reconnect (attempt #$_reconnectAttempts, delay: ${reconnectDelay.inSeconds}s)...');
                 }
                 _subscribeRealtime(localDb);
-              }
-            });
-
-            // Debounce the offline yellow badge by 6 seconds to prevent visual glitching on transient renewals
-            _offlineDebounceTimer?.cancel();
-            _offlineDebounceTimer = Timer(const Duration(milliseconds: 6000), () {
-              if (_isInitialized && _status != SyncStatus.syncing && _status != SyncStatus.synced) {
-                _setStatus(SyncStatus.offline, 'Reconnecting to cloud...');
               }
             });
           }
@@ -396,27 +658,50 @@ class SupabaseSyncService extends ChangeNotifier {
       final hiveKey = keys[i];
       final operation = op['operation'] as String? ?? 'upsert';
       final tableName = op['table'] as String? ?? '';
-      final data = op['data'] as Map<String, dynamic>?;
+      final rawData = op['data'];
+      final Map<String, dynamic>? data = rawData is Map
+          ? Map<String, dynamic>.from(rawData)
+          : null;
       final pkColumn = op['primary_key_column'] as String?;
       final pkValue = op['primary_key_value'];
 
       try {
         if (operation == 'upsert' && data != null) {
           await client.from(tableName).upsert(data);
+        } else if (operation == 'upsert_items') {
+          // Child items queued offline (estimate items, purchase items).
+          // Replay as a safe upsert — never delete-then-insert.
+          final rawItems = op['items'];
+          if (rawItems is List && rawItems.isNotEmpty) {
+            final itemsPayload = rawItems
+                .map((i) => Map<String, dynamic>.from(i as Map))
+                .toList();
+            // Determine conflict column from table name
+            final conflictCol = tableName == 'sale_items' ? 'id' : 'line_id';
+            await client.from(tableName).upsert(itemsPayload, onConflict: conflictCol);
+          }
         } else if (operation == 'delete' && pkColumn != null) {
           await client.from(tableName).delete().eq(pkColumn, pkValue);
           // Also write tombstone for delete operations
-          await client.from('deleted_records').upsert({
-            'table_name': tableName,
-            'record_id': pkValue.toString(),
-          });
+          try {
+            await client.from('deleted_records').upsert({
+              'id': _generateUuid(),
+              'table_name': tableName,
+              'record_id': pkValue.toString(),
+              'deleted_at': DateTime.now().toUtc().toIso8601String(),
+            }, onConflict: 'table_name,record_id');
+          } catch (_) {}
         }
         // Success: remove from queue
         await localDb.removePendingSyncEntry(hiveKey);
         if (kDebugMode) print('Flushed offline op: $operation on $tableName');
       } catch (e) {
+        final errStr = e.toString();
         if (kDebugMode) print('Offline flush failed for $tableName: $e');
-        // Leave in queue to retry next time
+        // If error is unrecoverable schema mismatch or duplicate key, purge from local pending queue
+        if (errStr.contains('PGRST204') || errStr.contains('23505') || errStr.contains('schema cache')) {
+          await localDb.removePendingSyncEntry(hiveKey);
+        }
       }
     }
   }
@@ -541,6 +826,30 @@ class SupabaseSyncService extends ChangeNotifier {
         'value': upiNames,
         'updated_at': DateTime.now().toIso8601String(),
       });
+      final statusColors = StatusManagementService.getAllStatusColors();
+      if (statusColors.isNotEmpty) {
+        await client.from('shop_settings').upsert({
+          'key': 'shop_status_colors',
+          'value': statusColors,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+      final customStatuses = StatusManagementService.getAllCustomStatusLists();
+      if (customStatuses.isNotEmpty) {
+        await client.from('shop_settings').upsert({
+          'key': 'shop_custom_statuses',
+          'value': customStatuses,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+      final defaultStatuses = StatusManagementService.getAllDefaultStatuses();
+      if (defaultStatuses.isNotEmpty) {
+        await client.from('shop_settings').upsert({
+          'key': 'shop_default_statuses',
+          'value': defaultStatuses,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
     } catch (e) {
       if (kDebugMode) print('Push all local error: $e');
     }
@@ -568,7 +877,7 @@ class SupabaseSyncService extends ChangeNotifier {
 
       final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
       final String? lastSyncIso = (!force && lastSyncMillis > 0)
-          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 30000, isUtc: true).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 1800000, isUtc: true).toIso8601String()
           : null;
       final bool isDelta = lastSyncIso != null;
 
@@ -578,148 +887,290 @@ class SupabaseSyncService extends ChangeNotifier {
             : '[SupabaseSync] Performing Full Sync');
       }
 
-      // ── Step 0: Apply remote deletions (tombstones) ────────────────────────
-      try {
-        var tombstoneQuery = client.from('deleted_records').select();
-        if (isDelta) {
-          tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
+      // ── Parallel Cloud Fetch: Run all independent table queries concurrently ──
+      var tombstoneQuery = client.from('deleted_records').select();
+      if (isDelta) tombstoneQuery = tombstoneQuery.gte('deleted_at', lastSyncIso);
+
+      // Lightweight column select includes photo storage URLs while accelerating sync
+      var inwardQuery = client.from('inward_repairs').select('job_no,date,name,mobile_no,devices,query,purchased_from,notes,status,completion_date,updated_at,discount,photo');
+      var inwardItemsQuery = client.from('inward_estimate_items').select();
+      if (isDelta) {
+        inwardQuery = inwardQuery.gte('updated_at', lastSyncIso);
+        inwardItemsQuery = inwardItemsQuery.gte('updated_at', lastSyncIso);
+      }
+
+      var replacementQuery = client.from('replacements').select();
+      if (isDelta) replacementQuery = replacementQuery.gte('updated_at', lastSyncIso);
+
+      var requestQuery = client.from('requests').select();
+      if (isDelta) requestQuery = requestQuery.gte('updated_at', lastSyncIso);
+
+      var callQuery = client.from('calls').select();
+      if (isDelta) callQuery = callQuery.gte('updated_at', lastSyncIso);
+
+      var salesQuery = client.from('sales').select();
+      var salesItemsQuery = client.from('sale_items').select();
+      if (isDelta) {
+        salesQuery = salesQuery.gte('updated_at', lastSyncIso);
+        salesItemsQuery = salesItemsQuery.gte('updated_at', lastSyncIso);
+      }
+
+      var purchaseQuery = client.from('purchases').select();
+      var purchaseItemsQuery = client.from('purchase_order_items').select();
+      if (isDelta) {
+        purchaseQuery = purchaseQuery.gte('updated_at', lastSyncIso);
+        purchaseItemsQuery = purchaseItemsQuery.gte('updated_at', lastSyncIso);
+      }
+
+      var pricelistQuery = client.from('pricelist').select();
+      if (isDelta) pricelistQuery = pricelistQuery.gte('updated_at', lastSyncIso);
+
+      var settingsQuery = client.from('shop_settings').select();
+      if (isDelta) settingsQuery = settingsQuery.gte('updated_at', lastSyncIso);
+
+      var dealersQuery = client.from('dealers').select();
+      if (isDelta) dealersQuery = dealersQuery.gte('updated_at', lastSyncIso);
+
+      int queryErrors = 0;
+
+      // Batch 1: Deletions, Inward Repairs, Estimate Items, Calls (max 4 concurrent connections)
+      final batch1 = await Future.wait([
+        tombstoneQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Tombstone query skipped: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        inwardQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Inward query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        inwardItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Inward items query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        callQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Calls query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+      ]);
+
+      // Batch 2: Sales, Sale Items, Replacements, Requests
+      final batch2 = await Future.wait([
+        salesQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Sales query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        salesItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Sale items query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        replacementQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Replacements query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        requestQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Requests query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+      ]);
+
+      // Batch 3: Purchases, Purchase Order Items, Pricelist, Settings
+      final batch3 = await Future.wait([
+        purchaseQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Purchases query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        purchaseItemsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Purchase items query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        pricelistQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Pricelist query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+        settingsQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Shop settings query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+      ]);
+
+      // Batch 4: Dealers (max 4 concurrent connections)
+      final batch4 = await Future.wait([
+        dealersQuery.limit(50000).timeout(const Duration(seconds: 20)).catchError((e) {
+          queryErrors++;
+          if (kDebugMode) print('Dealers query error: $e');
+          return <Map<String, dynamic>>[];
+        }),
+      ]);
+
+      if (queryErrors >= 10) {
+        throw TimeoutException('Server Offline / Unreachable');
+      }
+
+      final deletions = (batch1[0] as List).cast<Map<String, dynamic>>();
+      final inwardData = (batch1[1] as List).cast<Map<String, dynamic>>();
+      final inwardItemsData = (batch1[2] as List).cast<Map<String, dynamic>>();
+      final callData = (batch1[3] as List).cast<Map<String, dynamic>>();
+
+      final salesData = (batch2[0] as List).cast<Map<String, dynamic>>();
+      final salesItemsData = (batch2[1] as List).cast<Map<String, dynamic>>();
+      final replacementData = (batch2[2] as List).cast<Map<String, dynamic>>();
+      final requestData = (batch2[3] as List).cast<Map<String, dynamic>>();
+
+      final purchaseData = (batch3[0] as List).cast<Map<String, dynamic>>();
+      final purchaseItemsData = (batch3[1] as List).cast<Map<String, dynamic>>();
+      final pricelistData = (batch3[2] as List).cast<Map<String, dynamic>>();
+      final settingsData = (batch3[3] as List).cast<Map<String, dynamic>>();
+
+      final dealersData = (batch4[0] as List).cast<Map<String, dynamic>>();
+
+      // ── Step 0: Apply remote deletions (tombstones with freshness guard) ───
+      for (final d in deletions) {
+        final tbl = d['table_name']?.toString() ?? '';
+        final rid = d['record_id']?.toString();
+        if (rid == null || rid.isEmpty) continue;
+        final deletedAtStr = d['deleted_at']?.toString();
+        final deletedAt = deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
+        switch (tbl) {
+          case 'inward_repairs':
+            final id = int.tryParse(rid) ?? -1;
+            final local = localDb.getInwardRepairByJobNo(id);
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteInwardRepair(id);
+          case 'calls':
+            final id = int.tryParse(rid) ?? -1;
+            final local = localDb.getCallById(id);
+            if (local != null && deletedAt != null) {
+              final upStr = local['updated_at']?.toString();
+              final up = upStr != null ? DateTime.tryParse(upStr) : null;
+              if (up != null && up.isAfter(deletedAt)) continue;
+            }
+            await localDb.deleteCall(id);
+          case 'sales':
+            final id = int.tryParse(rid) ?? -1;
+            final sales = localDb.getSales();
+            final local = sales.where((s) => s.invoiceNo == id).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteSale(id);
+          case 'replacements':
+            final repls = localDb.getReplacements();
+            final local = repls.where((r) => r.jobNo == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteReplacement(rid);
+          case 'requests':
+            final reqs = localDb.getRequestOrders();
+            final local = reqs.where((r) => r.id == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteRequestOrder(rid);
+          case 'purchases':
+            final purs = localDb.getPurchaseOrders();
+            final local = purs.where((p) => p.id == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deletePurchaseOrder(rid);
+          case 'pricelist':
+            final id = int.tryParse(rid) ?? -1;
+            await localDb.deletePricelistItem(id);
+          case 'dealers':
+            final dealers = localDb.getDealers();
+            final local = dealers.where((d) => d.id == rid).firstOrNull;
+            if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+            await localDb.deleteDealer(rid);
         }
-        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 5));
-        for (final d in deletions) {
-          final tbl = d['table_name']?.toString() ?? '';
-          final rid = d['record_id']?.toString();
-          if (rid == null || rid.isEmpty) continue;
-          switch (tbl) {
-            case 'inward_repairs':
-              await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
-            case 'calls':
-              await localDb.deleteCall(int.tryParse(rid) ?? -1);
-            case 'sales':
-              await localDb.deleteSale(int.tryParse(rid) ?? -1);
-            case 'replacements':
-              await localDb.deleteReplacement(rid);
-            case 'requests':
-              await localDb.deleteRequestOrder(rid);
-            case 'purchases':
-              await localDb.deletePurchaseOrder(rid);
-            case 'dealers':
-              await localDb.deleteDealer(rid);
-          }
-        }
-      } catch (e) {
-        if (kDebugMode) print('Tombstone sync skipped: $e');
       }
 
       // ── Step 1: Inward Repairs ─────────────────────────────────────────────
-      var inwardQuery = client.from('inward_repairs').select();
-      var inwardItemsQuery = client.from('inward_estimate_items').select();
-      if (isDelta) {
-        inwardQuery = inwardQuery.gt('updated_at', lastSyncIso);
-        inwardItemsQuery = inwardItemsQuery.gt('updated_at', lastSyncIso);
-      }
-      final inwardData = await inwardQuery.timeout(const Duration(seconds: 5));
-      final inwardItemsData = await inwardItemsQuery.timeout(const Duration(seconds: 5));
-
       final repairsMap = <int, Map<String, dynamic>>{};
       final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
 
-      if (!isDelta) {
-        for (final json in inwardData) {
-          final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
-          Map<String, dynamic> repairJson = cloudRepair.toJson();
-          if (cloudRepair.photo == null || cloudRepair.photo!.isEmpty) {
-            final hasPhotoKey = json.containsKey('photo');
-            if (!hasPhotoKey) {
-              final existingLocalRepair = localDb.getInwardRepairByJobNo(cloudRepair.jobNo);
-              if (existingLocalRepair != null && existingLocalRepair.photo != null && existingLocalRepair.photo!.isNotEmpty) {
-                repairJson['photo'] = existingLocalRepair.photo;
-              }
+      for (final json in inwardData) {
+        final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
+        Map<String, dynamic> repairJson = cloudRepair.toJson();
+        if (cloudRepair.photo == null || cloudRepair.photo!.isEmpty) {
+          final hasPhotoKey = json.containsKey('photo');
+          if (!hasPhotoKey) {
+            final existingLocalRepair = localDb.getInwardRepairByJobNo(cloudRepair.jobNo);
+            if (existingLocalRepair != null && existingLocalRepair.photo != null && existingLocalRepair.photo!.isNotEmpty) {
+              repairJson['photo'] = existingLocalRepair.photo;
             }
           }
-          repairsMap[cloudRepair.jobNo] = repairJson;
-          final itemsJson = inwardItemsData
-              .where((i) => i['job_no']?.toString() == cloudRepair.jobNo.toString())
-              .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
-              .toList();
-          inwardItemsMap[cloudRepair.jobNo] = itemsJson;
         }
-        await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: true);
-      } else {
+        repairsMap[cloudRepair.jobNo] = repairJson;
+      }
+
+      if (isDelta && (inwardData.isNotEmpty || inwardItemsData.isNotEmpty)) {
         final affectedJobs = <int>{};
         for (final json in inwardData) {
-          final jno = int.tryParse(json['job_no']?.toString() ?? '');
-          if (jno != null) affectedJobs.add(jno);
+          final j = int.tryParse(json['job_no']?.toString() ?? '');
+          if (j != null) affectedJobs.add(j);
         }
         for (final json in inwardItemsData) {
-          final jno = int.tryParse(json['job_no']?.toString() ?? '');
-          if (jno != null) affectedJobs.add(jno);
+          final j = int.tryParse(json['job_no']?.toString() ?? '');
+          if (j != null) affectedJobs.add(j);
         }
-
         if (affectedJobs.isNotEmpty) {
-          final fullInwardData = await client
-              .from('inward_repairs')
-              .select()
-              .inFilter('job_no', affectedJobs.toList())
-              .timeout(const Duration(seconds: 5));
-          final fullItemsData = await client
+          final fullItems = await client
               .from('inward_estimate_items')
               .select()
               .inFilter('job_no', affectedJobs.toList())
-              .timeout(const Duration(seconds: 5));
-
-          for (final json in fullInwardData) {
-            final cloudRepair = InwardRepair.fromJson(Map<String, dynamic>.from(json));
-            Map<String, dynamic> repairJson = cloudRepair.toJson();
-            if (cloudRepair.photo == null || cloudRepair.photo!.isEmpty) {
-              final hasPhotoKey = json.containsKey('photo');
-              if (!hasPhotoKey) {
-                final existingLocalRepair = localDb.getInwardRepairByJobNo(cloudRepair.jobNo);
-                if (existingLocalRepair != null && existingLocalRepair.photo != null && existingLocalRepair.photo!.isNotEmpty) {
-                  repairJson['photo'] = existingLocalRepair.photo;
-                }
-              }
-            }
-            repairsMap[cloudRepair.jobNo] = repairJson;
-          }
-
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
           for (final jno in affectedJobs) {
-            final itemsJson = fullItemsData
+            final itemsJson = (fullItems as List)
                 .where((i) => i['job_no']?.toString() == jno.toString())
                 .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                 .toList();
-            inwardItemsMap[jno] = itemsJson;
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('inward_estimate_items', 'job_no', jno)) {
+              inwardItemsMap[jno] = itemsJson;
+            }
           }
-
-          await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: false);
+        }
+      } else if (!isDelta) {
+        for (final json in inwardItemsData) {
+          final jno = int.tryParse(json['job_no']?.toString() ?? '');
+          if (jno != null) {
+            final item = InwardEstimateItem.fromJson(Map<String, dynamic>.from(json));
+            inwardItemsMap.putIfAbsent(jno, () => []).add(item.toJson());
+          }
         }
       }
 
+      if (repairsMap.isNotEmpty || inwardItemsMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: !isDelta);
+      }
+
       // ── Step 2: Replacements ───────────────────────────────────────────────
-      var replacementQuery = client.from('replacements').select();
-      if (isDelta) replacementQuery = replacementQuery.gt('updated_at', lastSyncIso);
-      final replacementData = await replacementQuery.timeout(const Duration(seconds: 5));
       final replacementMap = <String, Map<String, dynamic>>{};
       for (final json in replacementData) {
         final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
         replacementMap[repl.jobNo] = repl.toJson();
       }
-      await localDb.saveAllReplacements(replacementMap, clearOthers: !isDelta);
+      if (replacementMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllReplacements(replacementMap, clearOthers: !isDelta);
+      }
 
       // ── Step 3: Requests ───────────────────────────────────────────────────
-      var requestQuery = client.from('requests').select();
-      if (isDelta) requestQuery = requestQuery.gt('updated_at', lastSyncIso);
-      final requestData = await requestQuery.timeout(const Duration(seconds: 5));
       final requestMap = <String, Map<String, dynamic>>{};
       for (final json in requestData) {
         final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
         requestMap[req.id] = req.toJson();
       }
-      await localDb.saveAllRequests(requestMap, clearOthers: !isDelta);
+      if (requestMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllRequests(requestMap, clearOthers: !isDelta);
+      }
 
       // ── Step 4: Calls ──────────────────────────────────────────────────────
-      var callQuery = client.from('calls').select();
-      if (isDelta) callQuery = callQuery.gt('updated_at', lastSyncIso);
-      final callData = await callQuery.timeout(const Duration(seconds: 5));
       final callMap = <int, Map<String, dynamic>>{};
       for (final json in callData) {
         final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
@@ -740,32 +1191,20 @@ class SupabaseSyncService extends ChangeNotifier {
 
         callMap[cloudCall.id] = callJson;
       }
-      await localDb.saveAllCalls(callMap, clearOthers: !isDelta);
+      if (callMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllCalls(callMap, clearOthers: !isDelta);
+      }
 
       // ── Step 5: Sales ──────────────────────────────────────────────────────
-      var salesQuery = client.from('sales').select();
-      var salesItemsQuery = client.from('sale_items').select();
-      if (isDelta) {
-        salesQuery = salesQuery.gt('updated_at', lastSyncIso);
-        salesItemsQuery = salesItemsQuery.gt('updated_at', lastSyncIso);
-      }
-      final salesData = await salesQuery.timeout(const Duration(seconds: 5));
-      final salesItemsData = await salesItemsQuery.timeout(const Duration(seconds: 5));
       final salesMap = <int, Map<String, dynamic>>{};
       final salesItemsMap = <int, List<Map<String, dynamic>>>{};
 
-      if (!isDelta) {
-        for (final json in salesData) {
-          final sale = Sale.fromJson(Map<String, dynamic>.from(json));
-          salesMap[sale.invoiceNo] = sale.toJson();
-          final itemsJson = salesItemsData
-              .where((i) => i['invoice_no']?.toString() == sale.invoiceNo.toString())
-              .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
-              .toList();
-          salesItemsMap[sale.invoiceNo] = itemsJson;
-        }
-        await localDb.saveAllSales(salesMap, salesItemsMap, clearOthers: true);
-      } else {
+      for (final json in salesData) {
+        final sale = Sale.fromJson(Map<String, dynamic>.from(json));
+        salesMap[sale.invoiceNo] = sale.toJson();
+      }
+
+      if (isDelta && (salesData.isNotEmpty || salesItemsData.isNotEmpty)) {
         final affectedInvoices = <int>{};
         for (final json in salesData) {
           final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
@@ -775,60 +1214,47 @@ class SupabaseSyncService extends ChangeNotifier {
           final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
           if (inv != null) affectedInvoices.add(inv);
         }
-
         if (affectedInvoices.isNotEmpty) {
-          final fullSalesData = await client
-              .from('sales')
-              .select()
-              .inFilter('invoice_no', affectedInvoices.toList())
-              .timeout(const Duration(seconds: 5));
-          final fullSaleItemsData = await client
+          final fullItems = await client
               .from('sale_items')
               .select()
               .inFilter('invoice_no', affectedInvoices.toList())
-              .timeout(const Duration(seconds: 5));
-
-          for (final json in fullSalesData) {
-            final sale = Sale.fromJson(Map<String, dynamic>.from(json));
-            salesMap[sale.invoiceNo] = sale.toJson();
-          }
-
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
           for (final inv in affectedInvoices) {
-            final itemsJson = fullSaleItemsData
+            final itemsJson = (fullItems as List)
                 .where((i) => i['invoice_no']?.toString() == inv.toString())
                 .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                 .toList();
-            salesItemsMap[inv] = itemsJson;
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('sale_items', 'invoice_no', inv)) {
+              salesItemsMap[inv] = itemsJson;
+            }
           }
-
-          await localDb.saveAllSales(salesMap, salesItemsMap, clearOthers: false);
         }
+      } else if (!isDelta) {
+        for (final json in salesItemsData) {
+          final inv = int.tryParse(json['invoice_no']?.toString() ?? '');
+          if (inv != null) {
+            final item = SaleItem.fromJson(Map<String, dynamic>.from(json));
+            salesItemsMap.putIfAbsent(inv, () => []).add(item.toJson());
+          }
+        }
+      }
+
+      if (salesMap.isNotEmpty || salesItemsMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllSales(salesMap, salesItemsMap, clearOthers: !isDelta);
       }
 
       // ── Step 6: Purchases ──────────────────────────────────────────────────
-      var purchaseQuery = client.from('purchases').select();
-      var purchaseItemsQuery = client.from('purchase_order_items').select();
-      if (isDelta) {
-        purchaseQuery = purchaseQuery.gt('updated_at', lastSyncIso);
-        purchaseItemsQuery = purchaseItemsQuery.gt('updated_at', lastSyncIso);
-      }
-      final purchaseData = await purchaseQuery.timeout(const Duration(seconds: 5));
-      final purchaseItemsData = await purchaseItemsQuery.timeout(const Duration(seconds: 5));
       final purchasesMap = <String, Map<String, dynamic>>{};
       final purchaseItemsMap = <String, List<Map<String, dynamic>>>{};
 
-      if (!isDelta) {
-        for (final json in purchaseData) {
-          final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
-          purchasesMap[pur.id] = pur.toJson();
-          final itemsJson = purchaseItemsData
-              .where((i) => i['purchase_id']?.toString() == pur.id.toString())
-              .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
-              .toList();
-          purchaseItemsMap[pur.id] = itemsJson;
-        }
-        await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap, clearOthers: true);
-      } else {
+      for (final json in purchaseData) {
+        final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
+        purchasesMap[pur.id] = pur.toJson();
+      }
+
+      if (isDelta && (purchaseData.isNotEmpty || purchaseItemsData.isNotEmpty)) {
         final affectedPurchases = <String>{};
         for (final json in purchaseData) {
           final pid = json['id']?.toString();
@@ -838,72 +1264,77 @@ class SupabaseSyncService extends ChangeNotifier {
           final pid = json['purchase_id']?.toString();
           if (pid != null && pid.isNotEmpty) affectedPurchases.add(pid);
         }
-
         if (affectedPurchases.isNotEmpty) {
-          final fullPurchData = await client
-              .from('purchases')
-              .select()
-              .inFilter('id', affectedPurchases.toList())
-              .timeout(const Duration(seconds: 5));
-          final fullItemsData = await client
+          final fullItems = await client
               .from('purchase_order_items')
               .select()
               .inFilter('purchase_id', affectedPurchases.toList())
-              .timeout(const Duration(seconds: 5));
-
-          for (final json in fullPurchData) {
-            final pur = PurchaseOrder.fromJson(Map<String, dynamic>.from(json));
-            purchasesMap[pur.id] = pur.toJson();
-          }
-
+              .limit(50000)
+              .timeout(const Duration(seconds: 25));
           for (final pid in affectedPurchases) {
-            final itemsJson = fullItemsData
+            final itemsJson = (fullItems as List)
                 .where((i) => i['purchase_id']?.toString() == pid)
                 .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                 .toList();
-            purchaseItemsMap[pid] = itemsJson;
+            if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('purchase_order_items', 'purchase_id', pid)) {
+              purchaseItemsMap[pid] = itemsJson;
+            }
           }
-
-          await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap, clearOthers: false);
+        }
+      } else if (!isDelta) {
+        for (final json in purchaseItemsData) {
+          final pid = json['purchase_id']?.toString();
+          if (pid != null && pid.isNotEmpty) {
+            final item = PurchaseOrderItem.fromJson(Map<String, dynamic>.from(json));
+            purchaseItemsMap.putIfAbsent(pid, () => []).add(item.toJson());
+          }
         }
       }
 
+      if (purchasesMap.isNotEmpty || purchaseItemsMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllPurchases(purchasesMap, purchaseItemsMap, clearOthers: !isDelta);
+      }
+
       // ── Step 7: Pricelist ──────────────────────────────────────────────────
-      var pricelistQuery = client.from('pricelist').select();
-      if (isDelta) pricelistQuery = pricelistQuery.gt('updated_at', lastSyncIso);
-      final pricelistData = await pricelistQuery.timeout(const Duration(seconds: 5));
       final pricelistMap = <int, Map<String, dynamic>>{};
       for (final json in pricelistData) {
         final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
         pricelistMap[item.id] = item.toJson();
       }
+      if (pricelistMap.isNotEmpty || !isDelta) {
+        await localDb.saveAllPricelistItems(pricelistMap, clearOthers: !isDelta);
+        ShopRepository.notifyTableChanged('pricelist_items');
+      }
+
       // ── Step 8: Dealers ────────────────────────────────────────────────────
-      try {
-        var dealersQuery = client.from('dealers').select();
-        if (isDelta) dealersQuery = dealersQuery.gt('updated_at', lastSyncIso);
-        final dealersData = await dealersQuery.timeout(const Duration(seconds: 5));
-        final dealersList = <Dealer>[];
-        for (final json in dealersData) {
-          dealersList.add(Dealer.fromJson(Map<String, dynamic>.from(json)));
-        }
-        if (dealersList.isNotEmpty || !isDelta) {
-          await localDb.saveAllDealers(dealersList, clearOthers: !isDelta);
-        }
-      } catch (e) {
-        if (kDebugMode) print('Dealers table sync error: $e');
+      final dealersList = <Dealer>[];
+      for (final json in dealersData) {
+        dealersList.add(Dealer.fromJson(Map<String, dynamic>.from(json)));
+      }
+      if (dealersList.isNotEmpty || !isDelta) {
+        await localDb.saveAllDealers(dealersList, clearOthers: !isDelta);
+        ShopRepository.notifyTableChanged('dealers');
       }
 
       // ── Step 9: Users & Permissions ────────────────────────────────────────
       await UserPermissionService.syncUsersFromCloud(force: force);
 
-      // ── Step 10: Shop Settings (UPI IDs, Active UPI ID, UPI Names) ──────────
+      // ── Step 10: Shop Settings (UPI IDs, Active UPI ID, UPI Names, Status Colors) ──
       try {
-        final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
         final settingsMap = <String, dynamic>{};
         for (final item in settingsData) {
           final key = item['key']?.toString();
           if (key != null) {
-            settingsMap[key] = item['value'];
+            var val = item['value'];
+            if (val is String) {
+              final trimmed = val.trim();
+              if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                  val = jsonDecode(trimmed);
+                } catch (_) {}
+              }
+            }
+            settingsMap[key] = val;
           }
         }
 
@@ -915,7 +1346,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await client.from('shop_settings').upsert({
               'key': 'active_upi_id',
               'value': localActive,
-              'updated_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
             });
           }
         }
@@ -924,11 +1355,13 @@ class SupabaseSyncService extends ChangeNotifier {
           await localDb.setGoogleReviewListing(settingsMap['google_review_listing'].toString(), syncToCloud: false);
         } else if (!isDelta) {
           final localReview = localDb.getGoogleReviewListing();
-          await client.from('shop_settings').upsert({
-            'key': 'google_review_listing',
-            'value': localReview,
-            'updated_at': DateTime.now().toIso8601String(),
-          });
+          if (localReview.isNotEmpty) {
+            await client.from('shop_settings').upsert({
+              'key': 'google_review_listing',
+              'value': localReview,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            });
+          }
         }
 
         if (settingsMap.containsKey('upi_ids_list') && settingsMap['upi_ids_list'] is List) {
@@ -940,7 +1373,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await client.from('shop_settings').upsert({
               'key': 'upi_ids_list',
               'value': localList,
-              'updated_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
             });
           }
         }
@@ -956,34 +1389,30 @@ class SupabaseSyncService extends ChangeNotifier {
             await client.from('shop_settings').upsert({
               'key': 'upi_names_map',
               'value': localNames,
-              'updated_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
             });
           }
         }
 
-        if (settingsMap.containsKey('shop_custom_statuses') && settingsMap['shop_custom_statuses'] is Map) {
+        if (settingsMap.containsKey('shop_custom_statuses') && settingsMap['shop_custom_statuses'] != null) {
           await StatusManagementService.loadFromCustomStatusesMap(settingsMap['shop_custom_statuses']);
         }
-        if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] is Map) {
+        if (settingsMap.containsKey('shop_default_statuses') && settingsMap['shop_default_statuses'] != null) {
           await StatusManagementService.loadFromDefaultStatusesMap(settingsMap['shop_default_statuses']);
         }
+        if (settingsMap.containsKey('shop_status_colors') && settingsMap['shop_status_colors'] != null) {
+          await StatusManagementService.loadFromStatusColorsMap(settingsMap['shop_status_colors']);
+        }
 
-        if (settingsMap.containsKey('dealers_registry') && settingsMap['dealers_registry'] is List) {
-          final List<Dealer> list = [];
-          for (var item in settingsMap['dealers_registry'] as List) {
-            try {
-              list.add(Dealer.fromJson(Map<String, dynamic>.from(item)));
-            } catch (_) {}
-          }
-          if (list.isNotEmpty) {
-            await localDb.saveAllDealers(list);
-          }
+        if (settingsMap.containsKey('custom_services_list') && settingsMap['custom_services_list'] is List) {
+          final cloudList = (settingsMap['custom_services_list'] as List).map((e) => e.toString()).toList();
+          await localDb.setCustomServicesList(cloudList, syncToCloud: false);
         } else if (!isDelta) {
-          final localDealers = localDb.getDealers();
-          if (localDealers.isNotEmpty) {
+          final localList = localDb.getCustomServiceNames();
+          if (localList.isNotEmpty) {
             await client.from('shop_settings').upsert({
-              'key': 'dealers_registry',
-              'value': localDealers.map((d) => d.toJson()).toList(),
+              'key': 'custom_services_list',
+              'value': localList,
               'updated_at': DateTime.now().toIso8601String(),
             });
           }
@@ -1010,7 +1439,7 @@ class SupabaseSyncService extends ChangeNotifier {
       final client = Supabase.instance.client;
       final lastSyncMillis = (UiPreferencesService.getValue('last_full_sync_timestamp') as num?)?.toInt() ?? 0;
       final String? lastSyncIso = lastSyncMillis > 0
-          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 30000, isUtc: true).toIso8601String()
+          ? DateTime.fromMillisecondsSinceEpoch(lastSyncMillis - 1800000, isUtc: true).toIso8601String()
           : null;
 
       // Handle table deletion tombstones
@@ -1020,28 +1449,55 @@ class SupabaseSyncService extends ChangeNotifier {
           tombstoneQuery = tombstoneQuery.eq('table_name', tableName);
         }
         if (lastSyncIso != null) {
-          tombstoneQuery = tombstoneQuery.gt('deleted_at', lastSyncIso);
+          tombstoneQuery = tombstoneQuery.gte('deleted_at', lastSyncIso);
         }
-        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 4));
+        final deletions = await tombstoneQuery.timeout(const Duration(seconds: 25));
         for (final d in deletions) {
           final tbl = d['table_name']?.toString() ?? tableName;
           final rid = d['record_id']?.toString();
           if (rid == null || rid.isEmpty) continue;
+          final deletedAtStr = d['deleted_at']?.toString();
+          final deletedAt = deletedAtStr != null ? DateTime.tryParse(deletedAtStr) : null;
+
           switch (tbl) {
             case 'inward_repairs':
-              await localDb.deleteInwardRepair(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final local = localDb.getInwardRepairByJobNo(id);
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+              await localDb.deleteInwardRepair(id);
             case 'calls':
-              await localDb.deleteCall(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final local = localDb.getCallById(id);
+              if (local != null && deletedAt != null) {
+                final upStr = local['updated_at']?.toString();
+                final up = upStr != null ? DateTime.tryParse(upStr) : null;
+                if (up != null && up.isAfter(deletedAt)) continue;
+              }
+              await localDb.deleteCall(id);
             case 'sales':
-              await localDb.deleteSale(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              final sales = localDb.getSales();
+              final local = sales.where((s) => s.invoiceNo == id).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
+              await localDb.deleteSale(id);
             case 'replacements':
+              final repls = localDb.getReplacements();
+              final local = repls.where((r) => r.jobNo == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deleteReplacement(rid);
             case 'requests':
+              final reqs = localDb.getRequestOrders();
+              final local = reqs.where((r) => r.id == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deleteRequestOrder(rid);
             case 'purchases':
+              final purs = localDb.getPurchaseOrders();
+              final local = purs.where((p) => p.id == rid).firstOrNull;
+              if (local != null && deletedAt != null && local.updatedAt.isAfter(deletedAt)) continue;
               await localDb.deletePurchaseOrder(rid);
             case 'pricelist':
-              await localDb.deletePricelistItem(int.tryParse(rid) ?? -1);
+              final id = int.tryParse(rid) ?? -1;
+              await localDb.deletePricelistItem(id);
           }
         }
         if (tableName == 'deleted_records') {
@@ -1055,11 +1511,11 @@ class SupabaseSyncService extends ChangeNotifier {
           var q = client.from('inward_repairs').select();
           var iq = client.from('inward_estimate_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            iq = iq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            iq = iq.gte('updated_at', lastSyncIso);
           }
-          final inwardData = await q.timeout(const Duration(seconds: 5));
-          final inwardItemsData = await iq.timeout(const Duration(seconds: 5));
+          final inwardData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final inwardItemsData = await iq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedJobs = <int>{};
           for (final json in inwardData) {
@@ -1076,12 +1532,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('inward_repairs')
                 .select()
                 .inFilter('job_no', affectedJobs.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullItemsData = await client
                 .from('inward_estimate_items')
                 .select()
                 .inFilter('job_no', affectedJobs.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final repairsMap = <int, Map<String, dynamic>>{};
             final inwardItemsMap = <int, List<Map<String, dynamic>>>{};
@@ -1106,20 +1564,37 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['job_no']?.toString() == jno.toString())
                   .map((i) => InwardEstimateItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              inwardItemsMap[jno] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('inward_estimate_items', 'job_no', jno)) {
+                inwardItemsMap[jno] = itemsJson;
+              }
             }
 
             await localDb.saveAllInwardRepairs(repairsMap, inwardItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('inward_repairs');
+          ShopRepository.notifyTableChanged('all');
 
         case 'calls':
           var q = client.from('calls').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final callsData = await q.timeout(const Duration(seconds: 5));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final callsData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final callsMap = <int, Map<String, dynamic>>{};
+          final List<CallModel> newlyAssignedCalls = [];
+
           for (final json in callsData) {
             final cloudCall = CallModel.fromJson(Map<String, dynamic>.from(json));
+            final localRaw = localDb.getCallById(cloudCall.id);
+            final wasAlreadyHere = localRaw != null;
+            final prevAssigned = localRaw?['assigned_to']?.toString();
+
+            // If newly assigned to current user (excluding admins / sale user), queue full screen alert popup
+            if (UserPermissionService.shouldReceiveCallAlertPopup() &&
+                UserPermissionService.isEntryDirectlyAssignedToUser(cloudCall.assignedTo)) {
+              if (!wasAlreadyHere || (prevAssigned != cloudCall.assignedTo)) {
+                newlyAssignedCalls.add(cloudCall);
+              }
+            }
+
             Map<String, dynamic> callJson = cloudCall.toJson();
             if ((cloudCall.photo == null || cloudCall.photo!.isEmpty)) {
               final hasPhotoKey = json.containsKey('photo');
@@ -1139,17 +1614,28 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllCalls(callsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('calls');
+          ShopRepository.notifyTableChanged('all');
+
+          // Trigger full screen alert dialog with soothing chime for newly assigned calls
+          if (newlyAssignedCalls.isNotEmpty) {
+            for (final call in newlyAssignedCalls) {
+              final context = FcmService.navigatorKey?.currentContext;
+              if (context != null && context.mounted) {
+                CallAlertDialog.show(context, call);
+              }
+            }
+          }
 
         case 'sales':
         case 'sale_items':
           var q = client.from('sales').select();
           var sq = client.from('sale_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            sq = sq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            sq = sq.gte('updated_at', lastSyncIso);
           }
-          final salesData = await q.timeout(const Duration(seconds: 5));
-          final saleItemsData = await sq.timeout(const Duration(seconds: 5));
+          final salesData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final saleItemsData = await sq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedInvoices = <int>{};
           for (final json in salesData) {
@@ -1166,12 +1652,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('sales')
                 .select()
                 .inFilter('invoice_no', affectedInvoices.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullSaleItemsData = await client
                 .from('sale_items')
                 .select()
                 .inFilter('invoice_no', affectedInvoices.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final salesMap = <int, Map<String, dynamic>>{};
             final saleItemsMap = <int, List<Map<String, dynamic>>>{};
@@ -1186,17 +1674,20 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['invoice_no']?.toString() == inv.toString())
                   .map((i) => SaleItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              saleItemsMap[inv] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('sale_items', 'invoice_no', inv)) {
+                saleItemsMap[inv] = itemsJson;
+              }
             }
 
             await localDb.saveAllSales(salesMap, saleItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('sales');
+          ShopRepository.notifyTableChanged('all');
 
         case 'replacements':
           var q = client.from('replacements').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final replData = await q.timeout(const Duration(seconds: 5));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final replData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final replMap = <String, Map<String, dynamic>>{};
           for (final json in replData) {
             final repl = Replacement.fromJson(Map<String, dynamic>.from(json));
@@ -1206,11 +1697,12 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllReplacements(replMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('replacements');
+          ShopRepository.notifyTableChanged('all');
 
         case 'requests':
           var q = client.from('requests').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final reqData = await q.timeout(const Duration(seconds: 5));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final reqData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final reqMap = <String, Map<String, dynamic>>{};
           for (final json in reqData) {
             final req = RequestOrder.fromJson(Map<String, dynamic>.from(json));
@@ -1220,6 +1712,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllRequests(reqMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('requests');
+          ShopRepository.notifyTableChanged('all');
 
         case 'purchases':
         case 'purchase_items':
@@ -1227,11 +1720,11 @@ class SupabaseSyncService extends ChangeNotifier {
           var q = client.from('purchases').select();
           var pq = client.from('purchase_order_items').select();
           if (lastSyncIso != null) {
-            q = q.gt('updated_at', lastSyncIso);
-            pq = pq.gt('updated_at', lastSyncIso);
+            q = q.gte('updated_at', lastSyncIso);
+            pq = pq.gte('updated_at', lastSyncIso);
           }
-          final purchData = await q.timeout(const Duration(seconds: 5));
-          final purchItemsData = await pq.timeout(const Duration(seconds: 5));
+          final purchData = await q.limit(50000).timeout(const Duration(seconds: 25));
+          final purchItemsData = await pq.limit(50000).timeout(const Duration(seconds: 25));
 
           final affectedPurchases = <String>{};
           for (final json in purchData) {
@@ -1248,12 +1741,14 @@ class SupabaseSyncService extends ChangeNotifier {
                 .from('purchases')
                 .select()
                 .inFilter('id', affectedPurchases.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
             final fullItemsData = await client
                 .from('purchase_order_items')
                 .select()
                 .inFilter('purchase_id', affectedPurchases.toList())
-                .timeout(const Duration(seconds: 5));
+                .limit(50000)
+                .timeout(const Duration(seconds: 25));
 
             final purchMap = <String, Map<String, dynamic>>{};
             final purchItemsMap = <String, List<Map<String, dynamic>>>{};
@@ -1268,18 +1763,21 @@ class SupabaseSyncService extends ChangeNotifier {
                   .where((i) => i['purchase_id']?.toString() == pid)
                   .map((i) => PurchaseOrderItem.fromJson(Map<String, dynamic>.from(i)).toJson())
                   .toList();
-              purchItemsMap[pid] = itemsJson;
+              if (itemsJson.isNotEmpty || !localDb.hasPendingSyncForParent('purchase_order_items', 'purchase_id', pid)) {
+                purchItemsMap[pid] = itemsJson;
+              }
             }
 
             await localDb.saveAllPurchases(purchMap, purchItemsMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('purchases');
+          ShopRepository.notifyTableChanged('all');
 
         case 'pricelist':
         case 'pricelist_items':
           var q = client.from('pricelist').select();
-          if (lastSyncIso != null) q = q.gt('updated_at', lastSyncIso);
-          final priceData = await q.timeout(const Duration(seconds: 5));
+          if (lastSyncIso != null) q = q.gte('updated_at', lastSyncIso);
+          final priceData = await q.limit(50000).timeout(const Duration(seconds: 25));
           final priceMap = <int, Map<String, dynamic>>{};
           for (final json in priceData) {
             final item = PricelistItem.fromJson(Map<String, dynamic>.from(json));
@@ -1289,6 +1787,7 @@ class SupabaseSyncService extends ChangeNotifier {
             await localDb.saveAllPricelistItems(priceMap, clearOthers: false);
           }
           ShopRepository.notifyTableChanged('pricelist_items');
+          ShopRepository.notifyTableChanged('all');
 
         case 'app_users':
           await UserPermissionService.syncUsersFromCloud(force: true);
@@ -1298,10 +1797,18 @@ class SupabaseSyncService extends ChangeNotifier {
 
 
         case 'shop_settings':
-          final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 5));
+          final settingsData = await client.from('shop_settings').select().timeout(const Duration(seconds: 25));
           for (final row in settingsData) {
             final key = row['key']?.toString();
-            final value = row['value'];
+            var value = row['value'];
+            if (value is String) {
+              final trimmed = value.trim();
+              if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                  value = jsonDecode(trimmed);
+                } catch (_) {}
+              }
+            }
             if (key == 'upi_ids_list' && value is List) {
               await localDb.saveUpiIdsList(List<String>.from(value.map((e) => e.toString())), syncToCloud: false);
             } else if (key == 'active_upi_id' && value != null) {
@@ -1311,10 +1818,16 @@ class SupabaseSyncService extends ChangeNotifier {
             } else if (key == 'upi_names_map' && value is Map) {
               final map = Map<String, String>.from(value.map((k, v) => MapEntry(k.toString(), v.toString())));
               await localDb.saveUpiNamesMap(map, syncToCloud: false);
-            } else if (key == 'shop_custom_statuses' && value is Map) {
+            } else if (key == 'shop_custom_statuses' && value != null) {
               await StatusManagementService.loadFromCustomStatusesMap(value);
-            } else if (key == 'shop_default_statuses' && value is Map) {
+            } else if (key == 'shop_default_statuses' && value != null) {
               await StatusManagementService.loadFromDefaultStatusesMap(value);
+            } else if (key == 'shop_status_colors' && value != null) {
+              await StatusManagementService.loadFromStatusColorsMap(value);
+            } else if (key == 'custom_services_list' && value is List) {
+              final cloudList = List<String>.from(value.map((e) => e.toString()));
+              await localDb.setCustomServicesList(cloudList, syncToCloud: false);
+              ShopRepository.notifyTableChanged('custom_services');
             }
           }
           ShopRepository.notifyTableChanged('shop_settings');
@@ -1327,14 +1840,127 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  // ─── Remote Sequence Fetchers (Option A) ──────────────────────────────────
+  /// Fetches current maximum `job_no` from cloud `inward_repairs` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteInwardJobNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('inward_repairs')
+          .select('job_no')
+          .order('job_no', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['job_no'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteInwardJobNo error: $e');
+      throw OfflineException('Unable to reach server to verify Job Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `invoice_no` from cloud `sales` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteInvoiceNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('sales')
+          .select('invoice_no')
+          .order('invoice_no', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['invoice_no'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteInvoiceNo error: $e');
+      throw OfflineException('Unable to reach server to verify Invoice Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `job_no` (e.g. Z1, Z2, ...) from cloud `replacements` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<String?> fetchMaxRemoteReplacementJobNo({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('replacements')
+          .select('job_no')
+          .order('updated_at', ascending: false)
+          .limit(100)
+          .timeout(timeout);
+      int maxNum = 0;
+      for (final row in res) {
+        final keyStr = row['job_no']?.toString() ?? '';
+        if (keyStr.startsWith('Z')) {
+          final parsed = int.tryParse(keyStr.substring(1));
+          if (parsed != null && parsed > maxNum) {
+            maxNum = parsed;
+          }
+        }
+      }
+      return 'Z$maxNum';
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteReplacementJobNo error: $e');
+      throw OfflineException('Unable to reach server to verify Replacement Job Number: $e');
+    }
+  }
+
+  /// Fetches current maximum `id` from cloud `calls` table.
+  /// Throws [OfflineException] if not connected or timed out.
+  Future<int?> fetchMaxRemoteCallId({
+    Duration timeout = const Duration(milliseconds: 3500),
+  }) async {
+    if (!_isInitialized) throw const OfflineException('Not connected to cloud.');
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('calls')
+          .select('id')
+          .order('id', ascending: false)
+          .limit(1)
+          .timeout(timeout);
+      if (res.isNotEmpty) {
+        final val = res[0]['id'];
+        if (val is int) return val;
+        if (val != null) return int.tryParse(val.toString());
+      }
+      return 0;
+    } catch (e) {
+      if (kDebugMode) print('fetchMaxRemoteCallId error: $e');
+      throw OfflineException('Unable to reach server to verify Call ID: $e');
+    }
+  }
+
   // ─── Offline-Aware Push ────────────────────────────────────────────────────
   /// Uploads a single record to Supabase table when created/edited locally.
-  /// If the device is offline (push fails), the operation is saved to the
-  /// offline queue and will be retried on next sync / app open.
+  /// If [isInsert] is true, executes strict `.insert()` to fail safely on
+  /// primary key collisions without overwriting existing data.
+  /// If the device is offline and [isInsert] is false, the operation is saved
+  /// to the offline queue and retried on next sync.
   Future<void> pushRecordToCloud(
     String tableName,
     Map<String, dynamic> data, {
     LocalDatabaseService? localDb,
+    bool isInsert = false,
   }) async {
     if (kOfflineDevMode) {
       if (kDebugMode) print('[OfflineDevMode] Sandbox: record saved locally only ($tableName).');
@@ -1345,6 +1971,11 @@ class SupabaseSyncService extends ChangeNotifier {
     payload['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
     if (!_isInitialized) {
+      if (isInsert) {
+        throw const OfflineException(
+          'Cannot insert new record while offline. Internet connection required.',
+        );
+      }
       if (localDb != null) {
         await localDb.enqueuePendingSync({
           'operation': 'upsert',
@@ -1360,23 +1991,69 @@ class SupabaseSyncService extends ChangeNotifier {
     try {
       _setStatus(SyncStatus.syncing, 'Syncing change...');
       final client = Supabase.instance.client;
-      try {
-        await client.from(tableName).upsert(payload);
-      } catch (e) {
-        // If cloud table doesn't have discount column yet, fallback without discount field
-        if (payload.containsKey('discount')) {
-          final fallbackData = Map<String, dynamic>.from(payload)
-            ..remove('discount');
-          await client.from(tableName).upsert(fallbackData);
-        } else {
-          rethrow;
+
+      if (isInsert) {
+        try {
+          await client.from(tableName).insert(payload);
+        } catch (e) {
+          final errStr = e.toString().toLowerCase();
+          if (errStr.contains('23505') ||
+              errStr.contains('duplicate key') ||
+              errStr.contains('unique constraint') ||
+              errStr.contains('already exists')) {
+            final pkVal = payload['invoice_no'] ??
+                payload['job_no'] ??
+                payload['id'];
+            throw DuplicateKeyException(
+              message: 'Primary key conflict in $tableName: Record $pkVal already exists in cloud.',
+              conflictingKey: pkVal,
+            );
+          }
+          // Fallback if cloud schema lacks discount column
+          if (payload.containsKey('discount')) {
+            final fallbackData = Map<String, dynamic>.from(payload)
+              ..remove('discount');
+            await client.from(tableName).insert(fallbackData);
+          } else {
+            rethrow;
+          }
+        }
+      } else {
+        try {
+          await client.from(tableName).upsert(payload);
+        } catch (e) {
+          // If cloud table doesn't have discount column yet, fallback without discount field
+          if (payload.containsKey('discount')) {
+            final fallbackData = Map<String, dynamic>.from(payload)
+              ..remove('discount');
+            await client.from(tableName).upsert(fallbackData);
+          } else {
+            rethrow;
+          }
         }
       }
+
+      // Purge any existing tombstone for this record so old deletions never kill this live record
+      final pkVal = payload['invoice_no'] ?? payload['job_no'] ?? payload['id'];
+      if (pkVal != null) {
+        try {
+          await client
+              .from('deleted_records')
+              .delete()
+              .eq('table_name', tableName)
+              .eq('record_id', pkVal.toString());
+        } catch (_) {}
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
+      if (e is DuplicateKeyException || e is OfflineException) {
+        _setStatus(SyncStatus.error, 'Conflict on $tableName: $e');
+        rethrow;
+      }
       if (kDebugMode) print('Push to cloud error ($tableName): $e — queuing for offline retry');
-      // Queue for retry when device comes back online
-      if (localDb != null) {
+      // Queue for retry when device comes back online (only for regular edits/upserts)
+      if (localDb != null && !isInsert) {
         await localDb.enqueuePendingSync({
           'operation': 'upsert',
           'table': tableName,
@@ -1387,6 +2064,7 @@ class SupabaseSyncService extends ChangeNotifier {
       } else {
         _setStatus(SyncStatus.error, 'Sync Error ($tableName): $e');
       }
+      rethrow;
     }
   }
 
@@ -1419,6 +2097,93 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
+  /// Batch saves sale items for an invoice.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert.
+  Future<void> saveSaleItemsForInvoice(
+    int invoiceNo,
+    List<SaleItem> items, {
+    LocalDatabaseService? localDb,
+    bool isEdit = false,
+  }) async {
+    if (!_isInitialized) {
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'sale_items',
+          'parent_key_column': 'invoice_no',
+          'parent_key_value': invoiceNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: sale items queued for invoice #$invoiceNo');
+      }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing sale items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('sale_items').upsert(payload, onConflict: 'id');
+      }
+
+      // Step 2: Delete only removed items when editing existing invoice.
+      // Strictly disabled on new sales (isEdit == false) to prevent wiping existing rows.
+      if (isEdit) {
+        final incomingIds = items.map((e) => e.id).toSet();
+        final cloudItems = await client
+            .from('sale_items')
+            .select('id')
+            .eq('invoice_no', invoiceNo);
+        final cloudIds = (cloudItems as List)
+            .map((r) => r['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final toDelete = cloudIds.difference(incomingIds);
+        if (toDelete.isNotEmpty) {
+          await client
+              .from('sale_items')
+              .delete()
+              .inFilter('id', toDelete.toList());
+        }
+      }
+
+      _setStatus(SyncStatus.synced, 'Live Synced');
+    } catch (e) {
+      if (kDebugMode) print('Save sale items cloud error ($invoiceNo): $e');
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'sale_items',
+          'parent_key_column': 'invoice_no',
+          'parent_key_value': invoiceNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+      _setStatus(SyncStatus.error, 'Sync Error (Sale Items): $e');
+    }
+  }
+
   /// Deletes all sale items for a given invoice_no before updating
   Future<void> deleteSaleItemsForInvoice(int invoiceNo) async {
     if (!_isInitialized) return;
@@ -1431,60 +2196,189 @@ class SupabaseSyncService extends ChangeNotifier {
     }
   }
 
-  /// Batch saves estimate items for a job after parent inward repair is saved
+  /// Batch saves estimate items for a job after parent inward repair is saved.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert so
+  /// a network blip between the two operations can never destroy cloud items.
   Future<void> saveEstimateItemsForJob(
     int jobNo,
-    List<InwardEstimateItem> items,
-  ) async {
-    if (!_isInitialized) return;
-
-    try {
-      _setStatus(SyncStatus.syncing, 'Syncing estimate items...');
-      final client = Supabase.instance.client;
-      await client.from('inward_estimate_items').delete().eq('job_no', jobNo);
-
-      if (items.isNotEmpty) {
+    List<InwardEstimateItem> items, {
+    LocalDatabaseService? localDb,
+    bool isEdit = false,
+  }) async {
+    if (!_isInitialized) {
+      // Offline: queue items so they sync when connectivity is restored.
+      if (localDb != null) {
         final payload = items.map((e) {
           final m = e.toJson();
           m['updated_at'] = DateTime.now().toUtc().toIso8601String();
           return m;
         }).toList();
-        await client.from('inward_estimate_items').upsert(payload);
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'inward_estimate_items',
+          'parent_key_column': 'job_no',
+          'parent_key_value': jobNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: estimate items queued for job $jobNo');
       }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing estimate items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on line_id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('inward_estimate_items').upsert(payload, onConflict: 'line_id');
+      }
+
+      // Step 2: Delete only removed items when editing existing repair.
+      // Strictly disabled on new jobs (isEdit == false) to prevent wiping existing rows.
+      if (isEdit) {
+        final incomingLineIds = items.map((e) => e.lineId).toSet();
+        final cloudItems = await client
+            .from('inward_estimate_items')
+            .select('line_id')
+            .eq('job_no', jobNo);
+        final cloudLineIds = (cloudItems as List)
+            .map((r) => r['line_id']?.toString())
+            .whereType<String>()
+            .toSet();
+        final toDelete = cloudLineIds.difference(incomingLineIds);
+        if (toDelete.isNotEmpty) {
+          await client
+              .from('inward_estimate_items')
+              .delete()
+              .inFilter('line_id', toDelete.toList());
+        }
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save estimate items cloud error ($jobNo): $e');
+      // Queue for retry on next flush
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'inward_estimate_items',
+          'parent_key_column': 'job_no',
+          'parent_key_value': jobNo,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
       _setStatus(SyncStatus.error, 'Sync Error (Estimate Items): $e');
     }
   }
 
-  /// Batch saves purchase order items after parent purchase order is saved
+  /// Batch saves purchase order items after parent purchase order is saved.
+  /// OFFLINE-SAFE: queues the full item list when offline so items are never lost.
+  /// RACE-SAFE: uses upsert + targeted delete instead of delete-then-insert.
   Future<void> savePurchaseItemsForPurchase(
     String purchaseId,
-    List<PurchaseOrderItem> items,
-  ) async {
-    if (!_isInitialized) return;
-
-    try {
-      _setStatus(SyncStatus.syncing, 'Syncing purchase items...');
-      final client = Supabase.instance.client;
-      await client
-          .from('purchase_order_items')
-          .delete()
-          .eq('purchase_id', purchaseId);
-
-      if (items.isNotEmpty) {
+    List<PurchaseOrderItem> items, {
+    LocalDatabaseService? localDb,
+  }) async {
+    if (!_isInitialized) {
+      // Offline: queue items so they sync when connectivity is restored.
+      if (localDb != null) {
         final payload = items.map((e) {
           final m = e.toSupabaseJson();
           m['updated_at'] = DateTime.now().toUtc().toIso8601String();
           return m;
         }).toList();
-        await client.from('purchase_order_items').upsert(payload);
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'purchase_order_items',
+          'parent_key_column': 'purchase_id',
+          'parent_key_value': purchaseId,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+        _setStatus(SyncStatus.error, 'Offline: purchase items queued for $purchaseId');
       }
+      return;
+    }
+
+    try {
+      _setStatus(SyncStatus.syncing, 'Syncing purchase items...');
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Step 1: Upsert all current items (safe — idempotent on line_id)
+      if (items.isNotEmpty) {
+        final payload = items.map((e) {
+          final m = e.toSupabaseJson();
+          m['updated_at'] = now;
+          return m;
+        }).toList();
+        await client.from('purchase_order_items').upsert(payload, onConflict: 'line_id');
+      }
+
+      // Step 2: Delete only removed items by comparing with the incoming list.
+      final incomingLineIds = items.map((e) => e.lineId).toSet();
+      final cloudItems = await client
+          .from('purchase_order_items')
+          .select('line_id')
+          .eq('purchase_id', purchaseId);
+      final cloudLineIds = (cloudItems as List)
+          .map((r) => r['line_id']?.toString())
+          .whereType<String>()
+          .toSet();
+      final toDelete = cloudLineIds.difference(incomingLineIds);
+      if (toDelete.isNotEmpty) {
+        await client
+            .from('purchase_order_items')
+            .delete()
+            .inFilter('line_id', toDelete.toList());
+      }
+
       _setStatus(SyncStatus.synced, 'Live Synced');
     } catch (e) {
       if (kDebugMode) print('Save purchase items cloud error ($purchaseId): $e');
+      // Queue for retry on next flush
+      if (localDb != null) {
+        final payload = items.map((e) {
+          final m = e.toSupabaseJson();
+          m['updated_at'] = DateTime.now().toUtc().toIso8601String();
+          return m;
+        }).toList();
+        await localDb.enqueuePendingSync({
+          'operation': 'upsert_items',
+          'table': 'purchase_order_items',
+          'parent_key_column': 'purchase_id',
+          'parent_key_value': purchaseId,
+          'items': payload,
+          'queued_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
       _setStatus(SyncStatus.error, 'Sync Error (Purchase Items): $e');
+    }
+  }
+
+  /// Deletes all purchase order items for a given purchaseId
+  Future<void> deletePurchaseItemsForPurchase(String purchaseId) async {
+    if (!_isInitialized) return;
+    try {
+      final client = Supabase.instance.client;
+      await client.from('purchase_order_items').delete().eq('purchase_id', purchaseId);
+    } catch (e) {
+      if (kDebugMode) print('Delete purchase items error ($purchaseId): $e');
     }
   }
 
@@ -1513,6 +2407,7 @@ class SupabaseSyncService extends ChangeNotifier {
           'queued_at': DateTime.now().toUtc().toIso8601String(),
         });
       }
+      _setStatus(SyncStatus.error, 'Offline: Delete queued for $tableName');
       return;
     }
 
@@ -1526,10 +2421,11 @@ class SupabaseSyncService extends ChangeNotifier {
       // 2. Write tombstone so all other devices delete it on their next sync
       try {
         await client.from('deleted_records').upsert({
+          'id': _generateUuid(),
           'table_name': tableName,
           'record_id': idValue.toString(),
           'deleted_at': DateTime.now().toUtc().toIso8601String(),
-        });
+        }, onConflict: 'table_name,record_id');
       } catch (e) {
         if (kDebugMode) print('Tombstone write failed (non-critical): $e');
       }
@@ -1590,6 +2486,7 @@ class SupabaseSyncService extends ChangeNotifier {
           await client.from('sales').delete().neq('invoice_no', -1);
           await client.from('sale_items').delete().neq('invoice_no', -1);
           await client.from('purchases').delete().neq('id', '___');
+          await client.from('dealers').delete().neq('id', '___');
           await client.from('pricelist').delete().neq('id', -1);
         } catch (e) {
           if (kDebugMode) print('Cloud clear error: $e');
@@ -1603,5 +2500,14 @@ class SupabaseSyncService extends ChangeNotifier {
       _setStatus(SyncStatus.error, 'Reset Failed: $e');
       return false;
     }
+  }
+
+  static String _generateUuid() {
+    final rnd = Random();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 }

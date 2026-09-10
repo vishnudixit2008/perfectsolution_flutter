@@ -10,17 +10,19 @@ import 'app_photo_viewer_dialog.dart';
 class PhotoAttachmentWidget extends StatefulWidget {
   final String? initialPhotoUrl;
   final List<String>? initialPhotoUrls;
-  final ValueChanged<String?> onPhotoChanged;
+  final ValueChanged<String?>? onPhotoChanged;
   final ValueChanged<bool>? onUploadingChanged;
   final String label;
+  final String category;
 
   const PhotoAttachmentWidget({
     super.key,
     this.initialPhotoUrl,
     this.initialPhotoUrls,
-    required this.onPhotoChanged,
+    this.onPhotoChanged,
     this.onUploadingChanged,
     this.label = 'Device / Item Photos',
+    this.category = 'inward_repairs',
   });
 
   /// Helper to safely parse raw photo strings without breaking Base64 data URIs
@@ -90,10 +92,14 @@ class PhotoAttachmentWidget extends StatefulWidget {
     String url, {
     double? width,
     double? height,
+    int? cacheWidth,
+    int? cacheHeight,
     BoxFit fit = BoxFit.cover,
     Widget Function(BuildContext, Object, StackTrace?)? errorBuilder,
   }) {
     final String cleanUrl = url.trim();
+    final int? effectiveCacheWidth = cacheWidth ?? (width != null ? (width * 2).toInt() : null);
+    final int? effectiveCacheHeight = cacheHeight ?? (height != null ? (height * 2).toInt() : null);
 
     // 1. Base64 Data URI check
     if (cleanUrl.startsWith('data:image/')) {
@@ -106,6 +112,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
             bytes,
             width: width,
             height: height,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
             fit: fit,
             errorBuilder:
                 errorBuilder ??
@@ -138,6 +146,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
           file,
           width: width,
           height: height,
+          cacheWidth: effectiveCacheWidth,
+          cacheHeight: effectiveCacheHeight,
           fit: fit,
           errorBuilder:
               errorBuilder ??
@@ -160,6 +170,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
       directUrl,
       width: width,
       height: height,
+      cacheWidth: effectiveCacheWidth,
+      cacheHeight: effectiveCacheHeight,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
         // Fallback: If thumbnail URL fails, try direct lh3 URL
@@ -176,6 +188,8 @@ class PhotoAttachmentWidget extends StatefulWidget {
             fallbackUrl,
             width: width,
             height: height,
+            cacheWidth: effectiveCacheWidth,
+            cacheHeight: effectiveCacheHeight,
             fit: fit,
             errorBuilder:
                 errorBuilder ??
@@ -230,9 +244,9 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
 
   void _notifyParent() {
     if (_photoUrls.isEmpty) {
-      widget.onPhotoChanged(null);
+      widget.onPhotoChanged?.call(null);
     } else {
-      widget.onPhotoChanged(PhotoAttachmentWidget.joinPhotoUrls(_photoUrls));
+      widget.onPhotoChanged?.call(PhotoAttachmentWidget.joinPhotoUrls(_photoUrls));
     }
   }
 
@@ -250,14 +264,14 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         setState(() {
           _isUploading = true;
           _uploadStatusText =
-              'Compressing & uploading ${selectedFiles.length} photo(s)...';
+              'Uploading ${selectedFiles.length} photo(s)...';
           _photoUrls.addAll(localPaths);
         });
         widget.onUploadingChanged?.call(true);
       }
       _notifyParent();
 
-      // 2. Read bytes and upload ALL photos concurrently to Google Drive!
+      // 2. Read bytes and upload ALL photos concurrently to Supabase Storage!
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uploadFutures = selectedFiles.asMap().entries.map((entry) async {
         final index = entry.key;
@@ -267,14 +281,13 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         return SupabasePhotoService.uploadPhoto(
           bytes: bytes,
           fileName: fileName,
-          // Category matches the module name for organised storage paths
-          category: 'photos',
+          category: widget.category,
         );
       });
 
       final List<String?> cloudUrls = await Future.wait(uploadFutures);
 
-      // 3. Replace local device paths with permanent Google Drive URLs for cross-user sync.
+      // 3. Replace local device paths with permanent Supabase Storage URLs for cross-user sync.
       // If an upload fails, remove the local path so local file paths NEVER get saved to database.
       for (int i = 0; i < localPaths.length; i++) {
         final localPath = localPaths[i];
@@ -315,7 +328,7 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
         backgroundColor: const Color(0xFF131A2E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
-          children: [
+            children: [
             Icon(
               Icons.add_a_photo_rounded,
               color: AppTheme.primaryLight,
@@ -365,9 +378,6 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
                 try {
                   photo = await _picker.pickImage(
                     source: ImageSource.camera,
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 70,
                   );
                 } catch (e) {
                   if (kDebugMode) print('Camera pick error: $e');
@@ -407,18 +417,11 @@ class _PhotoAttachmentWidgetState extends State<PhotoAttachmentWidget> {
               onTap: () async {
                 List<XFile> files = [];
                 try {
-                  files = await _picker.pickMultiImage(
-                    maxWidth: 1024,
-                    maxHeight: 1024,
-                    imageQuality: 70,
-                  );
+                  files = await _picker.pickMultiImage();
                 } catch (_) {
                   try {
                     final single = await _picker.pickImage(
                       source: ImageSource.gallery,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 70,
                     );
                     if (single != null) files.add(single);
                   } catch (e) {

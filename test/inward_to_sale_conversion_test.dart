@@ -85,4 +85,60 @@ void main() {
       expect(salesVM.totalAmount, equals(5000.0));
     },
   );
+
+  test(
+    'Verifies inward repair advance and discount transfer to sale entry properly',
+    () {
+      final localDb = LocalDatabaseService();
+      final repo = ShopRepository(localDb: localDb);
+      final salesVM = SalesViewModel(repository: repo);
+
+      final repair = InwardRepair(
+        jobNo: 4112,
+        name: 'Anita Verma',
+        mobileNo: '9123456780',
+        devices: 'MacBook Pro A2338',
+        date: DateTime.now(),
+        status: 'In Progress',
+        discount: 200.0,
+        advance: 1000.0,
+      );
+
+      final estimateItems = [
+        InwardEstimateItem(
+          lineId: 'line_3',
+          jobNo: 4112,
+          lineType: 'Service',
+          itemName: 'Logic Board Repair & Clean',
+          quantity: 1,
+          servicePrice: 3500.0,
+          totalAmount: 3500.0,
+        ),
+      ];
+
+      // Simulate conversion prefill
+      salesVM.clearCart();
+      salesVM.setCustomerName(repair.name);
+      salesVM.setCustomerNumber(repair.mobileNo ?? '');
+      salesVM.setDiscount(repair.discount);
+      salesVM.setAdvance(repair.advance);
+
+      for (final est in estimateItems) {
+        salesVM.addSaleItemToCart(
+          lineType: est.lineType,
+          itemDescription: est.itemName ?? 'Item',
+          quantity: est.quantity,
+          itemPrice: est.servicePrice,
+        );
+      }
+
+      expect(salesVM.customerName, equals('Anita Verma'));
+      expect(salesVM.customerNumber, equals('9123456780'));
+      expect(salesVM.discount, equals(200.0));
+      expect(salesVM.advance, equals(1000.0));
+      expect(salesVM.subtotal, equals(3500.0));
+      // Net total should be subtotal (3500) - discount (200) - advance (1000) = 2300.0
+      expect(salesVM.totalAmount, equals(2300.0));
+    },
+  );
 }

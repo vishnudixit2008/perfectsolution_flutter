@@ -1,6 +1,12 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "Minimum policy version for third-party SDKs" FORCE)
 project(shop_management_flutter LANGUAGES CXX)
+
+# Suppress CMake deprecation warnings from third-party SDKs (e.g. firebase_cpp_sdk)
+# that still use cmake_minimum_required(VERSION < 3.10). This only hides the
+# warning — it does not affect how those packages are built.
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Suppress cmake_minimum_required deprecation warnings" FORCE)
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
@@ -29,8 +35,8 @@ set(CMAKE_SHARED_LINKER_FLAGS_PROFILE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
 set(CMAKE_C_FLAGS_PROFILE "${CMAKE_C_FLAGS_RELEASE}")
 set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 
-# Use Unicode for all projects.
-add_definitions(-DUNICODE -D_UNICODE)
+# Use Unicode for all projects and silence MSVC experimental coroutine deprecation
+add_definitions(-DUNICODE -D_UNICODE -D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
 
 # Compilation settings that should be applied to most targets.
 #
@@ -42,6 +48,7 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
   target_compile_options(${TARGET} PRIVATE /EHsc)
   target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  target_compile_definitions(${TARGET} PRIVATE "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
 endfunction()
 
@@ -52,6 +59,10 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+
+# Pre-locate NuGet so plugins (e.g. permission_handler_windows) don't trigger
+# "Nuget.exe not found, trying to download or use cached version."
+find_program(NUGET nuget PATHS "$ENV{LOCALAPPDATA}/NuGet" "C:/src/flutter/bin")
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.

@@ -355,7 +355,7 @@ Future<Uint8List> _buildPdf(
               final desc = item.itemDescription?.trim() ?? 'Line Item';
               final notes = item.notes?.trim();
               final qty = item.quantity;
-              final price = item.itemPrice;
+              final price = item.activePrice;
               final amt = item.totalAmount > 0 ? item.totalAmount : (qty * price);
               final isEven = idx % 2 == 0;
 
@@ -445,91 +445,127 @@ Future<Uint8List> _buildPdf(
             }),
 
             // ── Totals Section ───────────────────────────────────────────────
-            pw.SizedBox(height: 8),
-            pw.Align(
-              alignment: pw.Alignment.centerRight,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
+            (() {
+              final double itemsSubtotal = displayItems.fold(
+                0.0,
+                (sum, it) => sum + (it.totalAmount > 0 ? it.totalAmount : (it.quantity * it.activePrice)),
+              );
+
+              return pw.Column(
                 children: [
-                  if (sale.discount > 0)
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 1),
-                      child: pw.Row(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          pw.Text(
-                            'DISCOUNT: ',
-                            style: pw.TextStyle(
-                              fontSize: 7.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.grey600,
-                            ),
-                          ),
-                          pw.Text(
-                            '- ₹ ${sale.discount.toStringAsFixed(2)}',
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.red700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (sale.advance > 0)
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.symmetric(vertical: 1),
-                      child: pw.Row(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          pw.Text(
-                            'ADVANCE PAID: ',
-                            style: pw.TextStyle(
-                              fontSize: 7.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.grey600,
-                            ),
-                          ),
-                          pw.Text(
-                            '₹ ${sale.advance.toStringAsFixed(2)}',
-                            style: pw.TextStyle(
-                              fontSize: 8,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.green700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  pw.Padding(
-                    padding: const pw.EdgeInsets.only(top: 3, bottom: 2),
-                    child: pw.Row(
-                      mainAxisSize: pw.MainAxisSize.min,
+                  pw.SizedBox(height: 8),
+                  pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
-                        pw.Text(
-                          'GRAND TOTAL',
-                          style: pw.TextStyle(
-                            fontSize: 8.5,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.black,
-                            letterSpacing: 0.5,
+                        if (sale.discount > 0 || sale.advance > 0)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                            child: pw.Row(
+                              mainAxisSize: pw.MainAxisSize.min,
+                              children: [
+                                pw.Text(
+                                  'SUBTOTAL: ',
+                                  style: pw.TextStyle(
+                                    fontSize: 7.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '₹ ${itemsSubtotal.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey900,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        pw.SizedBox(width: 14),
-                        pw.Text(
-                          '₹ ${sale.totalAmount.toStringAsFixed(2)}',
-                          style: pw.TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.black,
+                        if (sale.discount > 0)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                            child: pw.Row(
+                              mainAxisSize: pw.MainAxisSize.min,
+                              children: [
+                                pw.Text(
+                                  'DISCOUNT: ',
+                                  style: pw.TextStyle(
+                                    fontSize: 7.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey600,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '- ₹ ${sale.discount.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.red700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (sale.advance > 0)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                            child: pw.Row(
+                              mainAxisSize: pw.MainAxisSize.min,
+                              children: [
+                                pw.Text(
+                                  'ADVANCE PAID: ',
+                                  style: pw.TextStyle(
+                                    fontSize: 7.5,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey600,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '- ₹ ${sale.advance.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.green700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(top: 3, bottom: 2),
+                          child: pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                'GRAND TOTAL',
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.black,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              pw.SizedBox(width: 14),
+                              pw.Text(
+                                '₹ ${sale.totalAmount.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.black,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
+            })(),
             pw.SizedBox(height: 6),
 
             // ── Dynamic Payment & Review Row (Aligned horizontally on baseline) ─────

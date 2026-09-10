@@ -58,6 +58,7 @@ class PurchaseOrderItem {
       'unit_price': unitPrice,
       'amount': amount,
       'total_amount': amount,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
   }
 

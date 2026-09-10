@@ -67,12 +67,12 @@ class AppTheme {
       color: color,
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         width: borderWidth,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.2),
+          color: Colors.black.withValues(alpha: 0.2),
           blurRadius: 10,
           offset: const Offset(0, 4),
         ),
@@ -226,7 +226,7 @@ class AppTheme {
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withOpacity(0.04),
+        fillColor: Colors.white.withValues(alpha: 0.04),
         hintStyle: const TextStyle(color: textMuted, fontSize: 14),
         labelStyle: const TextStyle(color: textSecondary, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(
@@ -235,11 +235,11 @@ class AppTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -266,7 +266,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: textPrimary,
-          side: BorderSide(color: Colors.white.withOpacity(0.12)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -291,7 +291,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.08)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
       ),
     );

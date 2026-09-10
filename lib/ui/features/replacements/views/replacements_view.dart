@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/replacement.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/supabase_sync_service.dart';
@@ -17,15 +16,33 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
+import '../../../shared/components/app_toast.dart';
+import '../../../shared/components/customer_lookup_banner.dart';
+import '../../../shared/dialogs/customer_history_dialog.dart';
+import '../../../../data/models/app_exceptions.dart';
+import '../../../../data/models/customer_profile.dart';
+import '../../../../data/services/customer_directory_service.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../view_models/replacements_view_model.dart';
 
 class ReplacementsView extends StatefulWidget {
   const ReplacementsView({super.key});
+
+  /// Opens the detail dialog for a replacement record from anywhere in the app.
+  static void showDetailDialog(
+    BuildContext context,
+    Replacement repl, {
+    ReplacementsViewModel? viewModel,
+  }) {
+    final vm = viewModel ?? context.read<ReplacementsViewModel>();
+    _ReplacementsViewState._showDetailDialog(context, repl, vm);
+  }
 
   @override
   State<ReplacementsView> createState() => _ReplacementsViewState();
@@ -38,6 +55,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   double _jobNoWidth = 100.0;
   double _dateWidth = 120.0;
   double _nameWidth = 200.0;
+  // ignore: unused_field
   double _mobileWidth = 150.0;
   double _itemWidth = 250.0;
   // ignore: unused_field
@@ -116,10 +134,11 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
   @override
   Widget build(BuildContext context) {
-    final navVM = context.watch<NavigationViewModel>();
-    final prefill = navVM.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'replacement') {
-      _handlePrefillData(context, prefill, navVM);
+      _handlePrefillData(context, prefill, context.read<NavigationViewModel>());
     }
 
     return Consumer<ReplacementsViewModel>(
@@ -168,8 +187,14 @@ class _ReplacementsViewState extends State<ReplacementsView> {
               statusMatch;
         }).toList();
 
-        // Sort by date descending (newest replacements first)
-        filtered.sort((a, b) => b.date.compareTo(a.date));
+        // Sort by date descending (newest replacements first), tie-break with jobNo descending
+        filtered.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.jobNo.compareTo(a.jobNo);
+        });
 
         final groupedReplacements = _getGroupedReplacements(filtered);
 
@@ -285,19 +310,36 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
     for (final repl in replacements) {
       final statusName = repl.status.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(repl);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+        final defaultStatus = StatusManagementService.getDefaultStatus('replacements');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(repl);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(repl);
         }
-        grouped[statusName]!.add(repl);
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
+        if (dateComp != 0) return dateComp;
+        return b.jobNo.compareTo(a.jobNo);
+      });
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
@@ -305,76 +347,17 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Replacement' : 'Replacements'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Replacement',
+      pluralLabel: 'Replacements',
+      color: _getStatusColor(status),
     );
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('replacements', status);
   }
 
   Widget _buildEmptyState() {
@@ -392,6 +375,14 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     ReplacementsViewModel viewModel,
     Map<String, List<Replacement>> groupedReplacements,
   ) {
+    final listEntries = <_ReplacementListItem>[];
+    for (final entry in groupedReplacements.entries) {
+      listEntries.add(_ReplacementListItem.header(entry.key, entry.value.length));
+      for (final repl in entry.value) {
+        listEntries.add(_ReplacementListItem.card(repl));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -404,72 +395,68 @@ class _ReplacementsViewState extends State<ReplacementsView> {
           // Header Row (Status column removed - grouped under status headers)
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Job No',
-                  _jobNoWidth,
-                  (delta) => _updateColumnWidth(
-                    'jobNo',
-                    (_jobNoWidth + delta).clamp(60.0, 200.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'jobNo'))
+                  _buildResizableHeader(
+                    'Job No',
+                    _jobNoWidth,
+                    (delta) => _updateColumnWidth(
+                      'jobNo',
+                      (_jobNoWidth + delta).clamp(60.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Customer Name',
-                  _nameWidth,
-                  (delta) => _updateColumnWidth(
-                    'name',
-                    (_nameWidth + delta).clamp(120.0, 400.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'name'))
+                  _buildResizableHeader(
+                    'Customer Name',
+                    _nameWidth,
+                    (delta) => _updateColumnWidth(
+                      'name',
+                      (_nameWidth + delta).clamp(120.0, 400.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Mobile',
-                  _mobileWidth,
-                  (delta) => _updateColumnWidth(
-                    'mobile',
-                    (_mobileWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('replacements', 'item'))
+                  _buildResizableHeader(
+                    'Replacement Item',
+                    _itemWidth,
+                    (delta) => _updateColumnWidth(
+                      'item',
+                      (_itemWidth + delta).clamp(150.0, 500.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Replacement Item',
-                  _itemWidth,
-                  (delta) => _updateColumnWidth(
-                    'item',
-                    (_itemWidth + delta).clamp(150.0, 500.0),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedReplacements.entries) ...[
-                    _buildStatusSectionHeader(entry.key, entry.value.length),
-                    for (final repl in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, repl),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.replacement!);
+              },
             ),
           ),
         ],
@@ -489,54 +476,53 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
             ),
           ),
         ),
         child: Row(
           children: [
-            Container(
-              width: _jobNoWidth,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              child: Text(
-                repl.jobNo,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+            if (UserPermissionService.isFieldVisible('replacements', 'jobNo'))
+              Container(
+                width: _jobNoWidth,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Text(
+                  repl.jobNo,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
                 ),
               ),
-            ),
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _nameWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repl.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('replacements', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _mobileWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(repl.mobileNo ?? '-'),
-            ),
-            Container(
-              width: _itemWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                repl.item,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('replacements', 'name'))
+              Container(
+                width: _nameWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repl.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('replacements', 'item'))
+              Container(
+                width: _itemWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  repl.item,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ),
@@ -577,7 +563,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -592,28 +578,33 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     ReplacementsViewModel viewModel,
     Map<String, List<Replacement>> groupedReplacements,
   ) {
+    final listEntries = <_ReplacementListItem>[];
+    for (final entry in groupedReplacements.entries) {
+      listEntries.add(_ReplacementListItem.header(entry.key, entry.value.length));
+      for (final repl in entry.value) {
+        listEntries.add(_ReplacementListItem.card(repl));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadReplacements();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedReplacements.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final repl in entry.value) ...[
-                _buildMobileReplacementCard(context, viewModel, repl),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobileReplacementCard(context, viewModel, item.replacement!, itemIndex: index);
+        },
       ),
     );
   }
@@ -621,8 +612,9 @@ class _ReplacementsViewState extends State<ReplacementsView> {
   Widget _buildMobileReplacementCard(
     BuildContext context,
     ReplacementsViewModel viewModel,
-    Replacement repl,
-  ) {
+    Replacement repl, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(repl.date);
     final metadata = <Widget>[];
 
@@ -666,34 +658,29 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       ),
     );
 
+    final canEdit = UserPermissionService.canPerformModuleAction('replacements', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('replacements', 'canDelete');
+
     return AppListCard(
+      index: itemIndex,
       title: '#${repl.jobNo} • ${repl.item}',
       subtitle: 'Customer: ${repl.name}',
       statusBadge: _buildStatusChip(repl.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, repl, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingReplacement: repl),
-      onDelete: () => _confirmDelete(context, repl.jobNo, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingReplacement: repl) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, repl.jobNo, viewModel) : null,
     );
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor = AppTheme.warning;
-    final lower = status.toLowerCase();
-    if (lower.contains('complete')) {
-      chipColor = AppTheme.success;
-    } else if (lower.contains('received')) {
-      chipColor = AppTheme.primaryLight;
-    } else if (lower.contains('pending')) {
-      chipColor = AppTheme.warning;
-    }
-
+    final chipColor = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.12),
+        color: chipColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: chipColor.withOpacity(0.3), width: 1),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         status,
@@ -706,7 +693,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _confirmDelete(
+  static void _confirmDelete(
     BuildContext context,
     String jobNo,
     ReplacementsViewModel viewModel,
@@ -755,7 +742,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _showDetailDialog(
+  static void _showDetailDialog(
     BuildContext context,
     Replacement repl,
     ReplacementsViewModel viewModel,
@@ -778,97 +765,130 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Customer Name',
-              value: repl.name,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Mobile Number',
-              value: repl.mobileNo ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Replacement Item',
-              value: repl.item,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Assigned To',
-              value: UserPermissionService.formatStaffName(repl.assignedTo),
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Deposit Date',
-              value: depDate,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Receive Date',
-              value: recDate,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: repl.status,
-              scaleFactor: scale,
-            ),
-            if (repl.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('replacements', 'name') && repl.name.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Customer Name',
+                value: repl.name,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'mobileNo') && repl.mobileNo != null && repl.mobileNo!.trim().isNotEmpty && repl.mobileNo != 'N/A')
+              ScaledInfoRow(
+                label: 'Mobile Number',
+                value: repl.mobileNo!,
+                onValueTap: () => CustomerHistoryDialog.show(
+                  context,
+                  phone: repl.mobileNo,
+                ),
+                valueTooltip: 'View customer history for ${repl.mobileNo}',
+                trailing: InlineCallButton(
+                  phone: repl.mobileNo!,
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'item') && repl.item.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Replacement Item',
+                value: repl.item,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'assignedTo') && repl.assignedTo != null && repl.assignedTo!.trim().isNotEmpty && repl.assignedTo != 'N/A')
+              ScaledInfoRow(
+                label: 'Assigned To',
+                value: UserPermissionService.formatStaffName(repl.assignedTo),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'depositDate') && repl.depositDate != null)
+              ScaledInfoRow(
+                label: 'Deposit Date',
+                value: depDate,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'receiveDate') && repl.receiveDate != null)
+              ScaledInfoRow(
+                label: 'Receive Date',
+                value: recDate,
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: repl.status,
+                valueWidget: AppStatusChip(
+                  status: repl.status,
+                  moduleKey: 'replacements',
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+              ),
+            if (UserPermissionService.isFieldVisible('replacements', 'photo') && repl.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: repl.photoList),
             SizedBox(height: 12 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                ScaledActionButton(
-                  icon: Icons.phone,
-                  label: 'Call',
-                  scaleFactor: scale,
-                  onTap: () => _launchPhone(repl.mobileNo ?? ''),
-                ),
-                ScaledActionButton(
-                  iconWidget: WhatsAppIcon(size: 32 * scale),
-                  label: 'WhatsApp',
-                  scaleFactor: scale,
-                  onTap: () => _launchWhatsApp(repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, repl);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.build,
-                  label: 'Enter in Inward',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'inward', repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.request_page,
-                  label: 'Enter in Request',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'request', repl),
-                ),
-                ScaledActionButton(
-                  icon: Icons.shopping_cart,
-                  label: 'Enter in Purchase',
-                  scaleFactor: scale,
-                  onTap: () => _enterInModule(ctx, 'purchase', repl),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              final canWhatsApp = UserPermissionService.canPerformModuleAction('replacements', 'canSendWhatsapp');
+              final canDuplicate = UserPermissionService.canPerformModuleAction('replacements', 'canDuplicate');
+              final canConvertSale = UserPermissionService.canPerformModuleAction('replacements', 'canConvertToSale');
+              final canTransferInward = UserPermissionService.canPerformModuleAction('replacements', 'canTransferInward');
+              final canTransferRequest = UserPermissionService.canPerformModuleAction('replacements', 'canTransferRequest');
+              final canTransferPurchase = UserPermissionService.canPerformModuleAction('replacements', 'canTransferPurchase');
+              if (!canWhatsApp && !canDuplicate && !canConvertSale && !canTransferInward && !canTransferRequest && !canTransferPurchase) {
+                return const SizedBox.shrink();
+              }
+              return Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (canWhatsApp)
+                    ScaledActionButton(
+                      iconWidget: WhatsAppIcon(size: 18 * scale, color: const Color(0xFF25D366)),
+                      color: const Color(0xFF25D366),
+                      label: 'WhatsApp',
+                      scaleFactor: scale,
+                      onTap: () => _launchWhatsApp(repl),
+                    ),
+                  if (canDuplicate)
+                    ScaledActionButton(
+                      icon: Icons.copy,
+                      label: 'Duplicate',
+                      scaleFactor: scale,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _duplicate(context, repl);
+                      },
+                    ),
+                  if (canConvertSale)
+                    ScaledActionButton(
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
+                      scaleFactor: scale,
+                      onTap: () => _convertToSale(ctx, repl),
+                    ),
+                  if (canTransferInward)
+                    ScaledActionButton(
+                      icon: Icons.build,
+                      label: 'Enter in Inward',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'inward', repl),
+                    ),
+                  if (canTransferRequest)
+                    ScaledActionButton(
+                      icon: Icons.request_page,
+                      label: 'Enter in Request',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'request', repl),
+                    ),
+                  if (canTransferPurchase)
+                    ScaledActionButton(
+                      icon: Icons.shopping_cart,
+                      label: 'Enter in Purchase',
+                      scaleFactor: scale,
+                      onTap: () => _enterInModule(ctx, 'purchase', repl),
+                    ),
+                ],
+              );
+            }),
           ],
         );
       },
@@ -922,33 +942,49 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _showAddEditDialog(
+  static Future<void> _showAddEditDialog(
     BuildContext context, {
     Replacement? existingReplacement,
     String? prefillName,
     String? prefillMobile,
-  }) {
+  }) async {
     final isEdit = existingReplacement != null;
     final actionKey = isEdit ? 'canEdit' : 'canAdd';
     if (!UserPermissionService.canPerformModuleAction('replacements', actionKey)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isEdit
-                ? 'Access Denied: You do not have permission to edit Replacement records.'
-                : 'Access Denied: You do not have permission to create new Replacement records.',
-          ),
-          backgroundColor: AppTheme.danger,
-        ),
+      AppToast.showError(
+        context,
+        title: 'Access Denied',
+        message: isEdit
+            ? 'You do not have permission to edit Replacement records.'
+            : 'You do not have permission to create new Replacement records.',
       );
       return;
     }
+
+    String? assignedJobNo;
+    if (!isEdit) {
+      final viewModel = context.read<ReplacementsViewModel>();
+      try {
+        assignedJobNo = await viewModel.fetchNextJobNo();
+      } catch (e) {
+        if (!context.mounted) return;
+        AppToast.showWarning(
+          context,
+          title: 'Offline Mode',
+          message: 'Internet connection required to create a new Replacement Job Number.',
+        );
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
 
     showAppModalDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ReplacementFormDialog(
         existingReplacement: existingReplacement,
+        assignedJobNo: assignedJobNo,
         prefillName: prefillName,
         prefillMobile: prefillMobile,
       ),
@@ -969,10 +1005,10 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -987,7 +1023,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1026,7 +1062,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1035,7 +1071,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1055,32 +1091,50 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
     );
   }
 
-  void _launchPhone(String number) async {
-    if (number.isEmpty) return;
-    final uri = Uri(scheme: 'tel', path: number);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  void _launchWhatsApp(Replacement r) {
+  static void launchWhatsAppForReplacement(Replacement r) {
     final mobileNo = r.mobileNo;
     if (mobileNo == null || mobileNo.trim().isEmpty) return;
-    final message =
-        "Hello ${r.name}, We have updated your replacement item ${r.item} status to ${r.status} (JobNo: ${r.jobNo}). Perfect Solution";
+    final message = '''Hello ${r.name},
+
+We have received your item ${r.item} for replacement under Job No. ${r.jobNo}. Our team is processing your request and we will provide you with a timely update once it is processed.
+
+Thank you for your cooperation.
+
+Perfect Solution''';
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
-  void _duplicate(BuildContext context, Replacement r) {
+  static void _launchWhatsApp(Replacement r) => launchWhatsAppForReplacement(r);
+
+  static Future<void> _duplicate(BuildContext context, Replacement r) async {
+    String? assignedJobNo;
+    final viewModel = context.read<ReplacementsViewModel>();
+    try {
+      assignedJobNo = await viewModel.fetchNextJobNo();
+    } catch (e) {
+      if (!context.mounted) return;
+      AppToast.showWarning(
+        context,
+        title: 'Offline Mode',
+        message: 'Internet connection required to create a new Replacement Job Number.',
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ReplacementFormDialog(
+        assignedJobNo: assignedJobNo,
         prefillName: r.name,
         prefillMobile: r.mobileNo,
         prefillItem: r.item,
@@ -1090,7 +1144,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _convertToSale(BuildContext context, Replacement r) {
+  static void _convertToSale(BuildContext context, Replacement r) {
     final navVM = context.read<NavigationViewModel>();
     navVM.setIndex(
       NavigationViewModel.sales,
@@ -1104,7 +1158,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
     );
   }
 
-  void _enterInModule(BuildContext context, String target, Replacement r) {
+  static void _enterInModule(BuildContext context, String target, Replacement r) {
     final navVM = context.read<NavigationViewModel>();
     int index = target == 'inward'
         ? NavigationViewModel.inward
@@ -1146,8 +1200,8 @@ class _ActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
-          border: Border.all(color: Colors.white.withOpacity(0.08)),
+          color: Colors.white.withValues(alpha: 0.04),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -1172,6 +1226,7 @@ class _ActionButton extends StatelessWidget {
 
 class _ReplacementFormDialog extends StatefulWidget {
   final Replacement? existingReplacement;
+  final String? assignedJobNo;
   final String? prefillName;
   final String? prefillMobile;
   final String? prefillItem;
@@ -1180,6 +1235,7 @@ class _ReplacementFormDialog extends StatefulWidget {
 
   const _ReplacementFormDialog({
     this.existingReplacement,
+    this.assignedJobNo,
     this.prefillName,
     this.prefillMobile,
     this.prefillItem,
@@ -1206,6 +1262,8 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   String? _photoUrl;
   bool _isPhotoUploading = false;
 
+  CustomerProfile? _matchedCustomerProfile;
+
   @override
   void initState() {
     super.initState();
@@ -1218,6 +1276,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     _mobileController = TextEditingController(
       text: r?.mobileNo ?? widget.prefillMobile ?? '',
     );
+    _matchedCustomerProfile =
+        CustomerDirectoryService.instance.lookupCustomer(_mobileController.text);
+    _mobileController.addListener(_onMobileChanged);
     _itemController = TextEditingController(
       text: r?.item ?? widget.prefillItem ?? '',
     );
@@ -1233,8 +1294,22 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     _photoUrl = r?.photo;
   }
 
+  void _onMobileChanged() {
+    final text = _mobileController.text.trim();
+    final profile = CustomerDirectoryService.instance.lookupCustomer(text);
+    if (profile != _matchedCustomerProfile) {
+      setState(() {
+        _matchedCustomerProfile = profile;
+      });
+      if (profile != null && _nameController.text.trim().isEmpty) {
+        _nameController.text = profile.displayName;
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _mobileController.removeListener(_onMobileChanged);
     _nameController.dispose();
     _mobileController.dispose();
     _itemController.dispose();
@@ -1260,8 +1335,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     }
 
     final viewModel = context.read<ReplacementsViewModel>();
-    final String jobNo =
-        widget.existingReplacement?.jobNo ?? viewModel.getNextJobNo();
+    final String jobNo = widget.existingReplacement?.jobNo ??
+        widget.assignedJobNo ??
+        viewModel.getNextJobNo();
 
     final r = Replacement(
       jobNo: jobNo,
@@ -1284,19 +1360,55 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       photo: _photoUrl,
     );
 
-    await viewModel.saveReplacement(r);
+    final bool isNewEntry = widget.existingReplacement == null;
+    try {
+      await viewModel.saveReplacement(r, isEdit: !isNewEntry);
+    } on DuplicateKeyException catch (_) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          title: 'Job Number Conflict',
+          message: 'Replacement Job #$jobNo was just claimed on another device. Please retry.',
+        );
+      }
+      return;
+    } on OfflineException catch (e) {
+      if (mounted) {
+        AppToast.showWarning(
+          context,
+          title: 'Offline',
+          message: e.message,
+        );
+      }
+      return;
+    } catch (e) {
+      if (mounted) {
+        AppToast.showError(
+          context,
+          title: 'Save Failed',
+          message: 'Failed to save replacement: $e',
+        );
+      }
+      return;
+    }
+
+    // Auto-trigger WhatsApp message if adding new replacement entry as sale.perfectsolutionnoida@gmail.com
+    if (isNewEntry) {
+      final currentUserEmail =
+          UserPermissionService.getCurrentUser().email.trim().toLowerCase();
+      if (currentUserEmail == 'sale.perfectsolutionnoida@gmail.com') {
+        _ReplacementsViewState.launchWhatsAppForReplacement(r);
+      }
+    }
 
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.existingReplacement == null
-                ? 'Replacement created successfully'
-                : 'Replacement updated successfully',
-          ),
-          backgroundColor: AppTheme.success,
-        ),
+      AppToast.showSuccess(
+        context,
+        title: isNewEntry ? 'Replacement Created' : 'Replacement Updated',
+        message: isNewEntry
+            ? 'Replacement #$jobNo created successfully.'
+            : 'Replacement #$jobNo updated successfully.',
       );
     }
   }
@@ -1336,7 +1448,7 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
   Widget build(BuildContext context) {
     final bool isEdit = widget.existingReplacement != null;
     final bool isMobile = MediaQuery.of(context).size.width < 700;
-    final viewModel = context.watch<ReplacementsViewModel>();
+    final viewModel = context.read<ReplacementsViewModel>();
 
     final bool isDateVis = UserPermissionService.isFieldVisible('replacements', 'date');
     final bool isDateMod = UserPermissionService.canModifyField('replacements', 'date', isEdit: isEdit);
@@ -1356,28 +1468,37 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
     final bool isStatusVis = UserPermissionService.isFieldVisible('replacements', 'status');
     final bool isStatusMod = UserPermissionService.canModifyField('replacements', 'status', isEdit: isEdit);
 
+    final bool isJobNoVis = UserPermissionService.isFieldVisible('replacements', 'jobNo');
+    final bool isDepositDateVis = UserPermissionService.isFieldVisible('replacements', 'depositDate');
+    final bool isDepositDateMod = UserPermissionService.canModifyField('replacements', 'depositDate', isEdit: isEdit);
+    final bool isReceiveDateVis = UserPermissionService.isFieldVisible('replacements', 'receiveDate');
+    final bool isReceiveDateMod = UserPermissionService.canModifyField('replacements', 'receiveDate', isEdit: isEdit);
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('replacements', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('replacements', 'photo', isEdit: isEdit);
+
     final Widget formContent = Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Job Number: ',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-              Text(
-                isEdit
-                    ? widget.existingReplacement!.jobNo
-                    : viewModel.getNextJobNo(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryLight,
+          if (isJobNoVis)
+            Row(
+              children: [
+                const Text(
+                  'Job Number: ',
+                  style: TextStyle(color: AppTheme.textSecondary),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  isEdit
+                      ? widget.existingReplacement!.jobNo
+                      : (widget.assignedJobNo ?? viewModel.getNextJobNo()),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryLight,
+                  ),
+                ),
+              ],
+            ),
           if (isDateVis) ...[
             const SizedBox(height: 12),
             DateTimePickerField(
@@ -1395,7 +1516,42 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               controller: _nameController,
               readOnly: !isNameMod,
               enabled: isNameMod,
-              decoration: const InputDecoration(labelText: 'Customer Name *'),
+              decoration: InputDecoration(
+                labelText: 'Customer Name *',
+                suffixIcon: (isMobile &&
+                        _matchedCustomerProfile != null &&
+                        _matchedCustomerProfile!.events.isNotEmpty)
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: TextButton.icon(
+                          onPressed: () => CustomerHistoryDialog.show(
+                            context,
+                            profile: _matchedCustomerProfile,
+                          ),
+                          icon: const Icon(Icons.history_rounded, size: 16),
+                          label: const Text(
+                            'History',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryLight,
+                            backgroundColor:
+                                AppTheme.primaryLight.withValues(alpha: 0.12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
               validator: (val) => val == null || val.trim().isEmpty
                   ? 'Please enter customer name'
                   : null,
@@ -1414,6 +1570,10 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
+            if (isMobile ||
+                _matchedCustomerProfile == null ||
+                _matchedCustomerProfile!.events.isEmpty)
+              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 12),
           ],
 
@@ -1445,47 +1605,50 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
             const SizedBox(height: 12),
           ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Replacement Item Photo / Receipt (Google Drive Link)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (url) {
-              _photoUrl = url;
-            },
-          ),
-          const SizedBox(height: 12),
-
-          if (isStatusVis) ...[
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Replacement Status'),
-              dropdownColor: const Color(0xFF131A2E),
-              onChanged: isStatusMod
-                  ? (val) {
-                      if (val != null) {
-                        setState(() {
-                          _status = val;
-                        });
-                      }
+          if (isPhotoVis) ...[
+            PhotoAttachmentWidget(
+              category: 'replacements',
+              initialPhotoUrl: _photoUrl,
+              label: 'Replacement Item Photo / Receipt',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (url) {
+                      _photoUrl = url;
                     }
                   : null,
-              items:
-                  (() {
-                    final list =
-                        UserPermissionService.getAllowedSelectableStatuses(
-                      'replacements',
-                    );
-                    final List<String> selectableList = List.from(list);
-                    if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                      selectableList.insert(0, _status);
-                    }
-                    return selectableList;
-                  })().map((st) {
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          if (isStatusVis) ...[
+            Builder(
+              builder: (context) {
+                final list = UserPermissionService.getAllowedSelectableStatuses('replacements');
+                final List<String> selectableList = List.from(list);
+                final match = selectableList.firstWhere(
+                  (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
+                  orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
+                );
+                final effectiveStatus = match;
+                return DropdownButtonFormField<String>(
+                  initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Replacement Status'),
+                  dropdownColor: const Color(0xFF131A2E),
+                  onChanged: isStatusMod
+                      ? (val) {
+                          if (val != null) {
+                            setState(() {
+                              _status = val;
+                            });
+                          }
+                        }
+                      : null,
+                  items: selectableList.map((st) {
                     return DropdownMenuItem(
                       value: st,
                       child: Text(
@@ -1495,46 +1658,54 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
                       ),
                     );
                   }).toList(),
+                );
+              },
             ),
             const SizedBox(height: 12),
           ],
 
           // Deposit Date Picker
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _depositDate == null
-                      ? 'Deposit Date: Not set'
-                      : 'Deposit Date: ${DateFormat('dd/MM/yyyy').format(_depositDate!)}',
-                  style: const TextStyle(fontSize: 13),
+          if (isDepositDateVis) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _depositDate == null
+                        ? 'Deposit Date: Not set'
+                        : 'Deposit Date: ${DateFormat('dd/MM/yyyy').format(_depositDate!)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
-              ),
-              OutlinedButton(
-                onPressed: () => _selectDate(context, true),
-                child: const Text('Set Deposit'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+                if (isDepositDateMod)
+                  OutlinedButton(
+                    onPressed: () => _selectDate(context, true),
+                    child: const Text('Set Deposit'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Receive Date Picker
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _receiveDate == null
-                      ? 'Receive Date: Not set'
-                      : 'Receive Date: ${DateFormat('dd/MM/yyyy').format(_receiveDate!)}',
-                  style: const TextStyle(fontSize: 13),
+          if (isReceiveDateVis) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _receiveDate == null
+                        ? 'Receive Date: Not set'
+                        : 'Receive Date: ${DateFormat('dd/MM/yyyy').format(_receiveDate!)}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
-              ),
-              OutlinedButton(
-                onPressed: () => _selectDate(context, false),
-                child: const Text('Set Receive'),
-              ),
-            ],
-          ),
+                if (isReceiveDateMod)
+                  OutlinedButton(
+                    onPressed: () => _selectDate(context, false),
+                    child: const Text('Set Receive'),
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1588,6 +1759,9 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       );
     }
 
+    final bool hasHistory = _matchedCustomerProfile != null &&
+        _matchedCustomerProfile!.events.isNotEmpty;
+
     return AlertDialog(
       backgroundColor: const Color(0xFF131A2E),
       shape: RoundedRectangleBorder(
@@ -1601,9 +1775,33 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
         style: const TextStyle(color: AppTheme.textPrimary),
       ),
       content: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        width: MediaQuery.of(context).size.width * 0.9,
-        child: SingleChildScrollView(child: formContent),
+        constraints: BoxConstraints(maxWidth: hasHistory ? 1180 : 500),
+        width: MediaQuery.of(context).size.width * 0.92,
+        child: hasHistory
+            ? SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 6,
+                      child: SingleChildScrollView(child: formContent),
+                    ),
+                    const VerticalDivider(
+                      width: 24,
+                      thickness: 1,
+                      color: Color(0xFF334155),
+                    ),
+                    Expanded(
+                      flex: 5,
+                      child: CustomerHistorySidePanel(
+                        profile: _matchedCustomerProfile!,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(child: formContent),
       ),
       actions: [
         TextButton(
@@ -1620,4 +1818,15 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
       ],
     );
   }
+}
+
+class _ReplacementListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final Replacement? replacement;
+
+  _ReplacementListItem.header(this.statusHeader, this.statusCount) : replacement = null;
+  _ReplacementListItem.card(this.replacement)
+      : statusHeader = null,
+        statusCount = null;
 }

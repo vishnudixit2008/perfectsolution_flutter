@@ -17,7 +17,10 @@ import '../../../shared/components/app_empty_state.dart';
 import '../../../shared/components/app_floating_action_button.dart';
 import '../../../shared/components/app_header_sync_button.dart';
 import '../../../shared/components/app_search_filter_bar.dart';
+import '../../../shared/components/app_animated_search_bar.dart';
 import '../../../shared/components/app_keyboard_autocomplete.dart';
+import '../../../shared/components/app_status_section_header.dart';
+import '../../../shared/components/app_status_chip.dart';
 import '../../../shared/photo_attachment_widget.dart';
 import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
@@ -44,6 +47,7 @@ class _PurchasesViewState extends State<PurchasesView> {
   double _idWidth = 120.0;
   double _dateWidth = 120.0;
   double _vendorWidth = 220.0;
+  double _itemsWidth = 280.0;
   double _amountWidth = 150.0;
   // ignore: unused_field
   double _statusWidth = 140.0;
@@ -54,6 +58,8 @@ class _PurchasesViewState extends State<PurchasesView> {
         UiPreferencesService.getColumnWidth('purchases', 'date') ?? 120.0;
     _vendorWidth =
         UiPreferencesService.getColumnWidth('purchases', 'vendor') ?? 220.0;
+    _itemsWidth =
+        UiPreferencesService.getColumnWidth('purchases', 'items') ?? 280.0;
     _amountWidth =
         UiPreferencesService.getColumnWidth('purchases', 'amount') ?? 150.0;
     _statusWidth =
@@ -71,6 +77,9 @@ class _PurchasesViewState extends State<PurchasesView> {
           break;
         case 'vendor':
           _vendorWidth = newWidth;
+          break;
+        case 'items':
+          _itemsWidth = newWidth;
           break;
         case 'amount':
           _amountWidth = newWidth;
@@ -121,10 +130,11 @@ class _PurchasesViewState extends State<PurchasesView> {
 
   @override
   Widget build(BuildContext context) {
-    final navVM = context.watch<NavigationViewModel>();
-    final prefill = navVM.pendingPrefillData;
+    final prefill = context.select<NavigationViewModel, Map<String, dynamic>?>(
+      (vm) => vm.pendingPrefillData,
+    );
     if (prefill != null && prefill['target'] == 'purchase') {
-      _handlePrefillData(context, prefill, navVM);
+      _handlePrefillData(context, prefill, context.read<NavigationViewModel>());
     }
 
     return Consumer<PurchasesViewModel>(
@@ -170,8 +180,14 @@ class _PurchasesViewState extends State<PurchasesView> {
           return idMatch || vendorMatch || statusMatch || notesMatch;
         }).toList();
 
-        // Sort by date descending (newest purchases first)
-        filtered.sort((a, b) => b.date.compareTo(a.date));
+        // Sort by date descending (newest purchases first), tie-break with ID descending
+        filtered.sort((a, b) {
+          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+          final dateComp = dayB.compareTo(dayA);
+          if (dateComp != 0) return dateComp;
+          return b.id.compareTo(a.id);
+        });
 
         final groupedPurchases = _getGroupedPurchases(filtered);
 
@@ -331,19 +347,36 @@ class _PurchasesViewState extends State<PurchasesView> {
 
     for (final pur in purchases) {
       final statusName = pur.status.trim();
-      final existingKey = grouped.keys.firstWhere(
-        (k) => k.toLowerCase() == statusName.toLowerCase(),
+      final existingKey = configuredStatuses.firstWhere(
+        (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(pur);
       } else {
-        if (!grouped.containsKey(statusName)) {
-          grouped[statusName] = [];
+        final defaultStatus = StatusManagementService.getDefaultStatus('purchases');
+        final fallbackKey = configuredStatuses.firstWhere(
+          (k) => k.trim().toLowerCase() == defaultStatus.trim().toLowerCase(),
+          orElse: () => configuredStatuses.isNotEmpty ? configuredStatuses.first : '',
+        );
+        if (fallbackKey.isNotEmpty) {
+          grouped[fallbackKey]!.add(pur);
+        } else {
+          final sKey = statusName.isNotEmpty ? statusName : 'Pending';
+          grouped.putIfAbsent(sKey, () => []).add(pur);
         }
-        grouped[statusName]!.add(pur);
       }
+    }
+
+    for (final list in grouped.values) {
+      list.sort((a, b) {
+        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+        final dateComp = dayB.compareTo(dayA);
+        if (dateComp != 0) return dateComp;
+        return b.id.compareTo(a.id);
+      });
     }
 
     grouped.removeWhere((key, list) => list.isEmpty);
@@ -351,82 +384,17 @@ class _PurchasesViewState extends State<PurchasesView> {
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
-    final Color color = _getStatusColor(status);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 14, bottom: 8, left: 4, right: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: color,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.5),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$count ${count == 1 ? 'Purchase' : 'Purchases'}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return AppStatusSectionHeader(
+      title: status,
+      count: count,
+      singularLabel: 'Purchase',
+      pluralLabel: 'Purchases',
+      color: _getStatusColor(status),
     );
   }
 
   Color _getStatusColor(String status) {
-    final s = status.toLowerCase().trim();
-    if (s == 'laptop' || s == 'desktop') return const Color(0xFFEF4444); // Red
-    if (s == 'ready return' || s == 'ready-return') {
-      return const Color(0xFFCA8A04); // Dull Yellow
-    }
-    if (s == 'ready') return const Color(0xFFEAB308); // Yellow
-    if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
-    if (s.contains('complete') ||
-        s.contains('pre complete') ||
-        s.contains('pre-complete')) {
-      return const Color(0xFF10B981); // Green
-    }
-    if (s.contains('cancel') || s.contains('reject')) {
-      return const Color(0xFFEF4444);
-    }
-    if (s.contains('pending')) return const Color(0xFFF97316);
-    return const Color(0xFF6366F1);
+    return StatusManagementService.getStatusColor('purchases', status);
   }
 
   Widget _buildEmptyState() {
@@ -444,6 +412,14 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
   ) {
+    final listEntries = <_PurchaseListItem>[];
+    for (final entry in groupedPurchases.entries) {
+      listEntries.add(_PurchaseListItem.header(entry.key, entry.value.length));
+      for (final pur in entry.value) {
+        listEntries.add(_PurchaseListItem.card(pur));
+      }
+    }
+
     return Container(
       width: double.infinity,
       decoration: AppTheme.glassCardDecoration(
@@ -456,59 +432,68 @@ class _PurchasesViewState extends State<PurchasesView> {
           // Header Row (Status column removed - grouped under status headers)
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
               ),
             ),
             child: Row(
               children: [
-                _buildResizableHeader(
-                  'Date',
-                  _dateWidth,
-                  (delta) => _updateColumnWidth(
-                    'date',
-                    (_dateWidth + delta).clamp(80.0, 200.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'date'))
+                  _buildResizableHeader(
+                    'Date',
+                    _dateWidth,
+                    (delta) => _updateColumnWidth(
+                      'date',
+                      (_dateWidth + delta).clamp(80.0, 200.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Purchased From (Vendor)',
-                  _vendorWidth,
-                  (delta) => _updateColumnWidth(
-                    'vendor',
-                    (_vendorWidth + delta).clamp(120.0, 450.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom'))
+                  _buildResizableHeader(
+                    'Purchased From (Vendor)',
+                    _vendorWidth,
+                    (delta) => _updateColumnWidth(
+                      'vendor',
+                      (_vendorWidth + delta).clamp(120.0, 450.0),
+                    ),
                   ),
-                ),
-                _buildResizableHeader(
-                  'Total Amount',
-                  _amountWidth,
-                  (delta) => _updateColumnWidth(
-                    'amount',
-                    (_amountWidth + delta).clamp(100.0, 300.0),
+                if (UserPermissionService.isFieldVisible('purchases', 'stockInItems'))
+                  _buildResizableHeader(
+                    'Items',
+                    _itemsWidth,
+                    (delta) => _updateColumnWidth(
+                      'items',
+                      (_itemsWidth + delta).clamp(150.0, 600.0),
+                    ),
                   ),
-                ),
+                if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
+                  _buildResizableHeader(
+                    'Total Amount',
+                    _amountWidth,
+                    (delta) => _updateColumnWidth(
+                      'amount',
+                      (_amountWidth + delta).clamp(100.0, 300.0),
+                    ),
+                  ),
               ],
             ),
           ),
 
-          // Scrollable Body grouped by Status
+          // Scrollable Body grouped by Status (Virtualized ListView.builder)
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView.builder(
               padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final entry in groupedPurchases.entries) ...[
-                    _buildStatusSectionHeader(
-                      entry.key,
-                      entry.value.length,
-                    ),
-                    for (final pur in entry.value) ...[
-                      _buildDesktopTableRow(context, viewModel, pur),
-                    ],
-                  ],
-                ],
-              ),
+              itemCount: listEntries.length,
+              itemBuilder: (context, index) {
+                final item = listEntries[index];
+                if (item.statusHeader != null) {
+                  return _buildStatusSectionHeader(
+                    item.statusHeader!,
+                    item.statusCount!,
+                  );
+                }
+                return _buildDesktopTableRow(context, viewModel, item.purchase!);
+              },
             ),
           ),
         ],
@@ -527,33 +512,63 @@ class _PurchasesViewState extends State<PurchasesView> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
           children: [
-            Container(
-              width: _dateWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(formattedDate),
-            ),
-            Container(
-              width: _vendorWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                pur.purchasedFrom,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            if (UserPermissionService.isFieldVisible('purchases', 'date'))
+              Container(
+                width: _dateWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(formattedDate),
               ),
-            ),
-            Container(
-              width: _amountWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '₹${pur.totalAmount.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom'))
+              Container(
+                width: _vendorWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  pur.purchasedFrom,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+            if (UserPermissionService.isFieldVisible('purchases', 'stockInItems'))
+              Container(
+                width: _itemsWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                alignment: Alignment.centerLeft,
+                child: Builder(
+                  builder: (context) {
+                    final items = viewModel.getPurchaseItems(pur.id);
+                    final String itemsSummary = items.isNotEmpty
+                        ? items
+                            .map((i) =>
+                                '${i.itemName ?? i.customItemName ?? "Item"} (${i.quantity})')
+                            .join(', ')
+                        : '-';
+
+                    return Text(
+                      itemsSummary,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                ),
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'totalAmount'))
+              Container(
+                width: _amountWidth,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Text(
+                  '₹${pur.totalAmount.toStringAsFixed(0)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
           ],
         ),
       ),
@@ -594,7 +609,7 @@ class _PurchasesViewState extends State<PurchasesView> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.white.withOpacity(0.12),
+                  color: Colors.white.withValues(alpha: 0.12),
                 ),
               ),
             ),
@@ -609,28 +624,33 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
     Map<String, List<PurchaseOrder>> groupedPurchases,
   ) {
+    final listEntries = <_PurchaseListItem>[];
+    for (final entry in groupedPurchases.entries) {
+      listEntries.add(_PurchaseListItem.header(entry.key, entry.value.length));
+      for (final pur in entry.value) {
+        listEntries.add(_PurchaseListItem.card(pur));
+      }
+    }
+
     return RefreshIndicator(
       color: AppTheme.primaryLight,
       backgroundColor: const Color(0xFF131A2E),
       onRefresh: () async {
         final localDb = context.read<ShopRepository>().localDb;
-        await SupabaseSyncService.instance.syncAllTablesFromCloud(localDb);
+        await SupabaseSyncService.instance.manualSync(localDb, forceFullDownload: false);
         if (context.mounted) viewModel.loadPurchases();
       },
-      child: SingleChildScrollView(
+      child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final entry in groupedPurchases.entries) ...[
-              _buildStatusSectionHeader(entry.key, entry.value.length),
-              for (final pur in entry.value) ...[
-                _buildMobilePurchaseCard(context, viewModel, pur),
-              ],
-            ],
-          ],
-        ),
+        itemCount: listEntries.length,
+        itemBuilder: (context, index) {
+          final item = listEntries[index];
+          if (item.statusHeader != null) {
+            return _buildStatusSectionHeader(item.statusHeader!, item.statusCount!);
+          }
+          return _buildMobilePurchaseCard(context, viewModel, item.purchase!, itemIndex: index);
+        },
       ),
     );
   }
@@ -638,8 +658,9 @@ class _PurchasesViewState extends State<PurchasesView> {
   Widget _buildMobilePurchaseCard(
     BuildContext context,
     PurchasesViewModel viewModel,
-    PurchaseOrder pur,
-  ) {
+    PurchaseOrder pur, {
+    int itemIndex = 0,
+  }) {
     final formattedDate = DateFormat('dd MMM yyyy').format(pur.date);
     final metadata = <Widget>[];
 
@@ -663,32 +684,53 @@ class _PurchasesViewState extends State<PurchasesView> {
       ),
     );
 
+    if (UserPermissionService.isFieldVisible('purchases', 'stockInItems')) {
+      final items = viewModel.getPurchaseItems(pur.id);
+      if (items.isNotEmpty) {
+        final itemsSummary = items
+            .map((i) =>
+                '${i.itemName ?? i.customItemName ?? "Item"} (${i.quantity})')
+            .join(', ');
+        metadata.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Items: $itemsSummary',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+    }
+
+    final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
+    final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
+
     return AppListCard(
+      index: itemIndex,
       title: 'Vendor: ${pur.purchasedFrom}',
       subtitle: 'Order ID: ${pur.id}',
       statusBadge: _buildStatusChip(pur.status),
       metadataRows: metadata,
       onTap: () => _showDetailDialog(context, pur, viewModel),
-      onEdit: () => _showAddEditDialog(context, existingPurchase: pur),
-      onDelete: () => _confirmDelete(context, pur.id, viewModel),
+      onEdit: canEdit ? () => _showAddEditDialog(context, existingPurchase: pur) : null,
+      onDelete: canDelete ? () => _confirmDelete(context, pur.id, viewModel) : null,
     );
   }
 
   Widget _buildStatusChip(String status) {
-    Color chipColor = AppTheme.warning;
-    final lower = status.toLowerCase();
-    if (lower.contains('confirm')) {
-      chipColor = AppTheme.success;
-    } else {
-      chipColor = AppTheme.warning;
-    }
-
+    final chipColor = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.12),
+        color: chipColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: chipColor.withOpacity(0.3), width: 1),
+        border: Border.all(color: chipColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         status,
@@ -796,32 +838,40 @@ class _PurchasesViewState extends State<PurchasesView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScaledInfoRow(
-              label: 'Purchase ID',
-              value: pur.id,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Purchased From (Vendor)',
-              value: pur.purchasedFrom,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Total Purchase Amount',
-              value: '₹${pur.totalAmount.toStringAsFixed(2)}',
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Status',
-              value: pur.status,
-              scaleFactor: scale,
-            ),
-            ScaledInfoRow(
-              label: 'Notes',
-              value: pur.notes ?? 'N/A',
-              scaleFactor: scale,
-            ),
-            if (items.isNotEmpty) ...[
+            if (UserPermissionService.isFieldVisible('purchases', 'purchasedFrom') && pur.purchasedFrom.trim().isNotEmpty)
+              ScaledInfoRow(
+                label: 'Purchased From (Vendor)',
+                value: pur.purchasedFrom,
+                scaleFactor: scale,
+                labelWidth: 195,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'totalAmount') && pur.totalAmount > 0)
+              ScaledInfoRow(
+                label: 'Total Purchase Amount',
+                value: '₹${pur.totalAmount.toStringAsFixed(2)}',
+                scaleFactor: scale,
+                labelWidth: 195,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'status'))
+              ScaledInfoRow(
+                label: 'Status',
+                value: pur.status,
+                valueWidget: AppStatusChip(
+                  status: pur.status,
+                  moduleKey: 'purchases',
+                  scaleFactor: scale,
+                ),
+                scaleFactor: scale,
+                labelWidth: 195,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'notes') && pur.notes != null && pur.notes!.trim().isNotEmpty && pur.notes != 'N/A')
+              ScaledInfoRow(
+                label: 'Notes',
+                value: pur.notes!,
+                scaleFactor: scale,
+                labelWidth: 195,
+              ),
+            if (UserPermissionService.isFieldVisible('purchases', 'stockInItems') && items.isNotEmpty) ...[
               SizedBox(height: 8 * scale),
               Text(
                 'Line Items (${items.length})',
@@ -840,30 +890,34 @@ class _PurchasesViewState extends State<PurchasesView> {
                     vertical: 6 * scale,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.02),
+                    color: Colors.white.withValues(alpha: 0.03),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white.withOpacity(0.04)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        (it.itemName != null && it.itemName!.isNotEmpty)
-                            ? it.itemName!
-                            : (it.customItemName != null && it.customItemName!.isNotEmpty)
-                                ? it.customItemName!
-                                : 'Purchase Item (${it.lineId})',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 12 * scale,
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          (it.itemName != null && it.itemName!.isNotEmpty)
+                              ? it.itemName!
+                              : (it.customItemName != null && it.customItemName!.isNotEmpty)
+                                  ? it.customItemName!
+                                  : 'Purchase Item (${it.lineId})',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 12.5 * scale,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
+                      SizedBox(width: 8 * scale),
                       Text(
                         '${it.quantity} x ₹${it.unitPrice.toStringAsFixed(0)} = ₹${it.amount.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: AppTheme.primaryLight,
-                          fontSize: 12 * scale,
+                          fontSize: 12.5 * scale,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -871,107 +925,167 @@ class _PurchasesViewState extends State<PurchasesView> {
                 ),
               ),
             ],
-            if (pur.photoList.isNotEmpty)
+            if (UserPermissionService.isFieldVisible('purchases', 'photo') && pur.photoList.isNotEmpty)
               PhotoGallerySection(photoUrls: pur.photoList),
-            SizedBox(height: 12 * scale),
-            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
-            SizedBox(height: 12 * scale),
-            Wrap(
-              spacing: 8 * scale,
-              runSpacing: 8 * scale,
-              children: [
-                if (UserPermissionService.canPerformModuleAction('purchases', 'canManageStatus')) ...[
-                  if (pur.status == 'PENDING') ...[
+            if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate') ||
+                UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale')) ...[
+              SizedBox(height: 12 * scale),
+              Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+              SizedBox(height: 12 * scale),
+              Wrap(
+                spacing: 8 * scale,
+                runSpacing: 8 * scale,
+                children: [
+                  if (UserPermissionService.canPerformModuleAction('purchases', 'canDuplicate'))
                     ScaledActionButton(
-                      icon: Icons.check_circle,
-                      label: 'Confirm Stock In',
+                      icon: Icons.copy,
+                      label: 'Duplicate',
                       scaleFactor: scale,
-                      onTap: () async {
+                      onTap: () {
                         Navigator.pop(ctx);
-                        await viewModel.confirmPurchase(pur.id);
-                        if (context.mounted) {
-                          context.read<PricelistViewModel>().loadItems();
-                        }
+                        _duplicate(context, pur, viewModel);
                       },
                     ),
-                  ] else ...[
+                  if (UserPermissionService.canPerformModuleAction('purchases', 'canConvertToSale'))
                     ScaledActionButton(
-                      icon: Icons.undo,
-                      label: 'Revert to Pending',
+                      icon: Icons.sell,
+                      label: 'Convert to Sale',
                       scaleFactor: scale,
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        await viewModel.revertPurchaseToPending(pur.id);
-                        if (context.mounted) {
-                          context.read<PricelistViewModel>().loadItems();
-                        }
-                      },
+                      onTap: () => _convertToSale(ctx, pur, viewModel),
                     ),
-                  ],
                 ],
-                ScaledActionButton(
-                  icon: Icons.copy,
-                  label: 'Duplicate',
-                  scaleFactor: scale,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _duplicate(context, pur, viewModel);
-                  },
-                ),
-                ScaledActionButton(
-                  icon: Icons.sell,
-                  label: 'Convert to Sale',
-                  scaleFactor: scale,
-                  onTap: () => _convertToSale(ctx, pur, viewModel),
-                ),
-              ],
-            ),
+              ),
+            ],
           ],
         );
       },
       actionsBuilder: (ctx, scale) {
+        final canManageStatus = UserPermissionService.canPerformModuleAction('purchases', 'canManageStatus');
         final canEdit = UserPermissionService.canPerformModuleAction('purchases', 'canEdit');
         final canDelete = UserPermissionService.canPerformModuleAction('purchases', 'canDelete');
-        if (!canEdit && !canDelete) return const SizedBox.shrink();
+        final isConfirmed = pur.status.toUpperCase() == 'CONFIRMED';
 
-        return Row(
+        if (!canManageStatus && !canEdit && !canDelete) return const SizedBox.shrink();
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (canEdit)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
+            if (canManageStatus) ...[
+              if (!isConfirmed)
+                ElevatedButton.icon(
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    _showAddEditDialog(context, existingPurchase: pur);
+                    await viewModel.confirmPurchase(pur.id);
+                    if (context.mounted) {
+                      context.read<PricelistViewModel>().loadItems();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Purchase order ${pur.id} confirmed and stocked in.',
+                          ),
+                          backgroundColor: AppTheme.success,
+                        ),
+                      );
+                    }
                   },
-                  icon: Icon(Icons.edit_rounded, size: 16 * scale),
-                  label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryLight,
-                    side: BorderSide(
-                      color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                  icon: Icon(Icons.check_circle_rounded, size: 18 * scale),
+                  label: Text(
+                    'Confirm & Stock In',
+                    style: TextStyle(
+                      fontSize: 13.5 * scale,
+                      fontWeight: FontWeight.bold,
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.success,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12 * scale),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await viewModel.revertPurchaseToPending(pur.id);
+                    if (context.mounted) {
+                      context.read<PricelistViewModel>().loadItems();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Purchase order ${pur.id} reverted to pending.',
+                          ),
+                          backgroundColor: AppTheme.warning,
+                        ),
+                      );
+                    }
+                  },
+                  icon: Icon(Icons.history_rounded, size: 18 * scale),
+                  label: Text(
+                    'Revert to Pending',
+                    style: TextStyle(
+                      fontSize: 13.5 * scale,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.warning.withValues(alpha: 0.15),
+                    foregroundColor: AppTheme.warning,
+                    side: BorderSide(
+                      color: AppTheme.warning.withValues(alpha: 0.4),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12 * scale),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
-              ),
-            if (canEdit && canDelete) SizedBox(width: 12 * scale),
-            if (canDelete)
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _confirmDelete(context, pur.id, viewModel);
-                  },
-                  icon: Icon(Icons.delete_rounded, size: 16 * scale),
-                  label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.danger,
-                    side: BorderSide(
-                      color: AppTheme.danger.withValues(alpha: 0.3),
+              if (canEdit || canDelete) SizedBox(height: 10 * scale),
+            ],
+            if (canEdit || canDelete)
+              Row(
+                children: [
+                  if (canEdit)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showAddEditDialog(context, existingPurchase: pur);
+                        },
+                        icon: Icon(Icons.edit_rounded, size: 16 * scale),
+                        label: Text('Edit', style: TextStyle(fontSize: 13 * scale)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryLight,
+                          side: BorderSide(
+                            color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                        ),
+                      ),
                     ),
-                    padding: EdgeInsets.symmetric(vertical: 10 * scale),
-                  ),
-                ),
+                  if (canEdit && canDelete) SizedBox(width: 12 * scale),
+                  if (canDelete)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _confirmDelete(context, pur.id, viewModel);
+                        },
+                        icon: Icon(Icons.delete_rounded, size: 16 * scale),
+                        label: Text('Delete', style: TextStyle(fontSize: 13 * scale)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.danger,
+                          side: BorderSide(
+                            color: AppTheme.danger.withValues(alpha: 0.3),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 10 * scale),
+                        ),
+                      ),
+                    ),
+                ],
               ),
           ],
         );
@@ -1028,10 +1142,10 @@ class _PurchasesViewState extends State<PurchasesView> {
       decoration: BoxDecoration(
         color: const Color(0xE60F1524),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1046,7 +1160,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             color: const Color(0xFF0F1524),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.white.withOpacity(0.08)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
             onSelected: onItemsPerPageChanged,
             child: Row(
@@ -1085,7 +1199,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             }).toList(),
           ),
           const SizedBox(width: 4),
-          Container(height: 12, width: 1, color: Colors.white.withOpacity(0.1)),
+          Container(height: 12, width: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.chevron_left_rounded),
@@ -1094,7 +1208,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -1114,7 +1228,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             iconSize: 16,
             color: AppTheme.primaryLight,
-            disabledColor: AppTheme.textMuted.withOpacity(0.3),
+            disabledColor: AppTheme.textMuted.withValues(alpha: 0.3),
           ),
         ],
       ),
@@ -1142,15 +1256,40 @@ class _PurchasesViewState extends State<PurchasesView> {
     PurchasesViewModel viewModel,
   ) {
     final navVM = context.read<NavigationViewModel>();
-    navVM.setIndex(
-      NavigationViewModel.sales,
-      prefillData: {
-        'target': 'sales',
-        'customerName': pur.purchasedFrom,
-        'itemName': 'Purchase inventory sale conversion: ${pur.id}',
-        'amount': pur.totalAmount,
-      },
-    );
+    final purchaseItems = viewModel.getPurchaseItems(pur.id);
+
+    if (purchaseItems.isNotEmpty) {
+      final itemsList = purchaseItems.map((item) {
+        return {
+          'itemId': item.itemId,
+          'lineType': 'Product',
+          'itemDescription': item.itemName ?? item.customItemName ?? 'Product',
+          'quantity': item.quantity,
+          'itemPrice': item.unitPrice,
+          'totalAmount': item.amount,
+        };
+      }).toList();
+
+      navVM.setIndex(
+        NavigationViewModel.sales,
+        prefillData: {
+          'target': 'sales',
+          'customerName': pur.purchasedFrom,
+          'estimateItems': itemsList,
+          'totalAmount': pur.totalAmount,
+        },
+      );
+    } else {
+      navVM.setIndex(
+        NavigationViewModel.sales,
+        prefillData: {
+          'target': 'sales',
+          'customerName': pur.purchasedFrom,
+          'itemName': 'Purchase inventory sale conversion: ${pur.id}',
+          'amount': pur.totalAmount,
+        },
+      );
+    }
   }
 }
 
@@ -1278,6 +1417,7 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       }
     }
 
+    if (!mounted) return;
     if (targetItem == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select or type an item name')),
@@ -1368,8 +1508,13 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                 final newQty = int.tryParse(editQtyController.text.trim()) ?? item.quantity;
 
                 if (newName.isNotEmpty && newQty > 0) {
+                  final pricelistVM = context.read<PricelistViewModel>();
+                  final match = pricelistVM.items
+                      .where((p) => p.itemName.trim().toLowerCase() == newName.toLowerCase())
+                      .firstOrNull;
                   setState(() {
                     _items[index] = item.copyWith(
+                      itemId: match?.id ?? item.itemId,
                       itemName: newName,
                       customItemName: newName,
                       unitPrice: newPrice,
@@ -1426,8 +1571,24 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       photo: _photoUrl,
     );
 
+    final catalog = context.read<PricelistViewModel>().items;
     final List<PurchaseOrderItem> finalItems = _items.map((item) {
-      return item.copyWith(purchaseId: id);
+      int? resolvedId = item.itemId;
+      if (resolvedId == null) {
+        final target = (item.itemName ?? item.customItemName ?? '').trim().toLowerCase();
+        if (target.isNotEmpty) {
+          final match = catalog
+              .where((p) => p.itemName.trim().toLowerCase() == target)
+              .firstOrNull;
+          if (match != null) {
+            resolvedId = match.id;
+          }
+        }
+      }
+      return item.copyWith(
+        purchaseId: id,
+        itemId: resolvedId,
+      );
     }).toList();
 
     await viewModel.savePurchase(order, finalItems);
@@ -1465,6 +1626,13 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
 
     final bool isNotesVis = UserPermissionService.isFieldVisible('purchases', 'notes');
     final bool isNotesMod = UserPermissionService.canModifyField('purchases', 'notes', isEdit: isEdit);
+
+    final bool isTotalVis = UserPermissionService.isFieldVisible('purchases', 'totalAmount');
+    final bool isPhotoVis = UserPermissionService.isFieldVisible('purchases', 'photo');
+    final bool isPhotoMod = UserPermissionService.canModifyField('purchases', 'photo', isEdit: isEdit);
+
+    final bool isStockInItemsVis = UserPermissionService.isFieldVisible('purchases', 'stockInItems');
+    final bool isStockInItemsMod = UserPermissionService.canModifyField('purchases', 'stockInItems', isEdit: isEdit);
 
     final Widget formContent = Form(
       key: _formKey,
@@ -1554,26 +1722,24 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             children: [
               if (isStatusVis)
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _status,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Order Status'),
-                    dropdownColor: const Color(0xFF131A2E),
-                    onChanged: isStatusMod ? (val) {
-                      if (val != null) setState(() => _status = val);
-                    } : null,
-                    items:
-                        (() {
-                          final list =
-                              UserPermissionService.getAllowedSelectableStatuses(
-                            'purchases',
-                          );
-                          final List<String> selectableList = List.from(list);
-                          if (_status.isNotEmpty && !selectableList.any((s) => s.toLowerCase() == _status.toLowerCase())) {
-                            selectableList.insert(0, _status);
-                          }
-                          return selectableList;
-                        })().map((st) {
+                  child: Builder(
+                    builder: (context) {
+                      final list = UserPermissionService.getAllowedSelectableStatuses('purchases');
+                      final List<String> selectableList = List.from(list);
+                      final match = selectableList.firstWhere(
+                        (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
+                        orElse: () => selectableList.isNotEmpty ? selectableList.first : 'PENDING',
+                      );
+                      final effectiveStatus = match;
+                      return DropdownButtonFormField<String>(
+                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'Order Status'),
+                        dropdownColor: const Color(0xFF131A2E),
+                        onChanged: isStatusMod ? (val) {
+                          if (val != null) setState(() => _status = val);
+                        } : null,
+                        items: selectableList.map((st) {
                           return DropdownMenuItem(
                             value: st,
                             child: Text(
@@ -1583,19 +1749,22 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                             ),
                           );
                         }).toList(),
+                      );
+                    },
                   ),
                 ),
-              if (isStatusVis) const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Total: ₹${_calculatedTotal.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.success,
+              if (isStatusVis && isTotalVis) const SizedBox(width: 12),
+              if (isTotalVis)
+                Expanded(
+                  child: Text(
+                    'Total: ₹${_calculatedTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.success,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1611,163 +1780,184 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
             const SizedBox(height: 12),
           ],
 
-          PhotoAttachmentWidget(
-            initialPhotoUrl: _photoUrl,
-            label: 'Vendor Bill / Purchase Invoice Photo(s)',
-            onUploadingChanged: (uploading) {
-              setState(() {
-                _isPhotoUploading = uploading;
-              });
-            },
-            onPhotoChanged: (urls) {
-              _photoUrl = urls;
-            },
-          ),
+          if (isPhotoVis) ...[
+            PhotoAttachmentWidget(
+              category: 'purchases',
+              initialPhotoUrl: _photoUrl,
+              label: 'Vendor Bill / Purchase Invoice Photo(s)',
+              onUploadingChanged: (uploading) {
+                setState(() {
+                  _isPhotoUploading = uploading;
+                });
+              },
+              onPhotoChanged: isPhotoMod
+                  ? (urls) {
+                      _photoUrl = urls;
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
 
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Items Stock-In Builder',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          AppKeyboardAutocomplete(
-            controller: _searchItemController,
-            catalogItems: catalogItems,
-            hintText: 'Search or enter item name...',
-            onSelected: (PricelistItem selection) {
-              if (selection.id == -1) return;
-              setState(() {
-                _selectedCatalogItem = selection;
-                _priceController.text = selection.price > 0 ? selection.price.toStringAsFixed(0) : '';
-              });
-            },
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _priceController,
-                  decoration: InputDecoration(
-                    labelText: 'Cost Price (₹)',
-                    hintText: _selectedCatalogItem != null
-                        ? _selectedCatalogItem!.price.toStringAsFixed(0)
-                        : '0.00',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+          if (isStockInItemsVis) ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Items Stock-In Builder',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _qtyController,
-                  decoration: const InputDecoration(
-                    labelText: 'Qty',
-                    hintText: '1',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _addItem,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add Item'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              ],
+            ),
+            const SizedBox(height: 12),
 
-          // Added items list
-          if (_items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No items added yet.',
-                style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-              ),
-            )
-          else
-            Container(
-              height: 180,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.01),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final item = _items[index];
-                  final String name =
-                      item.itemName ?? item.customItemName ?? 'Product';
-                  return ListTile(
-                    title: Text(name, style: const TextStyle(fontSize: 13)),
-                    subtitle: Text(
-                      '₹${item.unitPrice} x ${item.quantity}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '₹${item.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.edit_note_rounded,
-                            color: AppTheme.primaryLight,
-                            size: 18,
-                          ),
-                          tooltip: 'Edit item details',
-                          onPressed: () => _editItemDialog(index),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: AppTheme.danger,
-                            size: 18,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _items.removeAt(index);
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  );
+            if (isStockInItemsMod) ...[
+              AppKeyboardAutocomplete(
+                controller: _searchItemController,
+                catalogItems: catalogItems,
+                hintText: 'Search or enter item name...',
+                allowNewItem: true,
+                onSelected: (PricelistItem selection) {
+                  setState(() {
+                    if (selection.id == -1) {
+                      _selectedCatalogItem = null;
+                      _searchItemController.text = selection.itemName;
+                      _priceController.clear();
+                    } else {
+                      _selectedCatalogItem = selection;
+                      _priceController.text =
+                          selection.price > 0
+                              ? selection.price.toStringAsFixed(0)
+                              : '';
+                    }
+                  });
                 },
               ),
-            ),
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _priceController,
+                      decoration: InputDecoration(
+                        labelText: 'Cost Price (₹)',
+                        hintText: _selectedCatalogItem != null
+                            ? _selectedCatalogItem!.price.toStringAsFixed(0)
+                            : '0.00',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _qtyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Qty',
+                        hintText: '1',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _addItem,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Item'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Added items list
+            if (_items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No items added yet.',
+                  style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                ),
+              )
+            else
+              Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.01),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _items.length,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final String name =
+                        item.itemName ?? item.customItemName ?? 'Product';
+                    return ListTile(
+                      title: Text(name, style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(
+                        '₹${item.unitPrice} x ${item.quantity}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '₹${item.amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (isStockInItemsMod) ...[
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit_note_rounded,
+                                color: AppTheme.primaryLight,
+                                size: 18,
+                              ),
+                              tooltip: 'Edit item details',
+                              onPressed: () => _editItemDialog(index),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: AppTheme.danger,
+                                size: 18,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _items.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -1849,4 +2039,15 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
       ],
     );
   }
+}
+
+class _PurchaseListItem {
+  final String? statusHeader;
+  final int? statusCount;
+  final PurchaseOrder? purchase;
+
+  _PurchaseListItem.header(this.statusHeader, this.statusCount) : purchase = null;
+  _PurchaseListItem.card(this.purchase)
+      : statusHeader = null,
+        statusCount = null;
 }

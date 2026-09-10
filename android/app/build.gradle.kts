@@ -6,6 +6,7 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 val keystoreProperties = Properties()
@@ -20,6 +21,7 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -40,7 +42,17 @@ android {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias") ?: "upload"
             keyPassword = keystoreProperties.getProperty("keyPassword") ?: "shopmanagement123"
-            storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
+            val rawStoreFile = keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks"
+            val resolvedFile = if (file(rawStoreFile).exists()) {
+                file(rawStoreFile)
+            } else if (rootProject.file(rawStoreFile).exists()) {
+                rootProject.file(rawStoreFile)
+            } else if (file("upload-keystore.jks").exists()) {
+                file("upload-keystore.jks")
+            } else {
+                rootProject.file("app/upload-keystore.jks")
+            }
+            storeFile = resolvedFile
             storePassword = keystoreProperties.getProperty("storePassword") ?: "shopmanagement123"
         }
     }
@@ -50,6 +62,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }
 
 flutter {

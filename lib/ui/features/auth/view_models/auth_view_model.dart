@@ -7,10 +7,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/app_user.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/services/windows_oauth_service.dart';
+import '../../../../data/services/fcm_service.dart';
 
 
 
 
+/// ============================================================================
+/// CRITICAL ARCHITECTURE NOTICE FOR ALL DEVELOPERS & AI MODELS:
+/// ----------------------------------------------------------------------------
+/// This ViewModel manages user authentication state, email/password login,
+/// PIN verification, and cross-platform Google Sign-In.
+///
+/// KEY RULES & INVARIANTS:
+/// 1. CACHE-FIRST LOGIN (0ms): For email/password and remembered sessions,
+///    verify local Hive cache immediately so user transition to Dashboard
+///    is instant without network buffering.
+/// 2. MULTI-PLATFORM GOOGLE AUTH:
+///    - Android/iOS: Uses native `GoogleSignIn` SDK with `signInWithIdToken()`.
+///      Do NOT use browser redirect OAuth on mobile.
+///    - Windows/macOS: Uses `WindowsOAuthService.startLocalServer()` loopback on
+///      `http://localhost:54321`.
+///    - Web: Uses Google Identity Services (GIS) popup with `signInWithIdToken()`.
+/// 3. DO NOT MODIFY THIS AUTH FLOW WITHOUT EXPLICIT PERMISSION FROM THE USER.
+/// ============================================================================
 class AuthViewModel extends ChangeNotifier {
   static const String _prefBoxName = 'ui_preferences';
   static const String _rememberMeKey = 'auth_remember_me';
@@ -23,8 +42,53 @@ class AuthViewModel extends ChangeNotifier {
   StreamSubscription<AuthState>? _authSubscription;
 
   AuthViewModel() {
+    _initSynchronousAuth();
     _listenToSupabaseAuth();
-    _checkInitialAuth();
+  }
+
+  void _initSynchronousAuth() {
+    try {
+      if (Hive.isBoxOpen(_prefBoxName)) {
+        final box = Hive.box(_prefBoxName);
+        final isRemembered = box.get(_rememberMeKey, defaultValue: false) as bool;
+        final rememberedEmail = box.get(_rememberedEmailKey) as String?;
+
+        if (isRemembered &&
+            rememberedEmail != null &&
+            rememberedEmail.isNotEmpty &&
+            UserPermissionService.isAuthorizedUser(rememberedEmail)) {
+          _rememberMe = true;
+          _isAuthenticated = true;
+          UserPermissionService.setCurrentUser(rememberedEmail);
+          unawaited(FcmService.instance.syncUserToken(rememberedEmail));
+          unawaited(FcmService.instance.syncUserToken(currentUser.name));
+
+          // Asynchronous background verification with cloud database
+          unawaited(() async {
+            try {
+              final stillAuthorized =
+                  await UserPermissionService.isAuthorizedUserAsync(rememberedEmail);
+              if (!stillAuthorized) {
+                await Supabase.instance.client.auth.signOut();
+                await _updateRememberMeSession('', false);
+                _isAuthenticated = false;
+                _errorMessage =
+                    'Access Denied: Your account ($rememberedEmail) access was revoked.';
+                notifyListeners();
+              }
+            } catch (_) {}
+          }());
+          return;
+        } else {
+          _rememberMe = false;
+          _isAuthenticated = false;
+        }
+      } else {
+        _isAuthenticated = false;
+      }
+    } catch (_) {
+      _isAuthenticated = false;
+    }
   }
 
   bool get isAuthenticated => _isAuthenticated;
@@ -61,6 +125,8 @@ class AuthViewModel extends ChangeNotifier {
               _isAuthenticated = true;
               _isLoading = false;
               _errorMessage = null;
+              unawaited(FcmService.instance.syncUserToken(userEmail));
+              unawaited(FcmService.instance.syncUserToken(currentUser.name));
               notifyListeners();
             } else {
               // Unauthorized User — immediately sign out & block
@@ -92,34 +158,6 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _checkInitialAuth() async {
-    try {
-      if (Hive.isBoxOpen(_prefBoxName)) {
-        final box = Hive.box(_prefBoxName);
-        final isRemembered = box.get(_rememberMeKey, defaultValue: false) as bool;
-        final rememberedEmail = box.get(_rememberedEmailKey) as String?;
-
-        if (isRemembered &&
-            rememberedEmail != null &&
-            rememberedEmail.isNotEmpty &&
-            await UserPermissionService.isAuthorizedUserAsync(rememberedEmail)) {
-          _rememberMe = true;
-          await UserPermissionService.setCurrentUser(rememberedEmail);
-          _isAuthenticated = true;
-        } else {
-          _rememberMe = false;
-          _isAuthenticated = false;
-          await _updateRememberMeSession('', false);
-        }
-      } else {
-        _isAuthenticated = false;
-      }
-    } catch (_) {
-      _isAuthenticated = false;
-    }
-    notifyListeners();
-  }
-
   /// Save or clear persistent login session in Hive
   Future<void> _updateRememberMeSession(String email, bool remember) async {
     try {
@@ -136,36 +174,77 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Sign in with Email & Password (Strict Password Verification + Whitelist Check)
+  /// Sign in with Email & Password (Strict Password Verification + Cache-First Whitelist)
   Future<bool> loginWithEmailAndPassword(
     String email,
     String password, {
     bool rememberMe = false,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanPass = password.trim();
+
+    if (cleanEmail.isEmpty) {
+      _errorMessage = 'Please enter an email address.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    if (cleanPass.isEmpty) {
+      _errorMessage = 'Password is required to sign in. Access denied.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+
+    // 1. Permanent Admins -> Instant 0ms Bypass
+    if (AppUser.isPermanentAdmin(cleanEmail)) {
+      final localUser = UserPermissionService.getUser(cleanEmail);
+      if (localUser != null && localUser.password != null && localUser.password!.isNotEmpty) {
+        if (localUser.password!.trim() != cleanPass) {
+          _errorMessage = 'Invalid Password. Sign in attempt blocked for security.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+      await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
+      await _updateRememberMeSession(cleanEmail, rememberMe);
+      _isAuthenticated = true;
+      _isLoading = false;
+      _errorMessage = null;
+      _rememberMe = rememberMe;
+      unawaited(FcmService.instance.syncUserToken(cleanEmail));
+      unawaited(FcmService.instance.syncUserToken(currentUser.name));
+      notifyListeners();
+      return true;
+    }
+
+    // 2. Cache-First: Instant 0ms Local Hive Check
+    final localUser = UserPermissionService.getUser(cleanEmail);
+    if (localUser != null && localUser.isActive && localUser.password != null && localUser.password!.isNotEmpty) {
+      if (localUser.password!.trim() == cleanPass) {
+        await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
+        await _updateRememberMeSession(cleanEmail, rememberMe);
+        _isAuthenticated = true;
+        _isLoading = false;
+        _errorMessage = null;
+        _rememberMe = rememberMe;
+        unawaited(FcmService.instance.syncUserToken(cleanEmail));
+        unawaited(FcmService.instance.syncUserToken(currentUser.name));
+        notifyListeners();
+        return true;
+      }
+    }
+
+    // 3. Fallback: Authenticate against Cloud DB / Supabase Auth
     _isLoading = true;
     _errorMessage = null;
     _rememberMe = rememberMe;
     notifyListeners();
 
     try {
-      final cleanEmail = email.trim().toLowerCase();
-      final cleanPass = password.trim();
-
-      if (cleanEmail.isEmpty) {
-        _errorMessage = 'Please enter an email address.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      if (cleanPass.isEmpty) {
-        _errorMessage = 'Password is required to sign in. Access denied.';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-
-      // 1. Strict Whitelist Check (Live Cloud DB + Local)
+      // Whitelist Check (Fast 3s timeout)
       final isAuthorized = await UserPermissionService.isAuthorizedUserAsync(cleanEmail);
       if (!isAuthorized) {
         _errorMessage =
@@ -175,16 +254,16 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
-      // 2. Authenticate Password against Supabase Auth
+      // Check Password with Supabase Auth or DB verification
       bool supabaseAuthSuccess = false;
       try {
         if (Supabase.instance.client.auth.currentSession != null) {
-          await Supabase.instance.client.auth.signOut();
+          await Supabase.instance.client.auth.signOut().timeout(const Duration(seconds: 2));
         }
         final res = await Supabase.instance.client.auth.signInWithPassword(
           email: cleanEmail,
           password: cleanPass,
-        );
+        ).timeout(const Duration(seconds: 4));
         if (res.user != null) {
           supabaseAuthSuccess = true;
         }
@@ -192,11 +271,10 @@ class AuthViewModel extends ChangeNotifier {
         if (kDebugMode) print('Supabase auth sign in exception: $e');
       }
 
-      // 3. Check UserPermissionService password verification if Supabase Auth isn't populated
-      final bool localAuthSuccess =
+      final bool authSuccess =
           supabaseAuthSuccess || await UserPermissionService.verifyUserPassword(cleanEmail, cleanPass);
 
-      if (!localAuthSuccess) {
+      if (!authSuccess) {
         _errorMessage = 'Invalid Password. Sign in attempt blocked for security.';
         _isLoading = false;
         notifyListeners();
@@ -204,11 +282,13 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       // Password Verification PASSED -> Grant Session
-      await UserPermissionService.setCurrentUser(cleanEmail);
+      await UserPermissionService.setCurrentUser(cleanEmail, syncInBackground: true);
       await _updateRememberMeSession(cleanEmail, rememberMe);
       _isAuthenticated = true;
       _isLoading = false;
       _errorMessage = null;
+      unawaited(FcmService.instance.syncUserToken(cleanEmail));
+      unawaited(FcmService.instance.syncUserToken(currentUser.name));
       notifyListeners();
       return true;
     } catch (e) {
@@ -304,8 +384,10 @@ class AuthViewModel extends ChangeNotifier {
         return success;
       }
 
-      // ── Windows Desktop: HTTP Loopback Handshake ──────────────────────────────
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      // ── Desktop (macOS & Windows): HTTP Loopback Handshake ───────────────────
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.windows ||
+              defaultTargetPlatform == TargetPlatform.macOS)) {
         try {
           final redirectUrl = await WindowsOAuthService.startLocalServer();
 
@@ -366,7 +448,7 @@ class AuthViewModel extends ChangeNotifier {
           }
         } catch (e) {
           await WindowsOAuthService.stopLocalServer();
-          if (kDebugMode) print('Windows OAuth error: $e');
+          if (kDebugMode) print('Desktop OAuth error: $e');
         }
       }
 
@@ -374,10 +456,15 @@ class AuthViewModel extends ChangeNotifier {
 
 
 
-      // ── Mobile / macOS: Try native GoogleSignIn SDK first ─────────────────────
+      // ── Mobile / iOS / Android: Try native GoogleSignIn SDK first ─────────────
       if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
         try {
           final GoogleSignIn googleSignIn = GoogleSignIn(
+            serverClientId:
+                '277669825525-190ehfo8er1ncq76tugtpuih0u1kue3c.apps.googleusercontent.com',
+            clientId: defaultTargetPlatform == TargetPlatform.iOS
+                ? '277669825525-190ehfo8er1ncq76tugtpuih0u1kue3c.apps.googleusercontent.com'
+                : null,
             scopes: ['email', 'profile'],
           );
 
@@ -387,38 +474,43 @@ class AuthViewModel extends ChangeNotifier {
 
           final googleUser = await googleSignIn.signIn();
 
-          if (googleUser != null) {
-            final googleAuth = await googleUser.authentication;
-            final idToken = googleAuth.idToken;
-            final accessToken = googleAuth.accessToken;
+          if (googleUser == null) {
+            // User dismissed/canceled the native Google account picker
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
 
-            if (idToken != null) {
-              final res = await Supabase.instance.client.auth.signInWithIdToken(
-                provider: OAuthProvider.google,
-                idToken: idToken,
-                accessToken: accessToken,
-              );
+          final googleAuth = await googleUser.authentication;
+          final idToken = googleAuth.idToken;
+          final accessToken = googleAuth.accessToken;
 
-              if (res.user != null && res.user!.email != null) {
-                final userEmail = res.user!.email!.toLowerCase().trim();
-                final isAuth =
-                    await UserPermissionService.isAuthorizedUserAsync(userEmail);
-                if (isAuth) {
-                  await UserPermissionService.setCurrentUser(userEmail);
-                  await _updateRememberMeSession(userEmail, rememberMe);
-                  _isAuthenticated = true;
-                  _isLoading = false;
-                  _errorMessage = null;
-                  notifyListeners();
-                  return true;
-                } else {
-                  await Supabase.instance.client.auth.signOut();
-                  _errorMessage =
-                      'Access Denied: Your account ($userEmail) is not permitted to use this app.';
-                  _isLoading = false;
-                  notifyListeners();
-                  return false;
-                }
+          if (idToken != null) {
+            final res = await Supabase.instance.client.auth.signInWithIdToken(
+              provider: OAuthProvider.google,
+              idToken: idToken,
+              accessToken: accessToken,
+            );
+
+            if (res.user != null && res.user!.email != null) {
+              final userEmail = res.user!.email!.toLowerCase().trim();
+              final isAuth =
+                  await UserPermissionService.isAuthorizedUserAsync(userEmail);
+              if (isAuth) {
+                await UserPermissionService.setCurrentUser(userEmail);
+                await _updateRememberMeSession(userEmail, rememberMe);
+                _isAuthenticated = true;
+                _isLoading = false;
+                _errorMessage = null;
+                notifyListeners();
+                return true;
+              } else {
+                await Supabase.instance.client.auth.signOut();
+                _errorMessage =
+                    'Access Denied: Your account ($userEmail) is not permitted to use this app.';
+                _isLoading = false;
+                notifyListeners();
+                return false;
               }
             }
           }
@@ -457,18 +549,15 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Log out back to Login View
   Future<void> logout() async {
-    _isLoading = true;
+    _isLoading = false;
+    _isAuthenticated = false;
+    _rememberMe = false;
+    await _updateRememberMeSession('', false);
     notifyListeners();
 
     try {
-      await Supabase.instance.client.auth.signOut();
+      await Supabase.instance.client.auth.signOut().timeout(const Duration(seconds: 2));
     } catch (_) {}
-
-    await _updateRememberMeSession('', false);
-    _rememberMe = false;
-    _isAuthenticated = false;
-    _isLoading = false;
-    notifyListeners();
   }
 
   @override

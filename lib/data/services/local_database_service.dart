@@ -17,8 +17,14 @@ import '../models/purchase_order_item.dart';
 import '../models/dealer.dart';
 import 'supabase_sync_service.dart';
 import 'kiosk_broadcast_service.dart';
+import '../repositories/shop_repository.dart';
+import '../../ui/shared/status_management_dialog.dart';
 
 class LocalDatabaseService {
+  /// Set to true if any Hive box opened via the fallback path (empty box).
+  /// The sync service checks this flag to force a full cloud re-pull instead
+  /// of a delta sync, because the box may be missing data.
+  bool hadFallbackBoxOpen = false;
   static const String _pricelistBoxName = 'pricelist_box';
   static const String _settingsBoxName = 'settings_box';
   static const String _salesBoxName = 'sales_box';
@@ -47,28 +53,45 @@ class LocalDatabaseService {
   late Box _dealersBox;
   late Box _pendingSyncBox;
 
-  Future<void> init() async {
+  Future<void> init({int? subWindowId}) async {
     try {
       final appSupportDir = await getApplicationSupportDirectory();
-      final hiveDir = '${appSupportDir.path}/shop_management_hive';
+      final suffix = (subWindowId != null && subWindowId != 0) ? '_sub_$subWindowId' : '';
+      final hiveDir = '${appSupportDir.path}/shop_management_hive$suffix';
       await Hive.initFlutter(hiveDir);
     } catch (_) {
       await Hive.initFlutter();
     }
 
-    _pricelistBox = await _openBoxSafely(_pricelistBoxName);
-    _settingsBox = await _openBoxSafely(_settingsBoxName);
-    _salesBox = await _openBoxSafely(_salesBoxName);
-    _saleItemsBox = await _openBoxSafely(_saleItemsBoxName);
-    _callsBox = await _openBoxSafely(_callsBoxName);
-    _inwardBox = await _openBoxSafely(_inwardBoxName);
-    _inwardItemsBox = await _openBoxSafely(_inwardItemsBoxName);
-    _replacementBox = await _openBoxSafely(_replacementBoxName);
-    _requestBox = await _openBoxSafely(_requestBoxName);
-    _purchaseBox = await _openBoxSafely(_purchaseBoxName);
-    _purchaseItemsBox = await _openBoxSafely(_purchaseItemsBoxName);
-    _dealersBox = await _openBoxSafely(_dealersBoxName);
-    _pendingSyncBox = await _openBoxSafely(_pendingSyncBoxName);
+    final boxes = await Future.wait([
+      _openBoxSafely(_pricelistBoxName),
+      _openBoxSafely(_settingsBoxName),
+      _openBoxSafely(_salesBoxName),
+      _openBoxSafely(_saleItemsBoxName),
+      _openBoxSafely(_callsBoxName),
+      _openBoxSafely(_inwardBoxName),
+      _openBoxSafely(_inwardItemsBoxName),
+      _openBoxSafely(_replacementBoxName),
+      _openBoxSafely(_requestBoxName),
+      _openBoxSafely(_purchaseBoxName),
+      _openBoxSafely(_purchaseItemsBoxName),
+      _openBoxSafely(_dealersBoxName),
+      _openBoxSafely(_pendingSyncBoxName),
+    ]);
+
+    _pricelistBox = boxes[0];
+    _settingsBox = boxes[1];
+    _salesBox = boxes[2];
+    _saleItemsBox = boxes[3];
+    _callsBox = boxes[4];
+    _inwardBox = boxes[5];
+    _inwardItemsBox = boxes[6];
+    _replacementBox = boxes[7];
+    _requestBox = boxes[8];
+    _purchaseBox = boxes[9];
+    _purchaseItemsBox = boxes[10];
+    _dealersBox = boxes[11];
+    _pendingSyncBox = boxes[12];
 
     // Seed data is disabled since Supabase is now the source of truth
   }
@@ -91,13 +114,193 @@ class LocalDatabaseService {
     } catch (e) {
       if (kDebugMode) print('Hive second retry for $boxName: $e. Recovering...');
     }
-    // Last resort: delete the corrupted/locked box and open fresh
+    // Last resort: open fallback box in memory/isolated name
     try {
-      await Hive.deleteBoxFromDisk(boxName);
-      return await Hive.openBox(boxName);
+      hadFallbackBoxOpen = true;
+      if (kDebugMode) print('[WARN] Hive: opening fallback box for $boxName — full cloud sync will be forced');
+      return await Hive.openBox('${boxName}_fallback');
     } catch (err) {
       if (kDebugMode) print('Hive fallback openBox for $boxName: $err');
-      return await Hive.openBox('${boxName}_fallback');
+      hadFallbackBoxOpen = true;
+      return await Hive.openBox('${boxName}_${DateTime.now().millisecondsSinceEpoch}');
+    }
+  }
+
+  Map<String, dynamic> exportDbSnapshot() {
+    Box? uiPrefBox;
+    if (Hive.isBoxOpen('ui_preferences')) {
+      uiPrefBox = Hive.box('ui_preferences');
+    }
+    Box? usersBox;
+    if (Hive.isBoxOpen('app_users_box')) {
+      usersBox = Hive.box('app_users_box');
+    }
+
+    return {
+      'pricelist': _boxToMap(_pricelistBox),
+      'settings': _boxToMap(_settingsBox),
+      'sales': _boxToMap(_salesBox),
+      'sale_items': _boxToMap(_saleItemsBox),
+      'calls': _boxToMap(_callsBox),
+      'inward': _boxToMap(_inwardBox),
+      'inward_items': _boxToMap(_inwardItemsBox),
+      'replacement': _boxToMap(_replacementBox),
+      'request': _boxToMap(_requestBox),
+      'purchase': _boxToMap(_purchaseBox),
+      'purchase_items': _boxToMap(_purchaseItemsBox),
+      'ui_preferences': uiPrefBox != null ? _boxToMap(uiPrefBox) : {},
+      'app_users': usersBox != null ? _boxToMap(usersBox) : {},
+    };
+  }
+
+  Map<String, dynamic> _boxToMap(Box box) {
+    final map = <String, dynamic>{};
+    for (final key in box.keys) {
+      map[key.toString()] = box.get(key);
+    }
+    return map;
+  }
+
+  Future<void> importDbSnapshot(Map<String, dynamic> snapshot) async {
+    for (final entry in snapshot.entries) {
+      await importTableData(entry.key, entry.value);
+    }
+  }
+
+  dynamic exportTableData(String tableName) {
+    switch (tableName) {
+      case 'pricelist':
+      case 'pricelist_items':
+        return _boxToMap(_pricelistBox);
+      case 'shop_settings':
+      case 'settings':
+        return _boxToMap(_settingsBox);
+      case 'custom_services':
+        return _settingsBox.get('custom_services_list');
+      case 'sales':
+        return {
+          'sales': _boxToMap(_salesBox),
+          'sale_items': _boxToMap(_saleItemsBox),
+        };
+      case 'calls':
+        return _boxToMap(_callsBox);
+      case 'inward_repairs':
+      case 'inward':
+        return {
+          'inward': _boxToMap(_inwardBox),
+          'inward_items': _boxToMap(_inwardItemsBox),
+        };
+      case 'replacements':
+      case 'replacement':
+        return _boxToMap(_replacementBox);
+      case 'requests':
+      case 'request':
+        return _boxToMap(_requestBox);
+      case 'purchases':
+      case 'purchase':
+        return {
+          'purchases': _boxToMap(_purchaseBox),
+          'purchase_items': _boxToMap(_purchaseItemsBox),
+        };
+      case 'dealers':
+      case 'dealer':
+        return _boxToMap(_dealersBox);
+      default:
+        return null;
+    }
+  }
+
+  Map<dynamic, dynamic> _normalizeMapKeys(Map data) {
+    final result = <dynamic, dynamic>{};
+    for (final e in data.entries) {
+      final k = int.tryParse(e.key.toString()) ?? e.key;
+      result[k] = e.value;
+    }
+    return result;
+  }
+
+  Future<void> importTableData(String tableName, dynamic data) async {
+    if (data == null) return;
+    try {
+      if ((tableName == 'pricelist' || tableName == 'pricelist_items') && data is Map) {
+        await _pricelistBox.clear();
+        await _pricelistBox.putAll(_normalizeMapKeys(data));
+      } else if ((tableName == 'settings' || tableName == 'shop_settings') && data is Map) {
+        await _settingsBox.clear();
+        await _settingsBox.putAll(data);
+      } else if (tableName == 'custom_services' && data is List) {
+        await _settingsBox.put('custom_services_list', List<String>.from(data));
+        ShopRepository.notifyTableChanged('custom_services');
+      } else if (tableName == 'sales' && data is Map) {
+        if (data.containsKey('sales') && data['sales'] is Map) {
+          await _salesBox.clear();
+          await _salesBox.putAll(_normalizeMapKeys(data['sales'] as Map));
+        } else {
+          await _salesBox.clear();
+          await _salesBox.putAll(_normalizeMapKeys(data));
+        }
+        if (data.containsKey('sale_items') && data['sale_items'] is Map) {
+          await _saleItemsBox.clear();
+          await _saleItemsBox.putAll(_normalizeMapKeys(data['sale_items'] as Map));
+        }
+      } else if (tableName == 'calls' && data is Map) {
+        await _callsBox.clear();
+        await _callsBox.putAll(_normalizeMapKeys(data));
+      } else if ((tableName == 'inward' || tableName == 'inward_repairs') && data is Map) {
+        if (data.containsKey('inward') && data['inward'] is Map) {
+          await _inwardBox.clear();
+          await _inwardBox.putAll(_normalizeMapKeys(data['inward'] as Map));
+        } else {
+          await _inwardBox.clear();
+          await _inwardBox.putAll(_normalizeMapKeys(data));
+        }
+        if (data.containsKey('inward_items') && data['inward_items'] is Map) {
+          await _inwardItemsBox.clear();
+          await _inwardItemsBox.putAll(_normalizeMapKeys(data['inward_items'] as Map));
+        }
+      } else if (tableName == 'replacements' || tableName == 'replacement') {
+        if (data is Map) {
+          await _replacementBox.clear();
+          await _replacementBox.putAll(_normalizeMapKeys(data));
+        }
+      } else if (tableName == 'requests' || tableName == 'request') {
+        if (data is Map) {
+          await _requestBox.clear();
+          await _requestBox.putAll(_normalizeMapKeys(data));
+        }
+      } else if (tableName == 'purchases' || tableName == 'purchase') {
+        if (data is Map) {
+          if (data.containsKey('purchases') && data['purchases'] is Map) {
+            await _purchaseBox.clear();
+            await _purchaseBox.putAll(_normalizeMapKeys(data['purchases'] as Map));
+          } else {
+            await _purchaseBox.clear();
+            await _purchaseBox.putAll(_normalizeMapKeys(data));
+          }
+          if (data.containsKey('purchase_items') && data['purchase_items'] is Map) {
+            await _purchaseItemsBox.clear();
+            await _purchaseItemsBox.putAll(_normalizeMapKeys(data['purchase_items'] as Map));
+          }
+        }
+      } else if (tableName == 'ui_preferences' && data is Map) {
+        if (Hive.isBoxOpen('ui_preferences')) {
+          final box = Hive.box('ui_preferences');
+          await box.clear();
+          await box.putAll(data);
+          StatusManagementService.clearCache();
+        }
+      } else if ((tableName == 'dealers' || tableName == 'dealer') && data is Map) {
+        await _dealersBox.clear();
+        await _dealersBox.putAll(_normalizeMapKeys(data));
+      } else if ((tableName == 'app_users' || tableName == 'app_users_box') && data is Map) {
+        if (Hive.isBoxOpen('app_users_box')) {
+          final box = Hive.box('app_users_box');
+          await box.clear();
+          await box.putAll(data);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('LocalDatabaseService importTableData ($tableName) error: $e');
     }
   }
 
@@ -119,163 +322,22 @@ class LocalDatabaseService {
   }
 
   // ignore: unused_element
-  Future<void> _seedSales() async {
-    try {
-      final salesJsonStr = await rootBundle.loadString('assets/sales.json');
-      final List<dynamic> salesJsonList = json.decode(salesJsonStr);
-      final Map<int, Map<String, dynamic>> salesMap = {};
-      for (var s in salesJsonList) {
-        final sale = Sale.fromJson(s);
-        salesMap[sale.invoiceNo] = sale.toJson();
-      }
-      await _salesBox.putAll(salesMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/sale_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<int, List<Map<String, dynamic>>> itemsGroupByInvoice = {};
-      for (var itemJson in itemsJsonList) {
-        final item = SaleItem.fromJson(itemJson);
-        if (!itemsGroupByInvoice.containsKey(item.invoiceNo)) {
-          itemsGroupByInvoice[item.invoiceNo] = [];
-        }
-        itemsGroupByInvoice[item.invoiceNo]!.add(item.toJson());
-      }
-
-      final Map<int, List<dynamic>> itemsMap = {};
-      itemsGroupByInvoice.forEach((invoiceNo, list) {
-        itemsMap[invoiceNo] = list;
-      });
-      await _saleItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed sales
-    }
-  }
+  Future<void> _seedSales() async {}
 
   // ignore: unused_element
-  Future<void> _seedCalls() async {
-    try {
-      final jsonString = await rootBundle.loadString('assets/calls.json');
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<int, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = CallModel.fromJson(jsonMap);
-        seedData[item.id] = item.toJson();
-      }
-      await _callsBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed calls
-    }
-  }
+  Future<void> _seedCalls() async {}
 
   // ignore: unused_element
-  Future<void> _seedInwardRepairs() async {
-    try {
-      final repairsJsonStr = await rootBundle.loadString(
-        'assets/inward_repairs.json',
-      );
-      final List<dynamic> repairsJsonList = json.decode(repairsJsonStr);
-      final Map<int, Map<String, dynamic>> repairsMap = {};
-      for (var s in repairsJsonList) {
-        final repair = InwardRepair.fromJson(s);
-        repairsMap[repair.jobNo] = repair.toJson();
-      }
-      await _inwardBox.putAll(repairsMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/inward_estimate_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<int, List<Map<String, dynamic>>> itemsGroupByJob = {};
-      for (var itemJson in itemsJsonList) {
-        final item = InwardEstimateItem.fromJson(itemJson);
-        if (!itemsGroupByJob.containsKey(item.jobNo)) {
-          itemsGroupByJob[item.jobNo] = [];
-        }
-        itemsGroupByJob[item.jobNo]!.add(item.toJson());
-      }
-
-      final Map<int, List<dynamic>> itemsMap = {};
-      itemsGroupByJob.forEach((jobNo, list) {
-        itemsMap[jobNo] = list;
-      });
-      await _inwardItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed inward repairs
-    }
-  }
+  Future<void> _seedInwardRepairs() async {}
 
   // ignore: unused_element
-  Future<void> _seedReplacements() async {
-    try {
-      final jsonString = await rootBundle.loadString(
-        'assets/replacements.json',
-      );
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<String, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = Replacement.fromJson(jsonMap);
-        seedData[item.jobNo] = item.toJson();
-      }
-      await _replacementBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed replacements
-    }
-  }
+  Future<void> _seedReplacements() async {}
 
   // ignore: unused_element
-  Future<void> _seedRequests() async {
-    try {
-      final jsonString = await rootBundle.loadString('assets/requests.json');
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final Map<String, Map<String, dynamic>> seedData = {};
-      for (var jsonMap in jsonList) {
-        final item = RequestOrder.fromJson(jsonMap);
-        seedData[item.id] = item.toJson();
-      }
-      await _requestBox.putAll(seedData);
-    } catch (e) {
-      // Failed to seed requests
-    }
-  }
+  Future<void> _seedRequests() async {}
 
   // ignore: unused_element
-  Future<void> _seedPurchases() async {
-    try {
-      final purchasesJsonStr = await rootBundle.loadString(
-        'assets/purchases.json',
-      );
-      final List<dynamic> purchasesJsonList = json.decode(purchasesJsonStr);
-      final Map<String, Map<String, dynamic>> purchasesMap = {};
-      for (var s in purchasesJsonList) {
-        final purchase = PurchaseOrder.fromJson(s);
-        purchasesMap[purchase.id] = purchase.toJson();
-      }
-      await _purchaseBox.putAll(purchasesMap);
-
-      final itemsJsonStr = await rootBundle.loadString(
-        'assets/purchase_items.json',
-      );
-      final List<dynamic> itemsJsonList = json.decode(itemsJsonStr);
-      final Map<String, List<Map<String, dynamic>>> itemsGroupByPurchase = {};
-      for (var itemJson in itemsJsonList) {
-        final item = PurchaseOrderItem.fromJson(itemJson);
-        if (!itemsGroupByPurchase.containsKey(item.purchaseId)) {
-          itemsGroupByPurchase[item.purchaseId] = [];
-        }
-        itemsGroupByPurchase[item.purchaseId]!.add(item.toJson());
-      }
-
-      final Map<String, List<dynamic>> itemsMap = {};
-      itemsGroupByPurchase.forEach((purchaseId, list) {
-        itemsMap[purchaseId] = list;
-      });
-      await _purchaseItemsBox.putAll(itemsMap);
-    } catch (e) {
-      // Failed to seed purchases
-    }
-  }
+  Future<void> _seedPurchases() async {}
 
   // --- Pricelist Methods ---
 
@@ -288,6 +350,18 @@ class LocalDatabaseService {
       }
     }
     return items;
+  }
+
+  int getNextPricelistId() {
+    if (_pricelistBox.isEmpty) return 1;
+    int maxId = 0;
+    for (var key in _pricelistBox.keys) {
+      final int? id = key is int ? key : int.tryParse(key.toString());
+      if (id != null && id > maxId) {
+        maxId = id;
+      }
+    }
+    return maxId + 1;
   }
 
   Future<void> savePricelistItem(PricelistItem item) async {
@@ -314,11 +388,23 @@ class LocalDatabaseService {
     await _seedPricelist();
   }
 
+  /// Clears and re-seeds ONLY the pricelist box from bundled assets.
+  /// Does NOT touch sales, repairs, calls, purchases, or any other data.
+  /// Use this for "Reset Pricelist to Default" actions.
+  Future<void> clearPricelistOnly() async {
+    await _pricelistBox.clear();
+    await _seedPricelist();
+  }
+
   // ─── Offline Pending Sync Queue ────────────────────────────────────────────
   /// Adds a pending operation to the offline queue so it can be retried
   /// when internet connectivity is restored.
   Future<void> enqueuePendingSync(Map<String, dynamic> operation) async {
-    final key = '${DateTime.now().microsecondsSinceEpoch}';
+    // Use microsecond timestamp + random hex suffix to prevent key collision
+    // when multiple operations are enqueued within the same microsecond.
+    final rnd = List<int>.generate(4, (_) => (DateTime.now().microsecondsSinceEpoch & 0xFF) ^ (DateTime.now().millisecond));
+    final suffix = rnd.map((b) => (b ^ DateTime.now().microsecondsSinceEpoch).toRadixString(16).padLeft(2, '0')).join();
+    final key = '${DateTime.now().microsecondsSinceEpoch}_$suffix';
     await _pendingSyncBox.put(key, operation);
   }
 
@@ -471,7 +557,7 @@ class LocalDatabaseService {
     return List<String>.from(list);
   }
 
-  Future<void> saveCustomServiceName(String name) async {
+  Future<void> saveCustomServiceName(String name, {bool syncToCloud = true}) async {
     final cleaned = name.trim();
     if (cleaned.isEmpty) return;
 
@@ -490,6 +576,61 @@ class LocalDatabaseService {
     if (!exists) {
       list.add(capitalized);
       await _settingsBox.put('custom_services_list', list);
+      ShopRepository.notifyTableChanged('custom_services');
+
+      if (syncToCloud) {
+        unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+          'shop_settings',
+          {
+            'key': 'custom_services_list',
+            'value': list,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          localDb: this,
+        ));
+      }
+    }
+  }
+
+  Future<void> deleteCustomServiceName(String name, {bool syncToCloud = true}) async {
+    final cleaned = name.trim();
+    if (cleaned.isEmpty) return;
+
+    final List<String> list = getCustomServiceNames();
+    final initialLen = list.length;
+    list.removeWhere((item) => item.toLowerCase() == cleaned.toLowerCase());
+
+    if (list.length != initialLen) {
+      await _settingsBox.put('custom_services_list', list);
+      ShopRepository.notifyTableChanged('custom_services');
+
+      if (syncToCloud) {
+        unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+          'shop_settings',
+          {
+            'key': 'custom_services_list',
+            'value': list,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          localDb: this,
+        ));
+      }
+    }
+  }
+
+  Future<void> setCustomServicesList(List<String> services, {bool syncToCloud = false}) async {
+    await _settingsBox.put('custom_services_list', services);
+    ShopRepository.notifyTableChanged('custom_services');
+    if (syncToCloud) {
+      unawaited(SupabaseSyncService.instance.pushRecordToCloud(
+        'shop_settings',
+        {
+          'key': 'custom_services_list',
+          'value': services,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        localDb: this,
+      ));
     }
   }
 
@@ -597,7 +738,13 @@ class LocalDatabaseService {
       }
     }
     // Sort sales by date descending (newest first)
-    sales.sort((a, b) => b.saleDate.compareTo(a.saleDate));
+    sales.sort((a, b) {
+      final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
+      final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.invoiceNo.compareTo(a.invoiceNo);
+    });
     return sales;
   }
 
@@ -618,11 +765,141 @@ class LocalDatabaseService {
         .toList();
   }
 
-  Future<void> saveSale(Sale sale, List<SaleItem> items) async {
-    await _salesBox.put(sale.invoiceNo, sale.toJson());
+  // Lookup product from pricelist box by id or fallback name
+  PricelistItem? _findPricelistProduct(dynamic itemId, String? fallbackName) {
+    dynamic rawProduct;
+    if (itemId != null) {
+      rawProduct = _pricelistBox.get(itemId) ??
+          _pricelistBox.get(itemId.toString()) ??
+          _pricelistBox.get(int.tryParse(itemId.toString()));
+    }
+    if (rawProduct == null && fallbackName != null) {
+      final target = fallbackName.trim().toLowerCase();
+      if (target.isNotEmpty) {
+        for (var key in _pricelistBox.keys) {
+          final raw = _pricelistBox.get(key);
+          if (raw != null) {
+            final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
+            if (p.itemName.trim().toLowerCase() == target) {
+              rawProduct = raw;
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (rawProduct != null) {
+      return PricelistItem.fromJson(Map<String, dynamic>.from(rawProduct));
+    }
+    return null;
+  }
 
-    final itemsJson = items.map((item) => item.toJson()).toList();
+  bool _isSaleConfirmed(String status) {
+    final s = status.trim().toLowerCase();
+    return s == 'confirmed' || s == 'complete' || s == 'completed';
+  }
+
+  Future<List<PricelistItem>> _adjustStockForSale(
+    List<SaleItem> items, {
+    required bool isDeducting,
+  }) async {
+    final List<PricelistItem> updatedProducts = [];
+
+    for (var item in items) {
+      if (item.lineType == 'Product') {
+        final product = _findPricelistProduct(
+          item.itemId,
+          item.itemDescription,
+        );
+
+        if (product != null) {
+          final updatedProduct = product.copyWith(
+            stockQty: isDeducting
+                ? (product.stockQty - item.quantity)
+                : (product.stockQty + item.quantity),
+          );
+          await _pricelistBox.put(product.id, updatedProduct.toJson());
+          updatedProducts.add(updatedProduct);
+        }
+      }
+    }
+
+    return updatedProducts;
+  }
+
+  Future<List<PricelistItem>> saveSale(Sale sale, List<SaleItem> items) async {
+    final List<PricelistItem> updatedProducts = [];
+    final rawExisting = _salesBox.get(sale.invoiceNo);
+
+    // Resolve and backfill any missing itemId on Product line items before saving
+    final resolvedItems = items.map((item) {
+      if (item.lineType == 'Product' && item.itemId == null) {
+        final product = _findPricelistProduct(
+          null,
+          item.itemDescription,
+        );
+        if (product != null) {
+          return item.copyWith(itemId: product.id);
+        }
+      }
+      return item;
+    }).toList();
+
+    if (rawExisting != null) {
+      final existing = Sale.fromJson(Map<String, dynamic>.from(rawExisting));
+      final wasConfirmed = _isSaleConfirmed(existing.orderStatus);
+      final nowConfirmed = _isSaleConfirmed(sale.orderStatus);
+
+      if (!wasConfirmed && nowConfirmed) {
+        // Transitioned from pending to complete/confirmed — deduct stock
+        final res = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res);
+      } else if (wasConfirmed && !nowConfirmed) {
+        // Reverted from complete/confirmed to pending — restore stock
+        final oldItems = getSaleItems(sale.invoiceNo);
+        final res = await _adjustStockForSale(oldItems, isDeducting: false);
+        updatedProducts.addAll(res);
+      } else if (wasConfirmed && nowConfirmed) {
+        // Was confirmed, still confirmed but items or quantities may have changed — re-adjust
+        final oldItems = getSaleItems(sale.invoiceNo);
+        final res1 = await _adjustStockForSale(oldItems, isDeducting: false);
+        final res2 = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res1);
+        updatedProducts.addAll(res2);
+      }
+    } else {
+      // New sale
+      if (_isSaleConfirmed(sale.orderStatus)) {
+        final res = await _adjustStockForSale(resolvedItems, isDeducting: true);
+        updatedProducts.addAll(res);
+      }
+    }
+
+    await _salesBox.put(sale.invoiceNo, sale.toJson());
+    final itemsJson = resolvedItems.map((item) => item.toJson()).toList();
     await _saleItemsBox.put(sale.invoiceNo, itemsJson);
+
+    return updatedProducts;
+  }
+
+  /// Saves sale metadata without wiping out existing items box
+  Future<void> saveSaleHeaderOnly(Sale sale) async {
+    await _salesBox.put(sale.invoiceNo, sale.toJson());
+  }
+
+  /// Upserts a single sale item into the existing items box for an invoice
+  Future<void> saveSaleItemOnly(SaleItem item) async {
+    final items = getSaleItems(item.invoiceNo);
+    final idx = items.indexWhere((i) => i.id == item.id);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _saleItemsBox.put(
+      item.invoiceNo,
+      items.map((i) => i.toJson()).toList(),
+    );
   }
 
   // Confirm order and deduct inventory
@@ -631,50 +908,15 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    if (sale.orderStatus == 'Confirmed') return []; // Already confirmed
+    if (_isSaleConfirmed(sale.orderStatus)) return []; // Already confirmed
 
-    // 1. Mark sale as Confirmed
-    final updatedSale = sale.copyWith(orderStatus: 'Confirmed');
+    // 1. Mark sale as Complete
+    final updatedSale = sale.copyWith(orderStatus: 'Complete');
     await _salesBox.put(invoiceNo, updatedSale.toJson());
 
     // 2. Deduct quantities from stock for all product lines
     final items = getSaleItems(invoiceNo);
-    final List<PricelistItem> updatedProducts = [];
-
-    for (var item in items) {
-      if (item.lineType == 'Product') {
-        dynamic rawProduct;
-        if (item.itemId != null) {
-          rawProduct = _pricelistBox.get(item.itemId);
-        }
-        if (rawProduct == null) {
-          final targetDesc = (item.itemDescription ?? '').trim().toLowerCase();
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetDesc) {
-                rawProduct = raw;
-                break;
-              }
-            }
-          }
-        }
-
-        if (rawProduct != null) {
-          final product = PricelistItem.fromJson(
-            Map<String, dynamic>.from(rawProduct),
-          );
-          final updatedProduct = product.copyWith(
-            stockQty: product.stockQty - item.quantity,
-          );
-          await _pricelistBox.put(product.id, updatedProduct.toJson());
-          updatedProducts.add(updatedProduct);
-        }
-      }
-    }
-
-    return updatedProducts;
+    return await _adjustStockForSale(items, isDeducting: true);
   }
 
   // Revert order status to PENDING and add back the deducted stock quantities
@@ -683,82 +925,36 @@ class LocalDatabaseService {
     if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
-    if (sale.orderStatus == 'PENDING') return []; // Already pending
+    if (!_isSaleConfirmed(sale.orderStatus)) return []; // Already pending
 
-    // 1. Mark sale as PENDING
-    final updatedSale = sale.copyWith(orderStatus: 'PENDING');
+    // 1. Mark sale as Pending
+    final updatedSale = sale.copyWith(orderStatus: 'Pending');
     await _salesBox.put(invoiceNo, updatedSale.toJson());
 
     // 2. Add quantities back to stock for all product lines (revert deduction)
     final items = getSaleItems(invoiceNo);
-    final List<PricelistItem> updatedProducts = [];
-
-    for (var item in items) {
-      if (item.lineType == 'Product') {
-        dynamic rawProduct;
-        if (item.itemId != null) {
-          rawProduct = _pricelistBox.get(item.itemId);
-        }
-        if (rawProduct == null) {
-          final targetDesc = (item.itemDescription ?? '').trim().toLowerCase();
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetDesc) {
-                rawProduct = raw;
-                break;
-              }
-            }
-          }
-        }
-
-        if (rawProduct != null) {
-          final product = PricelistItem.fromJson(
-            Map<String, dynamic>.from(rawProduct),
-          );
-          final updatedProduct = product.copyWith(
-            stockQty: product.stockQty + item.quantity,
-          );
-          await _pricelistBox.put(product.id, updatedProduct.toJson());
-          updatedProducts.add(updatedProduct);
-        }
-      }
-    }
-
-    return updatedProducts;
+    return await _adjustStockForSale(items, isDeducting: false);
   }
 
   // Delete sale records and revert stock if it was already confirmed
-  Future<bool> deleteSale(int invoiceNo) async {
+  Future<List<PricelistItem>> deleteSale(int invoiceNo) async {
     final rawSale = _salesBox.get(invoiceNo);
-    if (rawSale == null) return false;
+    if (rawSale == null) return [];
 
     final sale = Sale.fromJson(Map<String, dynamic>.from(rawSale));
+    final List<PricelistItem> restoredProducts = [];
 
-    // Revert stock deduction if order was already confirmed
-    if (sale.orderStatus == 'Confirmed') {
+    // Revert stock deduction if order was already completed/confirmed
+    if (_isSaleConfirmed(sale.orderStatus)) {
       final items = getSaleItems(invoiceNo);
-      for (var item in items) {
-        if (item.lineType == 'Product' && item.itemId != null) {
-          final rawProduct = _pricelistBox.get(item.itemId);
-          if (rawProduct != null) {
-            final product = PricelistItem.fromJson(
-              Map<String, dynamic>.from(rawProduct),
-            );
-            final updatedProduct = product.copyWith(
-              stockQty: product.stockQty + item.quantity,
-            );
-            await _pricelistBox.put(product.id, updatedProduct.toJson());
-          }
-        }
-      }
+      final res = await _adjustStockForSale(items, isDeducting: false);
+      restoredProducts.addAll(res);
     }
 
     // Delete from boxes
     await _salesBox.delete(invoiceNo);
     await _saleItemsBox.delete(invoiceNo);
-    return true;
+    return restoredProducts;
   }
 
   // --- Calls Methods ---
@@ -779,7 +975,13 @@ class LocalDatabaseService {
         list.add(CallModel.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 
@@ -819,7 +1021,13 @@ class LocalDatabaseService {
       }
     }
     final list = map.values.toList();
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.jobNo.compareTo(a.jobNo);
+    });
     return list;
   }
 
@@ -858,6 +1066,133 @@ class LocalDatabaseService {
     await _inwardItemsBox.put(repair.jobNo, itemsJson);
   }
 
+  /// Saves inward repair header without overwriting the estimate items box
+  Future<void> saveInwardRepairHeaderOnly(InwardRepair repair) async {
+    await _inwardBox.put(repair.jobNo, repair.toJson());
+  }
+
+  /// Upserts a single inward estimate item into the existing items box for a job
+  Future<void> saveInwardEstimateItemOnly(InwardEstimateItem item) async {
+    final items = getInwardEstimateItems(item.jobNo);
+    final idx = items.indexWhere((i) => i.lineId == item.lineId);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _inwardItemsBox.put(
+      item.jobNo,
+      items.map((i) => i.toJson()).toList(),
+    );
+  }
+
+  /// Deletes a single inward estimate item by lineId
+  Future<void> deleteInwardEstimateItem(String lineId, int? jobNo) async {
+    if (jobNo != null) {
+      final items = getInwardEstimateItems(jobNo);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.lineId == lineId);
+      if (items.length != initialCount) {
+        await _inwardItemsBox.put(
+          jobNo,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _inwardItemsBox.keys) {
+        final jno = key is int ? key : int.tryParse(key.toString());
+        if (jno != null) {
+          final items = getInwardEstimateItems(jno);
+          final initialCount = items.length;
+          items.removeWhere((i) => i.lineId == lineId);
+          if (items.length != initialCount) {
+            await _inwardItemsBox.put(
+              jno,
+              items.map((i) => i.toJson()).toList(),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /// Deletes a single sale item by lineId / id
+  Future<void> deleteSaleItem(String lineId, int? invoiceNo) async {
+    if (invoiceNo != null) {
+      final items = getSaleItems(invoiceNo);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.id == lineId);
+      if (items.length != initialCount) {
+        await _saleItemsBox.put(
+          invoiceNo,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _saleItemsBox.keys) {
+        final inv = key is int ? key : int.tryParse(key.toString());
+        if (inv != null) {
+          final items = getSaleItems(inv);
+          final initialCount = items.length;
+          items.removeWhere((i) => i.id == lineId);
+          if (items.length != initialCount) {
+            await _saleItemsBox.put(
+              inv,
+              items.map((i) => i.toJson()).toList(),
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /// Deletes a single purchase order item by lineId
+  Future<void> deletePurchaseOrderItem(String lineId, String? purchaseId) async {
+    if (purchaseId != null && purchaseId.isNotEmpty) {
+      final items = getPurchaseOrderItems(purchaseId);
+      final initialCount = items.length;
+      items.removeWhere((i) => i.lineId == lineId);
+      if (items.length != initialCount) {
+        await _purchaseItemsBox.put(
+          purchaseId,
+          items.map((i) => i.toJson()).toList(),
+        );
+      }
+    } else {
+      for (final key in _purchaseItemsBox.keys) {
+        final pid = key.toString();
+        final items = getPurchaseOrderItems(pid);
+        final initialCount = items.length;
+        items.removeWhere((i) => i.lineId == lineId);
+        if (items.length != initialCount) {
+          await _purchaseItemsBox.put(
+            pid,
+            items.map((i) => i.toJson()).toList(),
+          );
+        }
+      }
+    }
+  }
+
+  /// Checks whether there are pending sync queue operations for a given parent record
+  bool hasPendingSyncForParent(String table, String parentKeyColumn, dynamic parentKeyValue) {
+    if (parentKeyValue == null) return false;
+    final parentKeyStr = parentKeyValue.toString().trim().toLowerCase();
+    final pendingOps = getPendingSyncQueue();
+    return pendingOps.any((op) {
+      final opTable = op['table']?.toString();
+      if (opTable != table) return false;
+      final opParentKey = op['parent_key_value']?.toString().trim().toLowerCase();
+      if (opParentKey == parentKeyStr) return true;
+      final data = op['data'];
+      if (data is Map) {
+        final val = data[parentKeyColumn]?.toString().trim().toLowerCase();
+        if (val == parentKeyStr) return true;
+      }
+      return false;
+    });
+  }
+
   Future<void> saveAllInwardRepairs(
     Map<int, Map<String, dynamic>> repairsMap,
     Map<int, List<Map<String, dynamic>>> itemsMap, {
@@ -866,9 +1201,20 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_inwardBox.keys);
       final validKeys = repairsMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _inwardBox.delete(key);
-        await _inwardItemsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingJobNos = pendingOps
+          .where((op) => op['table'] == 'inward_repairs' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['job_no']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingJobNos.contains(keyInt)) continue;
+          await _inwardBox.delete(key);
+          await _inwardItemsBox.delete(key);
+        }
       }
     }
     if (repairsMap.isNotEmpty) await _inwardBox.putAll(repairsMap);
@@ -881,9 +1227,20 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_replacementBox.keys);
-      final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _replacementBox.delete(key);
+      final validKeys = map.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingJobNos = pendingOps
+          .where((op) => op['table'] == 'replacements' && op['data'] != null)
+          .map((op) => op['data']['job_no']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingJobNos.contains(keyStr)) continue;
+          await _replacementBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _replacementBox.putAll(map);
@@ -895,9 +1252,20 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_requestBox.keys);
-      final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _requestBox.delete(key);
+      final validKeys = map.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'requests' && op['data'] != null)
+          .map((op) => op['data']['id']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingIds.contains(keyStr)) continue;
+          await _requestBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _requestBox.putAll(map);
@@ -910,8 +1278,19 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_callsBox.keys);
       final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _callsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'calls' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingIds.contains(keyInt)) continue;
+          await _callsBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _callsBox.putAll(map);
@@ -925,9 +1304,20 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_salesBox.keys);
       final validKeys = salesMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _salesBox.delete(key);
-        await _saleItemsBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingInvoices = pendingOps
+          .where((op) => op['table'] == 'sales' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['invoice_no']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingInvoices.contains(keyInt)) continue;
+          await _salesBox.delete(key);
+          await _saleItemsBox.delete(key);
+        }
       }
     }
     if (salesMap.isNotEmpty) await _salesBox.putAll(salesMap);
@@ -941,10 +1331,21 @@ class LocalDatabaseService {
   }) async {
     if (clearOthers) {
       final existingKeys = Set.of(_purchaseBox.keys);
-      final validKeys = purchasesMap.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _purchaseBox.delete(key);
-        await _purchaseItemsBox.delete(key);
+      final validKeys = purchasesMap.keys.map((k) => k.trim().toUpperCase()).toSet();
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'purchases' && op['data'] != null)
+          .map((op) => op['data']['id']?.toString().trim().toUpperCase())
+          .whereType<String>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyStr = key.toString().trim().toUpperCase();
+        if (!validKeys.contains(keyStr)) {
+          if (pendingIds.contains(keyStr)) continue;
+          await _purchaseBox.delete(key);
+          await _purchaseItemsBox.delete(key);
+        }
       }
     }
     if (purchasesMap.isNotEmpty) await _purchaseBox.putAll(purchasesMap);
@@ -958,8 +1359,19 @@ class LocalDatabaseService {
     if (clearOthers) {
       final existingKeys = Set.of(_pricelistBox.keys);
       final validKeys = map.keys.toSet();
-      for (final key in existingKeys.difference(validKeys)) {
-        await _pricelistBox.delete(key);
+      final pendingOps = getPendingSyncQueue();
+      final pendingIds = pendingOps
+          .where((op) => op['table'] == 'pricelist' && op['data'] != null)
+          .map((op) => int.tryParse(op['data']['id']?.toString() ?? ''))
+          .whereType<int>()
+          .toSet();
+
+      for (final key in existingKeys) {
+        final keyInt = key is int ? key : int.tryParse(key.toString());
+        if (keyInt != null && !validKeys.contains(keyInt)) {
+          if (pendingIds.contains(keyInt)) continue;
+          await _pricelistBox.delete(key);
+        }
       }
     }
     if (map.isNotEmpty) await _pricelistBox.putAll(map);
@@ -994,7 +1406,13 @@ class LocalDatabaseService {
         list.add(Replacement.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.jobNo.compareTo(a.jobNo);
+    });
     return list;
   }
 
@@ -1028,7 +1446,13 @@ class LocalDatabaseService {
         list.add(RequestOrder.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 
@@ -1053,7 +1477,13 @@ class LocalDatabaseService {
         list.add(PurchaseOrder.fromJson(Map<String, dynamic>.from(raw)));
       }
     }
-    list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      final dayA = DateTime(a.date.year, a.date.month, a.date.day);
+      final dayB = DateTime(b.date.year, b.date.month, b.date.day);
+      final d = dayB.compareTo(dayA);
+      if (d != 0) return d;
+      return b.id.compareTo(a.id);
+    });
     return list;
   }
 
@@ -1116,7 +1546,8 @@ class LocalDatabaseService {
         updatedProducts.addAll(res);
       } else if (wasConfirmed && !nowConfirmed) {
         // Reverted from complete/confirmed — remove stock
-        final res = await _adjustStockForPurchase(items, isAdding: false);
+        final oldItems = getPurchaseOrderItems(order.id);
+        final res = await _adjustStockForPurchase(oldItems, isAdding: false);
         updatedProducts.addAll(res);
       } else if (wasConfirmed && nowConfirmed) {
         // Was confirmed, still confirmed but items may have changed — re-adjust
@@ -1139,6 +1570,26 @@ class LocalDatabaseService {
     await _purchaseItemsBox.put(order.id, itemsJson);
 
     return updatedProducts;
+  }
+
+  /// Saves purchase order header without overwriting the items box
+  Future<void> savePurchaseOrderHeaderOnly(PurchaseOrder order) async {
+    await _purchaseBox.put(order.id, order.toJson());
+  }
+
+  /// Upserts a single purchase order item into the existing items box for a purchase
+  Future<void> savePurchaseOrderItemOnly(PurchaseOrderItem item) async {
+    final items = getPurchaseOrderItems(item.purchaseId);
+    final idx = items.indexWhere((i) => i.lineId == item.lineId);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+    await _purchaseItemsBox.put(
+      item.purchaseId,
+      items.map((i) => i.toJson()).toList(),
+    );
   }
 
   Future<List<PricelistItem>> deletePurchaseOrder(String purchaseId) async {
@@ -1190,37 +1641,12 @@ class LocalDatabaseService {
     final List<PricelistItem> updatedProducts = [];
 
     for (var item in items) {
-      dynamic rawProd;
+      final prod = _findPricelistProduct(
+        item.itemId,
+        item.itemName ?? item.customItemName,
+      );
 
-      // 1. Direct lookup by itemId (check int, string, and parsed int representation)
-      if (item.itemId != null) {
-        rawProd = _pricelistBox.get(item.itemId) ??
-            _pricelistBox.get(item.itemId.toString()) ??
-            _pricelistBox.get(int.tryParse(item.itemId.toString()));
-      }
-
-      // 2. Fallback: Lookup by item name (itemName or customItemName) case-insensitively
-      if (rawProd == null) {
-        final targetName = (item.itemName ?? item.customItemName ?? '').trim().toLowerCase();
-        if (targetName.isNotEmpty) {
-          for (var key in _pricelistBox.keys) {
-            final raw = _pricelistBox.get(key);
-            if (raw != null) {
-              final p = PricelistItem.fromJson(Map<String, dynamic>.from(raw));
-              if (p.itemName.trim().toLowerCase() == targetName) {
-                rawProd = raw;
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      // 3. If product is found, adjust stock quantity!
-      if (rawProd != null) {
-        final prod = PricelistItem.fromJson(
-          Map<String, dynamic>.from(rawProd),
-        );
+      if (prod != null) {
         final updated = prod.copyWith(
           stockQty: isAdding
               ? (prod.stockQty + item.quantity)

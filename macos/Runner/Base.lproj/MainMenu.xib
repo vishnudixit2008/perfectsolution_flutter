@@ -66,6 +66,24 @@
                         </items>
                     </menu>
                 </menuItem>
+                <menuItem title="File" id="dMs-cI-gzl">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <menu key="submenu" title="File" id="bib-Uj-vzu">
+                        <items>
+                            <menuItem title="New Window" keyEquivalent="n" id="Was-JA-tGl">
+                                <connections>
+                                    <action selector="handleNewWindowAction:" target="Voe-Tx-rLC" id="nRw-9V-vCl"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="mIP-vp-H4q"/>
+                            <menuItem title="Close Window" keyEquivalent="w" id="DVo-aG-piG">
+                                <connections>
+                                    <action selector="performClose:" target="-1" id="HmO-Ls-Sr7"/>
+                                </connections>
+                            </menuItem>
+                        </items>
+                    </menu>
+                </menuItem>
                 <menuItem title="Edit" id="5QF-Oa-p0T">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Edit" id="W48-6f-4Dl">

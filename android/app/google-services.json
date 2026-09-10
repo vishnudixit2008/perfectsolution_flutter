@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "235072160509",
+    "project_id": "perfect-solution-b4d6e",
+    "storage_bucket": "perfect-solution-b4d6e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:235072160509:android:315747a444a9136a9c3494",
+        "android_client_info": {
+          "package_name": "com.perfectsolution.shop_management_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDReRRInIY5Eg-0Km-FMjntDqC2S13FB8o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

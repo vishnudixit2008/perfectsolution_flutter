@@ -98,52 +98,66 @@ class AppUser {
 
   bool get isAdmin => isPermanentAdmin(email);
 
+
   static const List<String> modules = [
-    'inward',
     'calls',
+    'inward',
     'replacements',
+    'pricelist',
+    'sales',
     'requests',
     'purchases',
     'dealers',
-    'sales',
-    'pricelist',
     'settings',
   ];
 
   static const Map<String, String> moduleLabels = {
-    'inward': 'Inward Repairs',
     'calls': 'Calls / Enquiries',
+    'inward': 'Inward Repairs',
     'replacements': 'Replacements',
+    'pricelist': 'Pricelist Catalog',
+    'sales': 'Sales & POS Invoicing',
     'requests': 'Requests / Pre-Orders',
     'purchases': 'Purchases & Stock-In',
     'dealers': 'Dealers Directory',
-    'sales': 'Sales & POS Invoicing',
-    'pricelist': 'Pricelist Catalog',
     'settings': 'Settings & Backup',
   };
 
   static const Map<String, Map<String, String>> moduleActions = {
+    'calls': {
+      'canAdd': 'Can Add New Calls',
+      'canEdit': 'Can Edit Calls',
+      'canDelete': 'Can Delete Calls',
+      'canSendWhatsapp': 'Can Send WhatsApp Message',
+      'canDuplicate': 'Can Duplicate Call Record',
+      'canTransferInward': 'Can Enter in Inward',
+      'canConvertToSale': 'Can Convert to POS Sale',
+      'canTransferRequest': 'Can Enter in Requests',
+      'canTransferPurchase': 'Can Enter in Purchases',
+      'canManageStatus': 'Can Change Call Status',
+    },
     'inward': {
       'canAdd': 'Can Add New Inward Jobs',
       'canEdit': 'Can Edit Repair Jobs',
       'canDelete': 'Can Delete Repair Jobs',
       'canPrint': 'Can Print / Share Receipt',
       'canSendWhatsapp': 'Can Send WhatsApp Updates',
+      'canDuplicate': 'Can Duplicate Inward Job',
       'canConvertToSale': 'Can Convert Job to POS Sale',
+      'canTransferRequest': 'Can Enter in Requests',
+      'canTransferPurchase': 'Can Enter in Purchases',
       'canManageStatus': 'Can Change Repair Status',
-    },
-    'calls': {
-      'canAdd': 'Can Add New Calls',
-      'canEdit': 'Can Edit Calls',
-      'canDelete': 'Can Delete Calls',
-      'canTransferInward': 'Can Convert to Inward Job',
-      'canConvertToSale': 'Can Convert to POS Sale',
-      'canManageStatus': 'Can Change Call Status',
     },
     'replacements': {
       'canAdd': 'Can Add Replacement Record',
       'canEdit': 'Can Edit Replacement Record',
       'canDelete': 'Can Delete Replacement Record',
+      'canSendWhatsapp': 'Can Send WhatsApp Message',
+      'canDuplicate': 'Can Duplicate Record',
+      'canConvertToSale': 'Can Convert to POS Sale',
+      'canTransferInward': 'Can Enter in Inward',
+      'canTransferRequest': 'Can Enter in Requests',
+      'canTransferPurchase': 'Can Enter in Purchases',
       'canManageStatus': 'Can Change Replacement Status',
     },
     'pricelist': {
@@ -162,24 +176,32 @@ class AppUser {
       'canApplyDiscount': 'Can Apply Checkout Discount',
       'canVerifyStock': 'Can Verify & Deduct Stock',
       'canOverridePrice': 'Can Override Item Unit Price',
+      'canBroadcastQr': 'Can Send to Customer Display (QR)',
     },
     'requests': {
       'canAdd': 'Can Add Customer Request',
       'canEdit': 'Can Edit Request',
       'canDelete': 'Can Delete Request',
+      'canSendWhatsapp': 'Can Send WhatsApp Message',
+      'canDuplicate': 'Can Duplicate Record',
+      'canConvertToSale': 'Can Convert Request to POS Sale',
+      'canTransferInward': 'Can Enter in Inward',
+      'canTransferReplacement': 'Can Enter in Replacements',
+      'canTransferPurchase': 'Can Enter in Purchases',
       'canApproveInquiry': 'Can Approve Customer Inquiry & Quote',
       'canSendDealerBroadcast': 'Can Send Broadcast Messages to Dealers',
       'canAssignRunner': 'Can Assign / Re-assign Runner Staff',
       'canAccessRunnerMode': 'Can Access Mobile Market Runner Mode',
       'canMarkCollected': 'Can Mark Picked Up & Upload Bill',
       'canCheckInAndConvert': 'Can Check-In & Convert Request to Purchase',
-      'canConvertToSale': 'Can Convert Request to POS Sale',
       'canManageStatus': 'Can Change Request Status',
     },
     'purchases': {
       'canAdd': 'Can Record Stock-In Purchase',
       'canEdit': 'Can Edit Purchase Order',
       'canDelete': 'Can Delete Purchase Order',
+      'canDuplicate': 'Can Duplicate Purchase Order',
+      'canConvertToSale': 'Can Convert to POS Sale',
       'canManageStatus': 'Can Confirm / Revert Purchase Status',
     },
     'dealers': {
@@ -197,56 +219,65 @@ class AppUser {
   };
 
   static const Map<String, Map<String, String>> moduleFields = {
+    'calls': {
+      'date': 'Call Date & Time',
+      'name': 'Customer Name',
+      'mobileNo': 'Mobile Number',
+      'address': 'Customer Address',
+      'query': 'Issue / Enquiry Details',
+      'assignedTo': 'Assigned Staff',
+      'estimate': 'Price Quoted',
+      'status': 'Call Status',
+      'notes': 'Remarks / Notes',
+      'photo': 'Photos / Attachments',
+    },
     'inward': {
-      'date': 'Date & Time',
       'jobNo': 'Job Number',
+      'date': 'Date & Time',
       'name': 'Customer Name',
       'mobileNo': 'Mobile Number',
       'devices': 'Device Specs / Brand',
       'query': 'Customer Complaint / Issue',
       'estimateItems': 'Repair Cost Estimates',
+      'discount': 'Estimate Discount',
+      'advance': 'Advance Paid',
       'purchasedFrom': 'Purchased Store Info',
       'status': 'Job Status',
       'notes': 'Internal Repair Notes',
       'photo': 'Device Photos',
     },
-    'calls': {
-      'date': 'Call Date',
-      'customerName': 'Customer Name',
-      'mobileNo': 'Mobile Number',
-      'devices': 'Device Model',
-      'query': 'Issue / Enquiry Details',
-      'assignedTo': 'Assigned Tech',
-      'estimate': 'Price Quoted',
-      'status': 'Call Status',
-      'notes': 'Remarks',
-    },
     'replacements': {
+      'jobNo': 'Job Number',
       'date': 'Replacement Date',
       'name': 'Customer Name',
-      'customerNumber': 'Contact Number',
-      'devices': 'Device / Part',
-      'assignedTo': 'Assigned Tech',
-      'vendor': 'Supplier / Vendor',
+      'mobileNo': 'Contact Number',
+      'item': 'Replacement Item / Part',
+      'assignedTo': 'Assigned Staff',
+      'depositDate': 'Deposit / Sent Date',
+      'receiveDate': 'Receive Date',
       'status': 'Claim Status',
-      'notes': 'Remarks / Warranty Details',
+      'photo': 'Photos / Attachments',
     },
     'pricelist': {
       'itemName': 'Item Name',
+      'itemDescription': 'Item Description',
       'category': 'Category',
       'price': 'Selling Price',
       'stockQty': 'Current Stock Quantity',
       'openingStock': 'Opening Stock Count',
+      'photo': 'Product Photo',
     },
     'sales': {
-      'date': 'Invoice Date',
       'invoiceNo': 'Invoice Number',
+      'date': 'Invoice Date',
       'customerName': 'Customer Name',
       'customerNumber': 'Mobile Number',
       'paymentMode': 'Payment Mode (Cash/UPI/Card)',
       'advance': 'Advance Paid',
       'discount': 'Applied Discount',
+      'totalAmount': 'Total Invoice Amount',
       'orderStatus': 'Order Status',
+      'photo': 'Photos / Attachments',
     },
     'requests': {
       'date': 'Pre-Order Date',
@@ -267,6 +298,7 @@ class AppUser {
       'totalAmount': 'Total Shipment Bill Amount',
       'status': 'Stock In Confirmation Status',
       'notes': 'Shipment Notes',
+      'photo': 'Photos / Invoices',
     },
     'dealers': {
       'name': 'Dealer Name',
@@ -462,6 +494,21 @@ class AppUser {
       });
     }
 
+    Map<String, Map<String, FieldPermission>> finalFields = {};
+    for (var m in modules) {
+      final defaultFields = moduleFields[m] ?? {};
+      final userFields = parsedFields[m] ?? {};
+      final Map<String, FieldPermission> fMap = {};
+      for (var fKey in defaultFields.keys) {
+        if (userFields.containsKey(fKey)) {
+          fMap[fKey] = userFields[fKey]!;
+        } else {
+          fMap[fKey] = FieldPermission.allTrue();
+        }
+      }
+      finalFields[m] = fMap;
+    }
+
     // 4. Status Visibility Access
     final rawStatusVis = json['statusVisibilityAccess'] ?? json['status_visibility_access'];
     Map<String, List<String>> parsedStatusVis = {};
@@ -538,7 +585,7 @@ class AppUser {
       pageAccess: parsedPageAccess,
       actionAccess: Map<String, bool>.from(json['actionAccess'] ?? json['action_access'] ?? {}),
       pageActionAccess: finalPageActions,
-      fieldAccess: parsedFields.isEmpty ? _defaultFieldAccess() : parsedFields,
+      fieldAccess: finalFields,
       statusVisibilityAccess:
           parsedStatusVis.isEmpty ? _defaultStatusAccess() : parsedStatusVis,
       statusSelectableAccess:

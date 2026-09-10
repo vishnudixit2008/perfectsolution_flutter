@@ -165,9 +165,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(query, 'Asus Laptop');
-      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.tap(find.byIcon(Icons.cancel_rounded));
       await tester.pumpAndSettle();
 
       expect(controller.text, isEmpty);

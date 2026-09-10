@@ -49,8 +49,13 @@ class ReplacementsViewModel extends ChangeNotifier {
     return _repository.getNextReplacementJobNo();
   }
 
-  Future<void> saveReplacement(Replacement repl) async {
-    await _repository.saveReplacement(repl);
+  /// Fetches next verified replacement job number from cloud with online check.
+  Future<String> fetchNextJobNo() async {
+    return await _repository.fetchNextReplacementJobNo();
+  }
+
+  Future<void> saveReplacement(Replacement repl, {bool isEdit = false}) async {
+    await _repository.saveReplacement(repl, isEdit: isEdit);
     await loadReplacements();
   }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shop_management_flutter/ui/core/app_theme.dart';
@@ -11,6 +13,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shop_management_flutter/data/services/ui_preferences_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_broadcast_service.dart';
 import 'package:shop_management_flutter/data/services/kiosk_overlay_helper.dart';
+import 'package:shop_management_flutter/data/services/auto_update_service.dart';
+import 'package:shop_management_flutter/ui/shared/update_dialog.dart';
 import 'user_management_view.dart';
 
 class SettingsView extends StatefulWidget {
@@ -165,6 +169,30 @@ class _SettingsViewState extends State<SettingsView> {
                             ),
                           );
                         },
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checking for updates...'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                          if (!kIsWeb && (Platform.isWindows || Platform.isMacOS)) {
+                            await AutoUpdateService.instance.checkForUpdates(force: true);
+                          } else {
+                            await UpdateDialog.showIfNeeded(context, forceCheck: true);
+                          }
+                        },
+                        icon: const Icon(Icons.sync_rounded, size: 14),
+                        label: const Text('Check for Updates', style: TextStyle(fontSize: 12)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryLight,
+                          side: BorderSide(color: AppTheme.primaryLight.withValues(alpha: 0.3)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
                       ),
                     ],
                   ),
@@ -674,7 +702,7 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   Switch(
                     value: isKiosk,
-                    activeColor: AppTheme.secondary,
+                    activeThumbColor: AppTheme.secondary,
                     onChanged: (val) async {
                       await UiPreferencesService.setKioskMode(val);
                       if (val) {
@@ -1666,19 +1694,6 @@ class _SettingsViewState extends State<SettingsView> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 14),
-
-          // Feature chips
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildFeatureChip('👥 Staff Roles'),
-              _buildFeatureChip('🔒 Page Access'),
-              _buildFeatureChip('⚡ Actions Matrix'),
-              _buildFeatureChip('📋 Status Ordering'),
-            ],
-          ),
           const SizedBox(height: 16),
 
           SizedBox(
@@ -1706,25 +1721,6 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w500,
-          color: AppTheme.textMuted,
-        ),
       ),
     );
   }

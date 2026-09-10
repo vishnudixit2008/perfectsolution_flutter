@@ -4,7 +4,10 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
+  desktop_multi_window
   file_selector_windows
+  firebase_core
+  permission_handler_windows
   printing
   url_launcher_windows
 )

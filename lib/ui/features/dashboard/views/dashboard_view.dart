@@ -7,6 +7,7 @@ import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/recent_sales_view_model.dart';
 import '../../../../data/models/sale.dart';
 import '../../../../data/services/pdf_invoice_helper.dart';
+import '../../../shared/components/app_status_chip.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -64,10 +65,13 @@ class _DashboardViewState extends State<DashboardView> {
             .fold(0.0, (sum, s) => sum + s.totalAmount);
 
         final int pendingCount = sales
-            .where((s) => s.orderStatus == 'PENDING')
+            .where((s) => s.orderStatus.trim().toLowerCase() == 'pending')
             .length;
         final int confirmedCount = sales
-            .where((s) => s.orderStatus == 'Confirmed')
+            .where((s) {
+              final norm = s.orderStatus.trim().toLowerCase();
+              return norm == 'confirmed' || norm == 'complete' || norm == 'completed';
+            })
             .length;
 
         return SingleChildScrollView(
@@ -199,7 +203,7 @@ class _DashboardViewState extends State<DashboardView> {
       width: double.infinity,
       padding: const EdgeInsets.all(40),
       decoration: AppTheme.glassCardDecoration(
-        color: Colors.white.withOpacity(0.01),
+        color: Colors.white.withValues(alpha: 0.01),
         borderRadius: 12,
       ),
       child: Column(
@@ -207,7 +211,7 @@ class _DashboardViewState extends State<DashboardView> {
           Icon(
             Icons.receipt_long_rounded,
             size: 48,
-            color: AppTheme.textMuted.withOpacity(0.5),
+            color: AppTheme.textMuted.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -238,7 +242,7 @@ class _DashboardViewState extends State<DashboardView> {
     if (isDesktop) {
       return Container(
         decoration: AppTheme.glassCardDecoration(
-          color: Colors.white.withOpacity(0.02),
+          color: Colors.white.withValues(alpha: 0.02),
           borderRadius: 8,
         ),
         child: ClipRRect(
@@ -247,7 +251,7 @@ class _DashboardViewState extends State<DashboardView> {
             horizontalMargin: 16,
             columnSpacing: 20,
             headingRowColor: WidgetStateProperty.all(
-              Colors.white.withOpacity(0.04),
+              Colors.white.withValues(alpha: 0.04),
             ),
             columns: const [
               DataColumn(
@@ -336,7 +340,7 @@ class _DashboardViewState extends State<DashboardView> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.04),
+                        color: Colors.white.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -417,7 +421,7 @@ class _DashboardViewState extends State<DashboardView> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
             decoration: AppTheme.glassCardDecoration(
-              color: Colors.white.withOpacity(0.02),
+              color: Colors.white.withValues(alpha: 0.02),
               borderRadius: 10,
             ),
             child: Column(
@@ -516,23 +520,9 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildStatusChip(String status) {
-    final bool isConfirmed = status == 'Confirmed';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isConfirmed
-            ? AppTheme.success.withOpacity(0.12)
-            : AppTheme.warning.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: isConfirmed ? AppTheme.success : AppTheme.warning,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    return AppStatusChip(
+      status: status,
+      moduleKey: 'sales',
     );
   }
 
@@ -543,7 +533,10 @@ class _DashboardViewState extends State<DashboardView> {
     Sale sale,
   ) {
     final items = viewModel.getSaleItems(sale.invoiceNo);
-    final isPending = sale.orderStatus == 'PENDING';
+    final normalizedStatus = sale.orderStatus.trim().toLowerCase();
+    final bool isComplete = normalizedStatus == 'complete' ||
+        normalizedStatus == 'completed' ||
+        normalizedStatus == 'confirmed';
 
     showModalBottomSheet(
       context: context,
@@ -799,13 +792,13 @@ class _DashboardViewState extends State<DashboardView> {
                       icon: const Icon(Icons.print_rounded),
                       label: const Text('Print A5 Receipt'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.04),
+                        backgroundColor: Colors.white.withValues(alpha: 0.04),
                         foregroundColor: AppTheme.textPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                     ),
                   ),
-                  if (isPending) ...[
+                  if (!isComplete) ...[
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
@@ -821,7 +814,7 @@ class _DashboardViewState extends State<DashboardView> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Order #${sale.invoiceNo} verified. Stock deducted.',
+                                    'Invoice #${sale.invoiceNo} marked as complete. Stock deducted.',
                                   ),
                                   backgroundColor: AppTheme.success,
                                 ),
@@ -830,7 +823,7 @@ class _DashboardViewState extends State<DashboardView> {
                           }
                         },
                         icon: const Icon(Icons.check_circle_rounded),
-                        label: const Text('Verify & Deduct'),
+                        label: const Text('Mark as Complete'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -874,7 +867,7 @@ class _KpiCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: AppTheme.glassCardDecoration(
-          color: Colors.white.withOpacity(0.02),
+          color: Colors.white.withValues(alpha: 0.02),
           borderRadius: 14,
         ),
         child: Row(
@@ -904,7 +897,7 @@ class _KpiCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 22),

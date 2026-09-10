@@ -11,6 +11,7 @@ import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/pdf_invoice_helper.dart';
 import '../../../core/app_theme.dart';
 import '../../../shared/components/app_stock_badge.dart';
+import '../../../shared/components/app_status_chip.dart';
 
 class ProductHistoryDialog extends StatefulWidget {
   final PricelistItem product;
@@ -98,7 +99,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
       backgroundColor: const Color(0xFF0F1524),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.08)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Container(
         width: isDesktop ? 820 : screenWidth * 0.92,
@@ -118,7 +119,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withOpacity(0.12),
+                          color: AppTheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -257,16 +258,16 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
+        color: color.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 18),
@@ -315,8 +316,8 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => setState(() => _activeFilter = key),
-      selectedColor: AppTheme.primary.withOpacity(0.2),
-      backgroundColor: Colors.white.withOpacity(0.04),
+      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+      backgroundColor: Colors.white.withValues(alpha: 0.04),
       side: BorderSide(
         color: isSelected ? AppTheme.primaryLight : Colors.white10,
       ),
@@ -348,7 +349,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
       decoration: BoxDecoration(
         color: const Color(0xFF161D2F),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,10 +358,10 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(12)),
-              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+              border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05))),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -400,7 +401,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: records.length,
             separatorBuilder: (ctx, idx) =>
-                Divider(color: Colors.white.withOpacity(0.04), height: 1),
+                Divider(color: Colors.white.withValues(alpha: 0.04), height: 1),
             itemBuilder: (context, i) {
               final record = records[i];
               return _buildRecordTile(record);
@@ -427,7 +428,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.12),
+                color: themeColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -449,7 +450,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: themeColor.withOpacity(0.15),
+                          color: themeColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -518,9 +519,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.primaryLight.withOpacity(0.08),
+                color: AppTheme.primaryLight.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.primaryLight.withOpacity(0.2)),
+                border: Border.all(color: AppTheme.primaryLight.withValues(alpha: 0.2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -567,7 +568,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
           Icon(
             Icons.history_toggle_off_rounded,
             size: 54,
-            color: AppTheme.textMuted.withOpacity(0.4),
+            color: AppTheme.textMuted.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 12),
           const Text(
@@ -592,7 +593,6 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
   void _showSaleDetailsModal(
       BuildContext context, Sale sale, List<SaleItem> items) {
     final formattedDate = DateFormat('dd/MM/yy hh:mm a').format(sale.saleDate);
-    final isPending = sale.orderStatus == 'PENDING';
 
     showDialog(
       context: context,
@@ -601,7 +601,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
           backgroundColor: const Color(0xFF0F1524),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Container(
             width: MediaQuery.of(context).size.width * 0.8,
@@ -632,30 +632,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isPending
-                                ? AppTheme.warning.withOpacity(0.15)
-                                : AppTheme.success.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isPending
-                                  ? AppTheme.warning.withOpacity(0.3)
-                                  : AppTheme.success.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            sale.orderStatus,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isPending
-                                  ? AppTheme.warning
-                                  : AppTheme.success,
-                            ),
-                          ),
+                        AppStatusChip(
+                          status: sale.orderStatus,
+                          moduleKey: 'sales',
                         ),
                       ],
                     ),
@@ -760,15 +739,15 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.02),
+                      color: Colors.white.withValues(alpha: 0.02),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                     ),
                     child: ListView.separated(
                       padding: const EdgeInsets.all(12),
                       itemCount: items.length,
                       separatorBuilder: (ctx, idx) => Divider(
-                          color: Colors.white.withOpacity(0.04), height: 1),
+                          color: Colors.white.withValues(alpha: 0.04), height: 1),
                       itemBuilder: (context, i) {
                         final item = items[i];
                         final desc = item.itemDescription ??
@@ -885,7 +864,6 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
       BuildContext context, PurchaseOrder purchase, List<PurchaseOrderItem> items) {
     final formattedDate =
         DateFormat('dd MMM yyyy, hh:mm a').format(purchase.date);
-    final isPending = purchase.status == 'PENDING';
 
     showDialog(
       context: context,
@@ -894,7 +872,7 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
           backgroundColor: const Color(0xFF0F1524),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Container(
             width: MediaQuery.of(context).size.width * 0.8,
@@ -925,30 +903,9 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isPending
-                                ? AppTheme.warning.withOpacity(0.15)
-                                : AppTheme.success.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isPending
-                                  ? AppTheme.warning.withOpacity(0.3)
-                                  : AppTheme.success.withOpacity(0.3),
-                            ),
-                          ),
-                          child: Text(
-                            purchase.status,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isPending
-                                  ? AppTheme.warning
-                                  : AppTheme.success,
-                            ),
-                          ),
+                        AppStatusChip(
+                          status: purchase.status,
+                          moduleKey: 'purchases',
                         ),
                       ],
                     ),
@@ -1035,15 +992,15 @@ class _ProductHistoryDialogState extends State<ProductHistoryDialog> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.02),
+                      color: Colors.white.withValues(alpha: 0.02),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white.withOpacity(0.06)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
                     ),
                     child: ListView.separated(
                       padding: const EdgeInsets.all(12),
                       itemCount: items.length,
                       separatorBuilder: (ctx, idx) => Divider(
-                          color: Colors.white.withOpacity(0.04), height: 1),
+                          color: Colors.white.withValues(alpha: 0.04), height: 1),
                       itemBuilder: (context, i) {
                         final item = items[i];
                         final name =
