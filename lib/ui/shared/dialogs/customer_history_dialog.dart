@@ -10,6 +10,7 @@ import '../../../data/models/replacement.dart';
 import '../../../data/models/request_order.dart';
 import '../../../data/repositories/shop_repository.dart';
 import '../../../data/services/customer_directory_service.dart';
+import '../../../data/services/user_permission_service.dart';
 import '../../../data/services/whatsapp_service.dart';
 import '../../core/app_theme.dart';
 import '../../core/motion/motion.dart';
@@ -34,7 +35,17 @@ class CustomerHistoryDialog extends StatefulWidget {
     BuildContext context, {
     CustomerProfile? profile,
     String? phone,
+    String? moduleKey,
   }) {
+    if (moduleKey != null && !UserPermissionService.canViewCustomerHistory(moduleKey)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You do not have permission to view customer history in this module.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return Future.value();
+    }
     return showGeneralDialog(
       context: context,
       barrierDismissible: true,

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -334,6 +335,7 @@ class _PricelistViewState extends State<PricelistView> {
             }
 
             return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               backgroundColor: const Color(0xFF131A2E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -372,8 +374,8 @@ class _PricelistViewState extends State<PricelistView> {
                 ],
               ),
               content: SizedBox(
-                width: 420,
-                height: 440,
+                width: math.min(420.0, MediaQuery.of(context).size.width - 32),
+                height: math.min(440.0, MediaQuery.of(context).size.height * 0.75),
                 child: Column(
                   children: [
                     AppAnimatedSearchBar(
@@ -996,7 +998,7 @@ class _PricelistViewState extends State<PricelistView> {
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 152),
         itemCount: listEntries.length,
         itemBuilder: (context, index) {
           final entry = listEntries[index];

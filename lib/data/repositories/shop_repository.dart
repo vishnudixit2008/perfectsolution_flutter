@@ -442,11 +442,20 @@ class ShopRepository {
   /// Get pending pickup tasks for runner staff
   List<RequestOrder> getRunnerTasks({String? runnerId}) {
     final list = _localDb.getRequestOrders().where((r) {
-      final s = r.status.trim();
-      final isRunnerActive = s == RequestOrder.statusRunnerAssigned || s == RequestOrder.statusCollected;
-      if (!isRunnerActive) return false;
-      if (runnerId != null && runnerId.isNotEmpty) {
-        return r.assignedRunnerId == runnerId;
+      // Must have an assigned runner
+      final hasRunner = (r.assignedRunnerName != null && r.assignedRunnerName!.trim().isNotEmpty) ||
+          (r.assignedRunnerId != null && r.assignedRunnerId!.trim().isNotEmpty);
+      if (!hasRunner) return false;
+
+      // Filter out finished/cancelled orders
+      final s = r.status.trim().toLowerCase();
+      if (s == 'complete' || s == 'completed' || s == 'cancelled') return false;
+
+      if (runnerId != null && runnerId.trim().isNotEmpty) {
+        final rId = runnerId.trim().toLowerCase();
+        final matchId = r.assignedRunnerId?.trim().toLowerCase() == rId;
+        final matchName = r.assignedRunnerName?.trim().toLowerCase() == rId;
+        if (!matchId && !matchName) return false;
       }
       return true;
     }).toList();
@@ -490,7 +499,7 @@ class ShopRepository {
     if (match == null) return;
 
     final updated = match.copyWith(
-      status: RequestOrder.statusCollected,
+      status: 'Received',
       actualPurchaseCost: actualCost,
       billPhoto: billPhoto ?? match.billPhoto,
       collectedAt: DateTime.now(),

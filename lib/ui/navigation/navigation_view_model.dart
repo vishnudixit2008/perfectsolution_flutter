@@ -8,7 +8,9 @@ class NavigationViewModel extends ChangeNotifier {
   static const int sales = 4;
   static const int request = 5;
   static const int purchase = 6;
-  static const int settings = 7;
+  static const int dealers = 7;
+  static const int runner = 8;
+  static const int settings = 9;
 
   int _currentIndex = calls; // Default to Calls tab
 

@@ -14,6 +14,7 @@ import '../features/requests/views/requests_view.dart';
 import '../features/purchases/views/purchases_view.dart';
 import '../features/dealers/views/dealers_view.dart';
 import '../features/dealers/view_models/dealers_view_model.dart';
+import '../features/requests/views/runner_tasks_view.dart';
 import '../../data/services/supabase_sync_service.dart';
 import 'package:provider/provider.dart';
 import 'navigation_view_model.dart';
@@ -62,6 +63,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     super.initState();
     AutoUpdateService.instance.init();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Auto-select the first tab the user actually has access to
+      _autoSelectFirstVisibleTab();
       // Mobile / Android update check (desktop is handled by AutoUpdateService in background)
       if (!kIsWeb && Platform.isAndroid) {
         UpdateDialog.showIfNeeded(context, isAppLaunch: true);
@@ -74,6 +77,25 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
         UpdateDialog.showIfNeeded(context, isAppLaunch: false);
       }
     });
+  }
+
+  void _autoSelectFirstVisibleTab() {
+    if (!mounted) return;
+    final navVm = context.read<NavigationViewModel>();
+    final currentIdx = navVm.currentIndex;
+    // Check if the current default index (0 = calls) is accessible
+    if (currentIdx < _navItems.length) {
+      final moduleKey = _navItems[currentIdx]['module'] as String;
+      if (UserPermissionService.canAccessPage(moduleKey)) return; // Already valid
+    }
+    // Find the first accessible tab
+    for (final item in _navItems) {
+      final moduleKey = item['module'] as String;
+      if (UserPermissionService.canAccessPage(moduleKey)) {
+        navVm.setIndex(item['index'] as int);
+        return;
+      }
+    }
   }
 
   void _setupKioskBroadcastListener() {
@@ -211,7 +233,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     const RequestsView(),
     const PurchasesView(),
     const DealersView(),
-    const SettingsView(),
+    const RunnerTasksView(), // index 8
+    const SettingsView(), // index 9 (Settings is always last)
   ];
 
   final List<Map<String, dynamic>> _navItems = [
@@ -223,7 +246,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     {'title': 'Requests', 'icon': Icons.help_outline_rounded, 'index': 5, 'module': 'requests'},
     {'title': 'Purchases', 'icon': Icons.shopping_cart_rounded, 'index': 6, 'module': 'purchases'},
     {'title': 'Dealers', 'icon': Icons.storefront_rounded, 'index': 7, 'module': 'dealers'},
-    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 8, 'module': 'settings'},
+    {'title': 'My Tasks', 'icon': Icons.directions_run_rounded, 'index': 8, 'module': 'runner'},
+    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 9, 'module': 'settings'},
   ];
 
   @override
@@ -503,6 +527,11 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       final moduleKey = item['module'] as String;
       return UserPermissionService.canAccessPage(moduleKey);
     }).toList();
+    final settingsIndex = visibleItems.indexWhere((t) => t['module'] == 'settings');
+    if (settingsIndex != -1 && settingsIndex != visibleItems.length - 1) {
+      final settingsItem = visibleItems.removeAt(settingsIndex);
+      visibleItems.add(settingsItem);
+    }
 
     return Container(
       width: 250,

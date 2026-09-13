@@ -10,6 +10,7 @@ import 'package:shop_management_flutter/data/models/pricelist_item.dart';
 import 'package:shop_management_flutter/data/models/sale.dart';
 import 'package:shop_management_flutter/data/models/sale_item.dart';
 import '../../../../data/services/pdf_invoice_helper.dart';
+import '../../../../data/services/smart_search_utils.dart';
 import '../view_models/sales_view_model.dart';
 import '../../dashboard/view_models/recent_sales_view_model.dart';
 import '../../pricelist/view_models/pricelist_view_model.dart';
@@ -355,14 +356,20 @@ class _SalesViewState extends State<SalesView> {
       if (!UserPermissionService.isStatusVisible('sales', sale.orderStatus)) {
         return false;
       }
-      final query = _ledgerSearchController.text.trim().toLowerCase();
+      final query = _ledgerSearchController.text.trim();
       if (query.isEmpty) return true;
-      final nameMatch =
-          sale.customerName?.toLowerCase().contains(query) ?? false;
-      final phoneMatch =
-          sale.customerNumber?.toLowerCase().contains(query) ?? false;
-      final invMatch = sale.invoiceNo.toString().contains(query);
-      return nameMatch || phoneMatch || invMatch;
+
+      // Extract items & services for this sale so products/items can be searched
+      final saleItems = viewModel.getSaleItems(sale.invoiceNo);
+      final itemsText = saleItems
+          .map((i) =>
+              '${i.itemDescription ?? ""} ${i.serviceName ?? ""} ${i.itemId ?? ""}')
+          .join(' ');
+
+      final combined =
+          '${sale.invoiceNo} ${sale.customerName ?? ""} ${sale.customerNumber ?? ""} ${sale.paymentMode} $itemsText';
+
+      return SmartSearchUtils.matchesQuery(combined, query);
     }).toList();
 
     // Sort: PENDING first (descending date), Confirmed second (descending date)
@@ -374,9 +381,7 @@ class _SalesViewState extends State<SalesView> {
         b.orderStatus,
       );
       if (statusCompare != 0) return statusCompare;
-      final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
-      final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
-      final dateComp = dayB.compareTo(dayA);
+      final dateComp = b.saleDate.compareTo(a.saleDate);
       if (dateComp != 0) return dateComp;
       return b.invoiceNo.compareTo(a.invoiceNo);
     });
@@ -446,7 +451,7 @@ class _SalesViewState extends State<SalesView> {
               controller: _ledgerSearchController,
               onChanged: (_) => setState(() {}),
               onClear: () => setState(() {}),
-              hintText: 'Search invoice #, customer name, mobile...',
+              hintText: 'Search product / item, invoice #, customer, mobile...',
               margin: const EdgeInsets.only(bottom: 10),
             )
           else
@@ -455,7 +460,7 @@ class _SalesViewState extends State<SalesView> {
               onSearchChanged: (q) => setState(() {
                 _ledgerSearchController.text = q;
               }),
-              hintText: 'Search invoice #, customer, mobile...',
+              hintText: 'Search product / item, invoice #, customer...',
             ),
           const SizedBox(height: 12),
 
@@ -761,9 +766,7 @@ class _SalesViewState extends State<SalesView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dayA = DateTime(a.saleDate.year, a.saleDate.month, a.saleDate.day);
-        final dayB = DateTime(b.saleDate.year, b.saleDate.month, b.saleDate.day);
-        final dateComp = dayB.compareTo(dayA);
+        final dateComp = b.saleDate.compareTo(a.saleDate);
         if (dateComp != 0) return dateComp;
         return b.invoiceNo.compareTo(a.invoiceNo);
       });
@@ -1027,7 +1030,7 @@ class _SalesViewState extends State<SalesView> {
         },
         child: ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 120),
+          padding: const EdgeInsets.only(bottom: 152),
           itemCount: listEntries.length,
           itemBuilder: (context, index) {
             final item = listEntries[index];
@@ -1706,9 +1709,6 @@ class _SalesViewState extends State<SalesView> {
     final bool isEdit = cartVM.isEditing;
     final bool isDateVis = UserPermissionService.isFieldVisible('sales', 'date');
     final bool isDateMod = UserPermissionService.canModifyField('sales', 'date', isEdit: isEdit);
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool isMobile = screenWidth < 700;
-    final bool isDesktop = screenWidth >= 900;
     final bool hasHistory = _matchedCustomerProfile != null &&
         _matchedCustomerProfile!.events.isNotEmpty;
 
@@ -1769,35 +1769,10 @@ class _SalesViewState extends State<SalesView> {
                 decoration: InputDecoration(
                   labelText: 'Customer Name',
                   prefixIcon: const Icon(Icons.person_outline, size: 18),
-                  suffixIcon: (isMobile && hasHistory)
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: TextButton.icon(
-                            onPressed: () => CustomerHistoryDialog.show(
-                              context,
-                              profile: _matchedCustomerProfile,
-                            ),
-                            icon: const Icon(Icons.history_rounded, size: 16),
-                            label: const Text(
-                              'History',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppTheme.primaryLight,
-                              backgroundColor: AppTheme.primaryLight
-                                  .withValues(alpha: 0.12),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
+                  suffixIcon: hasHistory
+                      ? CustomerHistoryBadge(
+                          profile: _matchedCustomerProfile,
+                          moduleKey: 'sales',
                         )
                       : null,
                 ),
@@ -1813,8 +1788,6 @@ class _SalesViewState extends State<SalesView> {
                 keyboardType: TextInputType.phone,
                 onChanged: (val) => cartVM.setCustomerNumber(val),
               ),
-              if (!isDesktop || !hasHistory)
-                CustomerLookupBanner(profile: _matchedCustomerProfile),
               const SizedBox(height: 12),
 
               const Text(
@@ -2373,26 +2346,35 @@ class _SalesViewState extends State<SalesView> {
                                   if (sale.customerNumber != null &&
                                       sale.customerNumber!.isNotEmpty) ...[
                                     const SizedBox(height: 4),
-                                    Tooltip(
-                                      message: 'View customer history for ${sale.customerNumber}',
-                                      child: InkWell(
-                                        onTap: () => CustomerHistoryDialog.show(
-                                          context,
-                                          phone: sale.customerNumber,
-                                        ),
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: DottedUnderline(
-                                          color: AppTheme.textSecondary,
-                                          child: Text(
+                                    UserPermissionService.canViewCustomerHistory('sales')
+                                        ? Tooltip(
+                                            message: 'View customer history for ${sale.customerNumber}',
+                                            child: InkWell(
+                                              onTap: () => CustomerHistoryDialog.show(
+                                                context,
+                                                phone: sale.customerNumber,
+                                                moduleKey: 'sales',
+                                              ),
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: DottedUnderline(
+                                                color: AppTheme.textSecondary,
+                                                child: Text(
+                                                  sale.customerNumber!,
+                                                  style: const TextStyle(
+                                                    color: AppTheme.textSecondary,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : Text(
                                             sale.customerNumber!,
                                             style: const TextStyle(
                                               color: AppTheme.textSecondary,
                                               fontSize: 12,
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 ],
                               ),

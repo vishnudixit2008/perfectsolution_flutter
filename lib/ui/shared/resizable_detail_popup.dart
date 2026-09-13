@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -118,13 +119,6 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
     _height = widget.repository.getDetailPopupHeight() ?? _baseHeight;
   }
 
-  double get _scaleFactor {
-    // Scale based on the average of width and height ratios
-    final wRatio = _width / _baseWidth;
-    final hRatio = _height / _baseHeight;
-    return ((wRatio + hRatio) / 2).clamp(0.7, 1.6);
-  }
-
   void _onResize(DragUpdateDetails details) {
     setState(() {
       _width = (_width + details.delta.dx).clamp(_minWidth, _maxWidth);
@@ -138,7 +132,19 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = _scaleFactor;
+    final screenSize = MediaQuery.of(context).size;
+    final isMobile = screenSize.width < 600;
+
+    final double effectiveWidth = (isMobile
+        ? (screenSize.width - 24).clamp(280.0, 520.0)
+        : _width.clamp(_minWidth, math.min(_maxWidth, screenSize.width - 40))).toDouble();
+    final double effectiveHeight = (isMobile
+        ? (screenSize.height * 0.85).clamp(320.0, 680.0)
+        : _height.clamp(_minHeight, math.min(_maxHeight, screenSize.height - 40))).toDouble();
+
+    final wRatio = effectiveWidth / _baseWidth;
+    final hRatio = effectiveHeight / _baseHeight;
+    final scale = ((wRatio + hRatio) / 2).clamp(0.7, 1.6);
 
     return Center(
       child: Material(
@@ -147,8 +153,8 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
           children: [
             // Main dialog container
             Container(
-              width: _width,
-              height: _height,
+              width: effectiveWidth,
+              height: effectiveHeight,
               decoration: BoxDecoration(
                 color: const Color(0xFF131A2E),
                 borderRadius: BorderRadius.circular(16),
@@ -246,72 +252,74 @@ class _ResizableDetailPopupState extends State<ResizableDetailPopup> {
               ),
             ),
 
-            // Bottom-right resize handle
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeDownRight,
-                child: GestureDetector(
-                  onPanUpdate: _onResize,
-                  onPanEnd: (_) => _persistSize(),
-                  child: Container(
-                    width: 20,
-                    height: 20,
-                    alignment: Alignment.center,
-                    child: Icon(
-                      Icons.drag_handle_rounded,
-                      size: 14,
-                      color: Colors.white.withValues(alpha: 0.2),
+            if (!isMobile) ...[
+              // Bottom-right resize handle
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeDownRight,
+                  child: GestureDetector(
+                    onPanUpdate: _onResize,
+                    onPanEnd: (_) => _persistSize(),
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.drag_handle_rounded,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Right edge resize handle
-            Positioned(
-              right: 0,
-              top: 40,
-              bottom: 20,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeRight,
-                child: GestureDetector(
-                  onHorizontalDragUpdate: (details) {
-                    setState(() {
-                      _width = (_width + details.delta.dx).clamp(
-                        _minWidth,
-                        _maxWidth,
-                      );
-                    });
-                  },
-                  onHorizontalDragEnd: (_) => _persistSize(),
-                  child: Container(width: 6, color: Colors.transparent),
+              // Right edge resize handle
+              Positioned(
+                right: 0,
+                top: 40,
+                bottom: 20,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeRight,
+                  child: GestureDetector(
+                    onHorizontalDragUpdate: (details) {
+                      setState(() {
+                        _width = (_width + details.delta.dx).clamp(
+                          _minWidth,
+                          _maxWidth,
+                        );
+                      });
+                    },
+                    onHorizontalDragEnd: (_) => _persistSize(),
+                    child: Container(width: 6, color: Colors.transparent),
+                  ),
                 ),
               ),
-            ),
 
-            // Bottom edge resize handle
-            Positioned(
-              bottom: 0,
-              left: 20,
-              right: 20,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeDown,
-                child: GestureDetector(
-                  onVerticalDragUpdate: (details) {
-                    setState(() {
-                      _height = (_height + details.delta.dy).clamp(
-                        _minHeight,
-                        _maxHeight,
-                      );
-                    });
-                  },
-                  onVerticalDragEnd: (_) => _persistSize(),
-                  child: Container(height: 6, color: Colors.transparent),
+              // Bottom edge resize handle
+              Positioned(
+                bottom: 0,
+                left: 20,
+                right: 20,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeDown,
+                  child: GestureDetector(
+                    onVerticalDragUpdate: (details) {
+                      setState(() {
+                        _height = (_height + details.delta.dy).clamp(
+                          _minHeight,
+                          _maxHeight,
+                        );
+                      });
+                    },
+                    onVerticalDragEnd: (_) => _persistSize(),
+                    child: Container(height: 6, color: Colors.transparent),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

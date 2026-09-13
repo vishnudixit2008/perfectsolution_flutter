@@ -149,17 +149,18 @@ class AppPageHeader extends StatelessWidget {
                     letterSpacing: -0.5,
                     color: AppTheme.textPrimary,
                   ),
-                  maxLines: 2,
-                  softWrap: true,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (actions != null && actions!.isNotEmpty) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Row(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     for (int i = 0; i < actions!.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 10),
+                      if (i > 0) const SizedBox(width: 5),
                       actions![i],
                     ],
                   ],
@@ -176,8 +177,8 @@ class AppPageHeader extends StatelessWidget {
                 color: AppTheme.textMuted,
                 fontWeight: FontWeight.w400,
               ),
-              maxLines: 2,
-              softWrap: true,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],

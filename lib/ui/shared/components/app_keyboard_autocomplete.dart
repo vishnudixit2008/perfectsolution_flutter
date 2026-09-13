@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../data/models/pricelist_item.dart';
+import '../../../data/services/smart_search_utils.dart';
 import '../../core/app_theme.dart';
 
 class AppKeyboardAutocomplete extends StatefulWidget {
@@ -115,55 +116,20 @@ class _AppKeyboardAutocompleteState extends State<AppKeyboardAutocomplete> {
           return const Iterable<PricelistItem>.empty();
         }
 
-        final tokens = query.toLowerCase().split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
-        if (tokens.isEmpty) {
+        final result = SmartSearchUtils.filterPricelist(
+          widget.catalogItems,
+          query,
+          customFilter: widget.customFilter,
+        );
+
+        if (result.isEmpty && !widget.allowNewItem) {
           _currentOptions = [];
           return const Iterable<PricelistItem>.empty();
         }
 
-        final List<MapEntry<PricelistItem, int>> matches = [];
-        bool exactMatchFound = false;
-
-        for (final item in widget.catalogItems) {
-          if (widget.customFilter != null && !widget.customFilter!(item)) {
-            continue;
-          }
-
-          final nameLower = item.itemName.toLowerCase();
-          final catLower = (item.category ?? '').toLowerCase();
-          final descLower = (item.itemDescription ?? '').toLowerCase();
-          final combined = '$nameLower $catLower $descLower ${item.id}';
-
-          if (nameLower == query.toLowerCase()) {
-            exactMatchFound = true;
-          }
-
-          bool allMatched = true;
-          for (final token in tokens) {
-            if (!combined.contains(token)) {
-              allMatched = false;
-              break;
-            }
-          }
-
-          if (allMatched) {
-            int score = 0;
-            if (nameLower == query.toLowerCase()) {
-              score += 1000;
-            } else if (nameLower.startsWith(query.toLowerCase())) {
-              score += 500;
-            }
-            for (final token in tokens) {
-              if (nameLower.contains(token)) score += 100;
-              if (catLower.contains(token)) score += 20;
-              if (descLower.contains(token)) score += 10;
-            }
-            matches.add(MapEntry(item, score));
-          }
-        }
-
-        matches.sort((a, b) => b.value.compareTo(a.value));
-        final result = matches.map((e) => e.key).toList();
+        final exactMatchFound = widget.catalogItems.any(
+          (item) => item.itemName.trim().toLowerCase() == query.toLowerCase(),
+        );
 
         if (widget.allowNewItem && !exactMatchFound && query.isNotEmpty) {
           result.add(

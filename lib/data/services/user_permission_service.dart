@@ -491,6 +491,15 @@ class UserPermissionService {
 
   static bool canAccessPage(String moduleKey) {
     final user = getCurrentUser();
+    // Runner Hub ("My Tasks") is ONLY for runners or users explicitly granted runner mode.
+    // Admins should NOT see this tab.
+    if (moduleKey == 'runner') {
+      if (AppUser.isPermanentAdmin(user.email) || user.isAdmin) {
+        return false;
+      }
+      final reqActions = user.pageActionAccess['requests'];
+      return reqActions != null && reqActions['canAccessRunnerMode'] == true;
+    }
     if (AppUser.isPermanentAdmin(user.email)) return true;
     if (!user.isActive) return false;
     if (moduleKey == 'settings') return true;
@@ -510,8 +519,18 @@ class UserPermissionService {
       return moduleActions[actionKey] ?? false;
     }
 
+    // Default canViewCustomerHistory to true if not explicitly disabled
+    if (actionKey == 'canViewCustomerHistory') {
+      return true;
+    }
+
     // Fallback to legacy global actionAccess map if available
     return user.actionAccess[actionKey] ?? false;
+  }
+
+  /// Helper to check if current user can view customer history for a module
+  static bool canViewCustomerHistory(String moduleKey) {
+    return canPerformModuleAction(moduleKey, 'canViewCustomerHistory');
   }
 
   /// Legacy single-parameter action check helper for global operations

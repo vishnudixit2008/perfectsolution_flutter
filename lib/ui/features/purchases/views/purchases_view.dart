@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../shared/date_time_picker_field.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,7 @@ import '../../../shared/status_management_dialog.dart';
 
 import '../../pricelist/view_models/pricelist_view_model.dart';
 import '../view_models/purchases_view_model.dart';
+import '../../../../data/services/smart_search_utils.dart';
 import '../../../../data/services/user_permission_service.dart';
 import '../../../../data/models/dealer.dart';
 import '../../dealers/views/dealers_view.dart';
@@ -158,10 +160,9 @@ class _PurchasesViewState extends State<PurchasesView> {
         final double screenWidth = MediaQuery.of(context).size.width;
         final bool isDesktop = screenWidth >= 800;
         final allDealers = context.watch<ShopRepository>().getDealers();
-        final List<String> dealerFilterList = ['All', ...allDealers.map((d) => d.name)];
 
         // Filtering
-        final query = _searchController.text.trim().toLowerCase();
+        final query = _searchController.text.trim();
         final filtered = viewModel.purchases.where((p) {
           if (!UserPermissionService.isStatusVisible('purchases', p.status)) {
             return false;
@@ -172,19 +173,20 @@ class _PurchasesViewState extends State<PurchasesView> {
             }
           }
           if (query.isEmpty) return true;
-          final idMatch = p.id.toLowerCase().contains(query);
-          final vendorMatch = p.purchasedFrom.toLowerCase().contains(query);
-          final statusMatch = p.status.toLowerCase().contains(query);
-          final notesMatch = p.notes?.toLowerCase().contains(query) ?? false;
-          return idMatch || vendorMatch || statusMatch || notesMatch;
+          final purchaseItems = viewModel.getPurchaseItems(p.id);
+          final itemsText = purchaseItems
+              .map((i) => '${i.itemName ?? ""} ${i.customItemName ?? ""} ${i.itemId ?? ""}')
+              .join(' ');
+          final combined = '${p.id} ${p.purchasedFrom} ${p.status} ${p.notes ?? ""} $itemsText';
+          return SmartSearchUtils.matchesQuery(combined, query);
         }).toList();
 
-        // Sort by date descending (newest purchases first), tie-break with ID descending
+        // Sort by date descending (newest purchases first), tie-break with updatedAt and ID descending
         filtered.sort((a, b) {
-          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-          final dateComp = dayB.compareTo(dayA);
+          final dateComp = b.date.compareTo(a.date);
           if (dateComp != 0) return dateComp;
+          final updateComp = b.updatedAt.compareTo(a.updatedAt);
+          if (updateComp != 0) return updateComp;
           return b.id.compareTo(a.id);
         });
 
@@ -208,7 +210,7 @@ class _PurchasesViewState extends State<PurchasesView> {
             children: [
               AppPageHeader(
                 title: 'Purchases',
-                subtitle: 'Vendor Procurement & Stock Inwarding',
+                subtitle: isDesktop ? 'Vendor Procurement & Stock Inwarding' : null,
                 actions: [
                   if (isDesktop && UserPermissionService.canPerformModuleAction('purchases', 'canAdd'))
                     AppHeaderActionButton(
@@ -220,9 +222,9 @@ class _PurchasesViewState extends State<PurchasesView> {
                     AppHeaderSyncButton(
                       onSynced: () => context.read<PurchasesViewModel>().loadPurchases(),
                     ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    onPressed: () {
+                  BouncyPressable(
+                    scaleFactor: 0.94,
+                    onTap: () {
                       StatusManagementDialog.show(
                         context,
                         moduleKey: 'purchases',
@@ -234,15 +236,56 @@ class _PurchasesViewState extends State<PurchasesView> {
                         },
                       );
                     },
-                    icon: const Icon(
-                      Icons.low_priority_rounded,
-                      color: AppTheme.primaryLight,
-                      size: 20,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.low_priority_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 16,
+                      ),
                     ),
-                    tooltip: 'Manage & Reorder Statuses',
-                    constraints: const BoxConstraints(
-                      minWidth: 36,
-                      minHeight: 36,
+                  ),
+                  BouncyPressable(
+                    scaleFactor: 0.94,
+                    onTap: () => _showDealerFilterDialog(context, allDealers, viewModel.purchases),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _selectedDealerFilter != 'All'
+                            ? AppTheme.primary.withValues(alpha: 0.15)
+                            : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _selectedDealerFilter != 'All'
+                              ? AppTheme.primary.withValues(alpha: 0.4)
+                              : Colors.white.withValues(alpha: 0.12),
+                          width: 1,
+                        ),
+                      ),
+                      child: Badge(
+                        isLabelVisible: _selectedDealerFilter != 'All',
+                        backgroundColor: AppTheme.primary,
+                        smallSize: 7,
+                        child: Icon(
+                          Icons.storefront_rounded,
+                          color: _selectedDealerFilter != 'All'
+                              ? AppTheme.primaryLight
+                              : AppTheme.textSecondary,
+                          size: 16,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -266,47 +309,49 @@ class _PurchasesViewState extends State<PurchasesView> {
                   hintText: 'Search purchase ID, vendor...',
                 ),
 
-              // Dealer Filter Chips Bar
-              if (allDealers.isNotEmpty) ...[
+              // Active Dealer Filter Banner
+              if (_selectedDealerFilter != 'All')
                 Container(
-                  height: 36,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    itemCount: dealerFilterList.length,
-                    separatorBuilder: (_, index) => const SizedBox(width: 8),
-                    itemBuilder: (context, idx) {
-                      final dName = dealerFilterList[idx];
-                      final isSelected = _selectedDealerFilter == dName;
-                      return FilterChip(
-                        selected: isSelected,
-                        avatar: isSelected
-                            ? null
-                            : (dName == 'All'
-                                ? const Icon(Icons.apps_rounded, size: 14, color: AppTheme.textSecondary)
-                                : const Icon(Icons.storefront_rounded, size: 14, color: AppTheme.textSecondary)),
-                        label: Text(dName),
-                        labelStyle: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                  margin: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.storefront_rounded, size: 16, color: AppTheme.primaryLight),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Showing purchases for: $_selectedDealerFilter (${filtered.length} found)',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        backgroundColor: const Color(0xFF131A2E),
-                        selectedColor: AppTheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          side: BorderSide(
-                            color: isSelected ? AppTheme.primary : Colors.white12,
+                      ),
+                      InkWell(
+                        onTap: () => setState(() => _selectedDealerFilter = 'All'),
+                        borderRadius: BorderRadius.circular(4),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.close_rounded, size: 14, color: AppTheme.textMuted),
+                              SizedBox(width: 2),
+                              Text('Clear Filter', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                            ],
                           ),
                         ),
-                        onSelected: (_) => setState(() => _selectedDealerFilter = dName),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
-              ],
               const SizedBox(height: 4),
 
               // Table / Cards list grouped by status
@@ -370,10 +415,10 @@ class _PurchasesViewState extends State<PurchasesView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-        final dateComp = dayB.compareTo(dayA);
+        final dateComp = b.date.compareTo(a.date);
         if (dateComp != 0) return dateComp;
+        final updateComp = b.updatedAt.compareTo(a.updatedAt);
+        if (updateComp != 0) return updateComp;
         return b.id.compareTo(a.id);
       });
     }
@@ -641,7 +686,7 @@ class _PurchasesViewState extends State<PurchasesView> {
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 152),
         itemCount: listEntries.length,
         itemBuilder: (context, index) {
           final item = listEntries[index];
@@ -1231,6 +1276,43 @@ class _PurchasesViewState extends State<PurchasesView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showDealerFilterDialog(
+    BuildContext context,
+    List<Dealer> allDealers,
+    List<PurchaseOrder> purchases,
+  ) {
+    final purchaseCounts = <String, int>{};
+    for (final p in purchases) {
+      final key = p.purchasedFrom.trim().toLowerCase();
+      purchaseCounts[key] = (purchaseCounts[key] ?? 0) + 1;
+    }
+
+    final sortedDealers = List<Dealer>.from(allDealers)
+      ..sort((a, b) {
+        final countA = purchaseCounts[a.name.trim().toLowerCase()] ?? 0;
+        final countB = purchaseCounts[b.name.trim().toLowerCase()] ?? 0;
+        if (countB != countA) return countB.compareTo(countA);
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return _PurchasesDealerFilterDialog(
+          dealers: sortedDealers,
+          purchaseCounts: purchaseCounts,
+          currentSelection: _selectedDealerFilter,
+          totalPurchases: purchases.length,
+          onSelected: (selectedDealer) {
+            setState(() {
+              _selectedDealerFilter = selectedDealer;
+            });
+          },
+        );
+      },
     );
   }
 
@@ -1839,37 +1921,40 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
               ),
               const SizedBox(height: 12),
 
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _priceController,
-                      decoration: InputDecoration(
-                        labelText: 'Cost Price (₹)',
-                        hintText: _selectedCatalogItem != null
-                            ? _selectedCatalogItem!.price.toStringAsFixed(0)
-                            : '0.00',
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              if (isMobile) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(
+                          labelText: 'Cost Price (₹)',
+                          hintText: _selectedCatalogItem != null
+                              ? _selectedCatalogItem!.price.toStringAsFixed(0)
+                              : '0.00',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: _qtyController,
-                      decoration: const InputDecoration(
-                        labelText: 'Qty',
-                        hintText: '1',
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _qtyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Qty',
+                          hintText: '1',
+                        ),
+                        keyboardType: TextInputType.number,
                       ),
-                      keyboardType: TextInputType.number,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
                     onPressed: _addItem,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
@@ -1880,8 +1965,51 @@ class _PurchaseFormDialogState extends State<_PurchaseFormDialog> {
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add Item'),
                   ),
-                ],
-              ),
+                ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _priceController,
+                        decoration: InputDecoration(
+                          labelText: 'Cost Price (₹)',
+                          hintText: _selectedCatalogItem != null
+                              ? _selectedCatalogItem!.price.toStringAsFixed(0)
+                              : '0.00',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextFormField(
+                        controller: _qtyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Qty',
+                          hintText: '1',
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: _addItem,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Item'),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 16),
             ],
 
@@ -2049,4 +2177,297 @@ class _PurchaseListItem {
   _PurchaseListItem.card(this.purchase)
       : statusHeader = null,
         statusCount = null;
+}
+
+class _PurchasesDealerFilterDialog extends StatefulWidget {
+  final List<Dealer> dealers;
+  final Map<String, int> purchaseCounts;
+  final String currentSelection;
+  final int totalPurchases;
+  final ValueChanged<String> onSelected;
+
+  const _PurchasesDealerFilterDialog({
+    required this.dealers,
+    required this.purchaseCounts,
+    required this.currentSelection,
+    required this.totalPurchases,
+    required this.onSelected,
+  });
+
+  @override
+  State<_PurchasesDealerFilterDialog> createState() =>
+      _PurchasesDealerFilterDialogState();
+}
+
+class _PurchasesDealerFilterDialogState
+    extends State<_PurchasesDealerFilterDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final queryLower = _query.trim().toLowerCase();
+    final matchingDealers = widget.dealers.where((d) {
+      if (queryLower.isEmpty) return true;
+      final nameMatch = d.name.toLowerCase().contains(queryLower);
+      final buildingMatch = d.buildingName?.toLowerCase().contains(queryLower) ?? false;
+      final productsMatch = d.products?.toLowerCase().contains(queryLower) ?? false;
+      return nameMatch || buildingMatch || productsMatch;
+    }).toList();
+
+    return Dialog(
+      backgroundColor: const Color(0xFF0F1524),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: 480,
+          maxHeight: math.min(600.0, MediaQuery.of(context).size.height * 0.8),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.storefront_rounded,
+                    color: AppTheme.primaryLight,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filter by Dealer',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Select a dealer to view their purchases',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.textMuted, size: 20),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Search Box
+            TextField(
+              controller: _searchController,
+              onChanged: (val) => setState(() => _query = val),
+              style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search dealer name, building, products...',
+                hintStyle: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppTheme.textMuted),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 16, color: AppTheme.textMuted),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                filled: true,
+                fillColor: const Color(0xFF131A2E),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white12),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.white12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.primary),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Dealers List
+            Expanded(
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  // Option: All Dealers
+                  if (_query.isEmpty)
+                    Material(
+                      color: widget.currentSelection == 'All'
+                          ? AppTheme.primary.withValues(alpha: 0.15)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      child: ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                        leading: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.apps_rounded, size: 16, color: AppTheme.textSecondary),
+                        ),
+                        title: const Text(
+                          'All Dealers',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Show all ${widget.totalPurchases} purchases',
+                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                        ),
+                        trailing: widget.currentSelection == 'All'
+                            ? const Icon(Icons.check_circle_rounded, size: 18, color: AppTheme.primary)
+                            : null,
+                        onTap: () {
+                          widget.onSelected('All');
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ),
+                  if (_query.isEmpty)
+                    const Divider(height: 12, color: Colors.white10),
+
+                  // Matching Dealers
+                  if (matchingDealers.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text(
+                          'No dealers found matching "$_query"',
+                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                        ),
+                      ),
+                    )
+                  else
+                    ...matchingDealers.map((dealer) {
+                      final isSelected = widget.currentSelection.trim().toLowerCase() == dealer.name.trim().toLowerCase();
+                      final pCount = widget.purchaseCounts[dealer.name.trim().toLowerCase()] ?? 0;
+
+                      return Material(
+                        color: isSelected
+                            ? AppTheme.primary.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                          leading: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.store_rounded,
+                              size: 16,
+                              color: AppTheme.primaryLight,
+                            ),
+                          ),
+                          title: Text(
+                            dealer.name,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : AppTheme.textPrimary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                          subtitle: dealer.buildingName != null && dealer.buildingName!.isNotEmpty
+                              ? Text(
+                                  dealer.buildingName!,
+                                  style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                )
+                              : (dealer.products != null && dealer.products!.isNotEmpty
+                                  ? Text(
+                                      dealer.products!,
+                                      style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    )
+                                  : null),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: pCount > 0
+                                      ? AppTheme.primary.withValues(alpha: 0.2)
+                                      : Colors.white.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$pCount',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: pCount > 0 ? AppTheme.primaryLight : AppTheme.textMuted,
+                                  ),
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.check_circle_rounded, size: 18, color: AppTheme.primary),
+                              ],
+                            ],
+                          ),
+                          onTap: () {
+                            widget.onSelected(dealer.name);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

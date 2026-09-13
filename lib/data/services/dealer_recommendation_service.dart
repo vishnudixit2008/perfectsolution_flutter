@@ -35,7 +35,7 @@ class DealerRecommendationService {
     required List<Dealer> allDealers,
     required List<PurchaseOrder> purchaseOrders,
     required List<PurchaseOrderItem> Function(String purchaseId) getPurchaseItems,
-    int maxResults = 8,
+    int maxResults = 100,
   }) {
     if (allDealers.isEmpty) return const [];
 
@@ -99,7 +99,7 @@ class DealerRecommendationService {
         reasons.add('⭐ Frequent Supplier ($pastCount past orders)');
       }
 
-      // B. Staff-Written Product / Notes Keyword Matches
+      // B. Staff-Written Product / Notes Keyword Matches & Direct Phrase Matching
       final dealerTokens = dealer.productKeywords.map((w) => w.toLowerCase()).toSet();
       final matchedKeywords = <String>[];
 
@@ -109,8 +109,26 @@ class DealerRecommendationService {
         }
       }
 
+      // Direct phrase check on dealer products & notes (e.g. "dc jack" matching "acer nitro an515-52 dcjack")
+      final rawProducts = '${dealer.products ?? ''} ${dealer.category ?? ''}'.toLowerCase();
+      final compactItem = itemText.toLowerCase().replaceAll(RegExp(r'[\s\-_]'), '');
+      if (rawProducts.isNotEmpty && compactItem.length >= 3) {
+        final productPhrases = rawProducts.split(RegExp(r'[,/|;•\n]'));
+        for (final p in productPhrases) {
+          final trimmedP = p.trim();
+          if (trimmedP.length < 2) continue;
+          final compactP = trimmedP.replaceAll(RegExp(r'[\s\-_]'), '');
+          // If compact item contains compact phrase (or vice versa)
+          if (compactP.length >= 2 && (compactItem.contains(compactP) || (compactP.length >= 4 && compactP.contains(compactItem)))) {
+            if (!matchedKeywords.contains(trimmedP)) {
+              matchedKeywords.add(trimmedP);
+            }
+          }
+        }
+      }
+
       if (matchedKeywords.isNotEmpty) {
-        score += matchedKeywords.length * 15.0;
+        score += matchedKeywords.length * 20.0;
         final preview = matchedKeywords
             .take(3)
             .map((w) => w.length > 1 ? '${w[0].toUpperCase()}${w.substring(1)}' : w.toUpperCase())
@@ -127,12 +145,7 @@ class DealerRecommendationService {
         }
       }
 
-      // D. Building Location
-      if (dealer.buildingName != null && dealer.buildingName!.trim().isNotEmpty) {
-        reasons.add('🏢 ${dealer.buildingName}');
-      }
-
-      // E. Dealer Rating Boost
+      // D. Dealer Rating Boost
       score += (dealer.rating * 2.0);
 
       // F. Recency Bonus

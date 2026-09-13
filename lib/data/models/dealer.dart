@@ -36,11 +36,40 @@ class Dealer {
   /// Normalized list of keywords extracted from products, category, notes, and name
   List<String> get productKeywords {
     final tokens = <String>{};
+
     void addTokens(String? text) {
       if (text == null || text.trim().isEmpty) return;
-      final clean = text.toLowerCase().replaceAll(RegExp(r'[,/|;•\-_()]'), ' ');
+      final lower = text.toLowerCase();
+
+      // 1. Extract raw phrases separated by commas, semicolons, slashes, or pipes
+      final phrases = lower.split(RegExp(r'[,/|;•\n]'));
+      for (final rawPhrase in phrases) {
+        final phrase = rawPhrase.trim();
+        if (phrase.length >= 2) {
+          tokens.add(phrase);
+          // Also add compact version (e.g. "dc jack" -> "dcjack")
+          final compact = phrase.replaceAll(RegExp(r'[\s\-_]'), '');
+          if (compact.length >= 2) tokens.add(compact);
+
+          // Common synonyms / spelling alternates
+          if (phrase.contains('adaptor')) tokens.add('adapter');
+          if (phrase.contains('adapter')) tokens.add('adaptor');
+          if (phrase.contains('screen')) tokens.addAll(['display', 'panel']);
+          if (phrase.contains('keyboard')) tokens.addAll(['keypad', 'kbd']);
+          if (phrase.contains('touchpad')) tokens.add('trackpad');
+          if (phrase.contains('motherboard')) tokens.addAll(['mboard', 'mainboard']);
+          if (phrase.contains('fan')) tokens.add('cooling');
+        }
+      }
+
+      // 2. Individual words
+      final clean = lower.replaceAll(RegExp(r'[,/|;•\-_()]'), ' ');
       for (final word in clean.split(RegExp(r'\s+'))) {
-        if (word.length >= 2) tokens.add(word);
+        if (word.length >= 2) {
+          tokens.add(word);
+          if (word == 'adaptor') tokens.add('adapter');
+          if (word == 'adapter') tokens.add('adaptor');
+        }
       }
     }
 

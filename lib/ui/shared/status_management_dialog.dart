@@ -34,7 +34,7 @@ class StatusManagementService {
     ],
     'calls': ['Pending', 'Pending payment', 'Pre-complete', 'Complete'],
     'replacements': ['Pre-Complete', 'Pending', 'Recieved', 'Complete'],
-    'requests': ['Pending', 'Received', 'Complete'],
+    'requests': ['Pending', 'Assigned to runner', 'Received', 'HOLD', 'Complete'],
     'purchases': ['PENDING', 'Confirmed'],
     'sales': ['Pending', 'Complete'],
   };
@@ -78,6 +78,45 @@ class StatusManagementService {
       if (list.length != origLen) {
         await box.put('$prefix${_statusListKeyPrefix}sales', list);
         _cache.remove('sales');
+      }
+    }
+
+    final List? requestsStored = box.get('$prefix${_statusListKeyPrefix}requests') ?? box.get('${_statusListKeyPrefix}requests');
+    if (requestsStored != null) {
+      final List<String> list = List<String>.from(requestsStored);
+      final int origLen = list.length;
+      list.removeWhere((s) {
+        final lower = s.trim().toLowerCase();
+        return lower == 'office' ||
+            lower == 'inquiry sent' ||
+            lower == 'customer approved' ||
+            lower == 'collected';
+      });
+      for (int i = 0; i < list.length; i++) {
+        if (list[i].trim().toLowerCase() == 'runner assigned') {
+          list[i] = 'Assigned to runner';
+        }
+        if (list[i].trim().toLowerCase() == 'completed') {
+          list[i] = 'Complete';
+        }
+      }
+      if (!list.any((s) => s.trim().toLowerCase() == 'assigned to runner')) {
+        final pIdx = list.indexWhere((s) => s.trim().toLowerCase() == 'pending');
+        if (pIdx != -1) {
+          list.insert(pIdx + 1, 'Assigned to runner');
+        } else {
+          list.insert(0, 'Assigned to runner');
+        }
+      }
+      final cleanList = <String>[];
+      for (final s in list) {
+        if (!cleanList.any((e) => e.toLowerCase() == s.toLowerCase())) {
+          cleanList.add(s);
+        }
+      }
+      if (cleanList.length != origLen || cleanList != list) {
+        await box.put('$prefix${_statusListKeyPrefix}requests', cleanList);
+        _cache.remove('requests');
       }
     }
   }
@@ -404,6 +443,10 @@ class StatusManagementService {
     if (s == 'ready return' || s == 'ready-return') return const Color(0xFFCA8A04); // Dull Yellow
     if (s == 'ready') return const Color(0xFFEAB308); // Yellow
     if (s.contains('hold')) return const Color(0xFF06B6D4); // Cyan
+    if (s.contains('inquiry')) return const Color(0xFFFBBF24); // Amber
+    if (s.contains('approved')) return const Color(0xFF38BDF8); // Sky Blue
+    if (s.contains('runner') || s.contains('assigned')) return const Color(0xFFA78BFA); // Indigo
+    if (s.contains('collected')) return const Color(0xFF34D399); // Emerald
     if (s.contains('complete') || s.contains('pre complete') || s.contains('pre-complete') || s == 'confirmed') {
       return const Color(0xFF10B981); // Green
     }
@@ -511,7 +554,36 @@ class StatusManagementService {
 
     if (moduleKey == 'requests') {
       final int initialLen = list.length;
-      list.removeWhere((s) => s.trim().toLowerCase() == 'office');
+      list.removeWhere((s) {
+        final lower = s.trim().toLowerCase();
+        return lower == 'office' ||
+            lower == 'inquiry sent' ||
+            lower == 'customer approved' ||
+            lower == 'collected';
+      });
+      for (int i = 0; i < list.length; i++) {
+        if (list[i].trim().toLowerCase() == 'runner assigned') {
+          list[i] = 'Assigned to runner';
+        }
+        if (list[i].trim().toLowerCase() == 'completed') {
+          list[i] = 'Complete';
+        }
+      }
+      if (!list.any((s) => s.trim().toLowerCase() == 'assigned to runner')) {
+        final pIdx = list.indexWhere((s) => s.trim().toLowerCase() == 'pending');
+        if (pIdx != -1) {
+          list.insert(pIdx + 1, 'Assigned to runner');
+        } else {
+          list.insert(0, 'Assigned to runner');
+        }
+      }
+      final cleanList = <String>[];
+      for (final s in list) {
+        if (!cleanList.any((e) => e.toLowerCase() == s.toLowerCase())) {
+          cleanList.add(s);
+        }
+      }
+      list = cleanList;
       if (list.length != initialLen && box != null) {
         box.put('$prefix$_statusListKeyPrefix$moduleKey', list);
       }

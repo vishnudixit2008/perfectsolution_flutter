@@ -1,15 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../data/models/customer_profile.dart';
-import '../../../../data/models/dealer.dart';
 import '../../../../data/models/request_order.dart';
 import '../../../../data/repositories/shop_repository.dart';
 import '../../../../data/services/customer_directory_service.dart';
 import '../../../../data/services/dealer_inquiry_service.dart';
 import '../../../../data/services/dealer_recommendation_service.dart';
+import '../../../../data/services/fcm_push_sender_service.dart';
 import '../../../../data/services/item_category_detector.dart';
+import '../../../../data/services/smart_search_utils.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/user_permission_service.dart';
@@ -33,6 +35,7 @@ import '../../../shared/resizable_detail_popup.dart';
 import '../../../shared/status_management_dialog.dart';
 import '../../../shared/whatsapp_icon.dart';
 import '../view_models/requests_view_model.dart';
+import 'dealer_inquiry_view.dart';
 import 'runner_tasks_view.dart';
 
 class RequestsView extends StatefulWidget {
@@ -46,6 +49,25 @@ class RequestsView extends StatefulWidget {
   }) {
     final vm = viewModel ?? context.read<RequestsViewModel>();
     _RequestsViewState._showDetailDialog(context, req, vm);
+  }
+
+  /// Opens the runner assignment dialog for a request from anywhere in the app.
+  static void showAssignRunnerDialog(
+    BuildContext context,
+    RequestOrder req,
+    RequestsViewModel viewModel, {
+    String? preselectedDealer,
+    String? preselectedBuilding,
+    String? preselectedShopNo,
+  }) {
+    _RequestsViewState._showAssignRunnerDialog(
+      context,
+      req,
+      viewModel,
+      preselectedDealer: preselectedDealer,
+      preselectedBuilding: preselectedBuilding,
+      preselectedShopNo: preselectedShopNo,
+    );
   }
 
   @override
@@ -64,6 +86,8 @@ class _RequestsViewState extends State<RequestsView> {
   double _mobileWidth = 130.0;
   double _itemWidth = 200.0;
   double _amountWidth = 120.0;
+  // ignore: unused_field
+  double _statusWidth = 140.0;
 
   void _loadSavedColumnWidths() {
     _idWidth = UiPreferencesService.getColumnWidth('requests', 'id') ?? 120.0;
@@ -72,6 +96,7 @@ class _RequestsViewState extends State<RequestsView> {
     _mobileWidth = UiPreferencesService.getColumnWidth('requests', 'mobile') ?? 130.0;
     _itemWidth = UiPreferencesService.getColumnWidth('requests', 'item') ?? 200.0;
     _amountWidth = UiPreferencesService.getColumnWidth('requests', 'amount') ?? 120.0;
+    _statusWidth = UiPreferencesService.getColumnWidth('requests', 'status') ?? 140.0;
   }
 
   void _updateColumnWidth(String columnKey, double newWidth) {
@@ -95,6 +120,9 @@ class _RequestsViewState extends State<RequestsView> {
         case 'amount':
           _amountWidth = newWidth;
           break;
+        case 'status':
+          _statusWidth = newWidth;
+          break;
       }
     });
     UiPreferencesService.setColumnWidth('requests', columnKey, newWidth);
@@ -103,6 +131,7 @@ class _RequestsViewState extends State<RequestsView> {
   @override
   void initState() {
     super.initState();
+    StatusManagementService.clearCache();
     _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RequestsViewModel>().loadRequests();
@@ -169,29 +198,23 @@ class _RequestsViewState extends State<RequestsView> {
         final bool isDesktop = screenWidth >= 800;
 
         // Filtering
-        final query = _searchController.text.trim().toLowerCase();
+        final query = _searchController.text.trim();
         final filtered = viewModel.requests.where((r) {
           if (!UserPermissionService.isStatusVisible('requests', r.status)) {
             return false;
           }
           if (query.isEmpty) return true;
-          final idMatch = r.id.toLowerCase().contains(query);
-          final nameMatch = r.customerName.toLowerCase().contains(query);
-          final itemMatch = r.item.toLowerCase().contains(query);
-          final mobileMatch = r.mobileNo?.toLowerCase().contains(query) ?? false;
-          final statusMatch = r.status.toLowerCase().contains(query);
-          final dealerMatch = r.dealerName?.toLowerCase().contains(query) ?? false;
-          final runnerMatch = r.assignedRunnerName?.toLowerCase().contains(query) ?? false;
-          final bldgMatch = r.targetBuilding?.toLowerCase().contains(query) ?? false;
-          return idMatch || nameMatch || itemMatch || mobileMatch || statusMatch || dealerMatch || runnerMatch || bldgMatch;
+          final combined =
+              '${r.id} ${r.customerName} ${r.item} ${r.estimate ?? ""} ${r.mobileNo ?? ""} ${r.status} ${r.dealerName ?? ""} ${r.assignedRunnerName ?? ""} ${r.targetBuilding ?? ""} ${r.targetShopNo ?? ""}';
+          return SmartSearchUtils.matchesQuery(combined, query);
         }).toList();
 
-        // Sort by date descending (newest requests first), tie-break with ID descending
+        // Sort by date descending (newest requests first), tie-break with updatedAt and ID descending
         filtered.sort((a, b) {
-          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-          final dateComp = dayB.compareTo(dayA);
+          final dateComp = b.date.compareTo(a.date);
           if (dateComp != 0) return dateComp;
+          final updateComp = b.updatedAt.compareTo(a.updatedAt);
+          if (updateComp != 0) return updateComp;
           return b.id.compareTo(a.id);
         });
         final groupedRequests = _getGroupedRequests(filtered);
@@ -208,35 +231,49 @@ class _RequestsViewState extends State<RequestsView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppPageHeader(
-                title: 'Requests & Sourcing',
-                subtitle: 'Parts Procurement, Dealer Sourcing & Market Runner Dispatch',
+                title: 'Requests',
                 actions: [
                   if (canAccessRunnerMode)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => Scaffold(
-                                backgroundColor: const Color(0xFF0A0E1A),
-                                appBar: AppBar(
-                                  backgroundColor: const Color(0xFF0F1524),
-                                  title: const Text('Market Runner Mode'),
+                    BouncyPressable(
+                      scaleFactor: 0.94,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RunnerTasksView(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 32,
+                        padding: EdgeInsets.symmetric(horizontal: isDesktop ? 10 : 8),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.directions_walk_rounded, size: 16, color: Color(0xFF60A5FA)),
+                            if (isDesktop) ...[
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Runner Mode',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF60A5FA),
+                                  letterSpacing: 0.2,
                                 ),
-                                body: const RunnerTasksView(),
                               ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.directions_walk_rounded, size: 18),
-                        label: const Text('Runner Mode'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3B82F6),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ],
+                          ],
                         ),
                       ),
                     ),
@@ -250,9 +287,9 @@ class _RequestsViewState extends State<RequestsView> {
                     AppHeaderSyncButton(
                       onSynced: () => context.read<RequestsViewModel>().loadRequests(),
                     ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    onPressed: () {
+                  BouncyPressable(
+                    scaleFactor: 0.94,
+                    onTap: () {
                       StatusManagementDialog.show(
                         context,
                         moduleKey: 'requests',
@@ -264,13 +301,24 @@ class _RequestsViewState extends State<RequestsView> {
                         },
                       );
                     },
-                    icon: const Icon(
-                      Icons.low_priority_rounded,
-                      color: AppTheme.primaryLight,
-                      size: 20,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.low_priority_rounded,
+                        color: AppTheme.primaryLight,
+                        size: 16,
+                      ),
                     ),
-                    tooltip: 'Manage & Reorder Statuses',
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   ),
                 ],
               ),
@@ -312,23 +360,38 @@ class _RequestsViewState extends State<RequestsView> {
     final List<String> configuredStatuses = StatusManagementService.getStatuses('requests');
     final Map<String, List<RequestOrder>> grouped = {};
 
-    // Standard 5-stage order defaults
-    final defaultWorkflow = RequestOrder.allStatuses;
-    for (final s in defaultWorkflow) {
-      grouped[s] = [];
-    }
-    for (final s in configuredStatuses) {
-      if (!grouped.containsKey(s)) {
-        grouped[s] = [];
-      }
+    // Strictly initialize ONLY with configured statuses from Status Manager, preserving exact order
+    for (final status in configuredStatuses) {
+      grouped[status] = [];
     }
 
+    // Assign requests strictly to configured status groups
     for (final req in requests) {
       final statusName = req.status.trim();
-      final existingKey = configuredStatuses.firstWhere(
+      String existingKey = configuredStatuses.firstWhere(
         (k) => k.trim().toLowerCase() == statusName.toLowerCase(),
         orElse: () => '',
       );
+
+      // Handle common aliases if not found directly
+      if (existingKey.isEmpty) {
+        if (statusName.toLowerCase() == 'completed' || statusName.toLowerCase() == 'complete') {
+          existingKey = configuredStatuses.firstWhere(
+            (k) => k.trim().toLowerCase() == 'complete' || k.trim().toLowerCase() == 'completed',
+            orElse: () => '',
+          );
+        } else if (statusName.toLowerCase() == 'inquiry sent' || statusName.toLowerCase() == 'inquiry' || statusName.toLowerCase() == 'pending') {
+          existingKey = configuredStatuses.firstWhere(
+            (k) => k.trim().toLowerCase() == 'pending' || k.trim().toLowerCase() == 'inquiry sent',
+            orElse: () => '',
+          );
+        } else if (statusName.toLowerCase() == 'collected' || statusName.toLowerCase() == 'received') {
+          existingKey = configuredStatuses.firstWhere(
+            (k) => k.trim().toLowerCase() == 'received' || k.trim().toLowerCase() == 'collected',
+            orElse: () => '',
+          );
+        }
+      }
 
       if (existingKey.isNotEmpty) {
         grouped[existingKey]!.add(req);
@@ -349,29 +412,21 @@ class _RequestsViewState extends State<RequestsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-        final dateComp = dayB.compareTo(dayA);
+        final dateComp = b.date.compareTo(a.date);
         if (dateComp != 0) return dateComp;
+        final updateComp = b.updatedAt.compareTo(a.updatedAt);
+        if (updateComp != 0) return updateComp;
         return b.id.compareTo(a.id);
       });
     }
 
+    // Only keep status groups that have entries
     grouped.removeWhere((key, list) => list.isEmpty);
     return grouped;
   }
 
   Color _getStatusColor(String status) {
-    final configured = StatusManagementService.getStatusColor('requests', status);
-    if (configured != const Color(0xFF94A3B8)) return configured;
-    final s = status.toLowerCase().trim();
-    if (s.contains('inquiry')) return const Color(0xFFFBBF24); // Amber
-    if (s.contains('approved')) return const Color(0xFF38BDF8); // Sky Blue
-    if (s.contains('runner') || s.contains('assigned')) return const Color(0xFFA78BFA); // Indigo
-    if (s.contains('collected') || s.contains('received')) return const Color(0xFF34D399); // Emerald
-    if (s.contains('complete')) return const Color(0xFF94A3B8); // Slate
-    if (s.contains('cancel') || s.contains('reject')) return const Color(0xFFEF4444);
-    return const Color(0xFF818CF8);
+    return StatusManagementService.getStatusColor('requests', status);
   }
 
   Widget _buildStatusSectionHeader(String status, int count) {
@@ -666,7 +721,7 @@ class _RequestsViewState extends State<RequestsView> {
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 152),
         itemCount: listEntries.length,
         itemBuilder: (context, index) {
           final item = listEntries[index];
@@ -829,7 +884,7 @@ class _RequestsViewState extends State<RequestsView> {
     ResizableDetailPopup.show(
       context: context,
       repository: repo,
-      title: 'Procurement Request #${req.id}',
+      title: 'Request #${req.id}',
       subtitle: 'Logged on $formattedDate',
       contentBuilder: (ctx, scale) {
         return Column(
@@ -846,11 +901,16 @@ class _RequestsViewState extends State<RequestsView> {
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: req.mobileNo!,
-                onValueTap: () => CustomerHistoryDialog.show(
-                  context,
-                  phone: req.mobileNo,
-                ),
-                valueTooltip: 'View customer history for ${req.mobileNo}',
+                onValueTap: UserPermissionService.canViewCustomerHistory('requests')
+                    ? () => CustomerHistoryDialog.show(
+                        context,
+                        phone: req.mobileNo,
+                        moduleKey: 'requests',
+                      )
+                    : null,
+                valueTooltip: UserPermissionService.canViewCustomerHistory('requests')
+                    ? 'View customer history for ${req.mobileNo}'
+                    : null,
                 trailing: InlineCallButton(
                   phone: req.mobileNo!,
                   scaleFactor: scale,
@@ -940,6 +1000,8 @@ class _RequestsViewState extends State<RequestsView> {
               PhotoGallerySection(photoUrls: req.billPhotoList),
             ],
 
+            SizedBox(height: 14 * scale),
+            _DealerInquiriesTrackerSection(requestId: req.id, scaleFactor: scale),
             SizedBox(height: 14 * scale),
             Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
             SizedBox(height: 12 * scale),
@@ -1109,147 +1171,441 @@ class _RequestsViewState extends State<RequestsView> {
   static void _showAssignRunnerDialog(
     BuildContext context,
     RequestOrder req,
-    RequestsViewModel viewModel,
-  ) {
+    RequestsViewModel viewModel, {
+    String? preselectedDealer,
+    String? preselectedBuilding,
+    String? preselectedShopNo,
+  }) {
     final allUsers = UserPermissionService.getAllUsers();
     final allDealers = context.read<ShopRepository>().getDealers();
 
-    String selectedRunnerEmail = allUsers.isNotEmpty ? allUsers.first.email : '';
-    String selectedRunnerName = allUsers.isNotEmpty ? allUsers.first.name : '';
-    String dealerName = req.dealerName ?? '';
-    String building = req.targetBuilding ?? 'Meghdoot Building';
-    String shopNo = req.targetShopNo ?? '';
+    // Sort users so Market Runners appear at the top
+    final runnersFirst = [...allUsers]..sort((a, b) {
+        final aIs = a.isRunner || a.role.toLowerCase() == 'runner';
+        final bIs = b.isRunner || b.role.toLowerCase() == 'runner';
+        if (aIs && !bIs) return -1;
+        if (!aIs && bIs) return 1;
+        return a.name.compareTo(b.name);
+      });
+
+    // Default to 'Pick Up' if dealer is pre-selected, otherwise determine by existing data
+    bool isPickup = (preselectedDealer != null && preselectedDealer.trim().isNotEmpty) ||
+        (req.dealerName != null && req.dealerName!.trim().isNotEmpty);
+
+    String selectedRunnerEmail = '';
+    String selectedRunnerName = '';
+    bool isCustomRunner = runnersFirst.isEmpty;
+
+    if (runnersFirst.isNotEmpty) {
+      // Try to find currently assigned runner or fallback to first runner/user
+      final existingMatch = runnersFirst.where((u) =>
+          ((req.assignedRunnerId?.isNotEmpty ?? false) && u.email == req.assignedRunnerId) ||
+          ((req.assignedRunnerName?.isNotEmpty ?? false) && u.name == req.assignedRunnerName)).firstOrNull;
+
+      final defaultUser = existingMatch ?? runnersFirst.first;
+      selectedRunnerEmail = defaultUser.email;
+      selectedRunnerName = defaultUser.name;
+    }
+
+    final customRunnerCtrl = TextEditingController(
+      text: (req.assignedRunnerName?.isNotEmpty ?? false) ? req.assignedRunnerName! : '',
+    );
+    String dealerName = preselectedDealer ?? (req.dealerName ?? '');
+    String building = preselectedBuilding ?? (req.targetBuilding ?? 'Meghdoot Building');
+    String shopNo = preselectedShopNo ?? (req.targetShopNo ?? '');
+
+    final buildingCtrl = TextEditingController(text: building);
+    final shopNoCtrl = TextEditingController(text: shopNo);
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
           backgroundColor: const Color(0xFF0F1524),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
-          title: const Row(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          title: Row(
             children: [
-              Icon(Icons.directions_walk_rounded, color: Color(0xFFA78BFA)),
-              SizedBox(width: 10),
-              Text('Assign Task to Runner', style: TextStyle(color: AppTheme.textPrimary, fontSize: 17)),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFA78BFA).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.directions_walk_rounded, color: Color(0xFFA78BFA), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Assign Task to Runner',
+                  style: TextStyle(color: AppTheme.textPrimary, fontSize: 17, fontWeight: FontWeight.bold),
+                ),
+              ),
             ],
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Item: ${req.item}', style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 14),
-
-                // Select Runner Staff
-                const Text('Select Runner Staff *', style: TextStyle(color: AppTheme.textMuted, fontSize: 12)),
-                const SizedBox(height: 4),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedRunnerEmail,
-                  dropdownColor: const Color(0xFF131A2E),
-                  style: const TextStyle(color: AppTheme.textPrimary),
-                  items: allUsers.map((u) => DropdownMenuItem(value: u.email, child: Text('${u.name} (${u.role})'))).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setDlgState(() {
-                        selectedRunnerEmail = val;
-                        selectedRunnerName = allUsers.firstWhere((u) => u.email == val).name;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Target Dealer
-                Autocomplete<String>(
-                  initialValue: TextEditingValue(text: dealerName),
-                  optionsBuilder: (textVal) {
-                    if (textVal.text.isEmpty) return allDealers.map((d) => d.name);
-                    return allDealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
-                  },
-                  onSelected: (val) {
-                    final d = allDealers.where((e) => e.name == val).firstOrNull;
-                    setDlgState(() {
-                      dealerName = val;
-                      if (d?.buildingName != null) building = d!.buildingName!;
-                      if (d?.shopNo != null) shopNo = d!.shopNo!;
-                    });
-                  },
-                  fieldViewBuilder: (ctx, controller, focus, onSub) {
-                    controller.addListener(() => dealerName = controller.text);
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focus,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: const InputDecoration(
-                        labelText: 'Shortlisted Dealer / Shop',
-                        hintText: 'e.g. Pro Lab, Caviar Technologies',
-                        prefixIcon: Icon(Icons.storefront_rounded, size: 18),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Building & Shop No
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        initialValue: building,
-                        onChanged: (v) => building = v,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Building Name',
-                          hintText: 'e.g. Siddharth Bldg',
-                          prefixIcon: Icon(Icons.location_city_rounded, size: 18),
-                        ),
-                      ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Item & Photo preview strip
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131A2E),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        initialValue: shopNo,
-                        onChanged: (v) => shopNo = v,
-                        style: const TextStyle(color: AppTheme.textPrimary),
-                        decoration: const InputDecoration(
-                          labelText: 'Shop / Floor',
-                          hintText: 'e.g. 204',
-                          prefixIcon: Icon(Icons.room_rounded, size: 18),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (req.photoList.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(
+                                req.photoList.first,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 48,
+                                  height: 48,
+                                  color: Colors.white10,
+                                  child: const Icon(Icons.broken_image_rounded, size: 20, color: Colors.white38),
+                                ),
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                req.item,
+                                style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (req.estimate != null && req.estimate!.trim().isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Specs: ${req.estimate}',
+                                  style: const TextStyle(color: Color(0xFF93C5FD), fontSize: 11),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 2),
+                              Text(
+                                'Customer: ${req.customerName}',
+                                style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Mode Selector: Find in Market vs Shop Pickup
+                  const Text('Task Type', style: TextStyle(color: AppTheme.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131A2E),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setDlgState(() => isPickup = false),
+                            borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: !isPickup ? const Color(0xFF3B82F6) : Colors.transparent,
+                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.search_rounded, size: 15, color: !isPickup ? Colors.white : AppTheme.textMuted),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '🔍 Find in Market',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: !isPickup ? FontWeight.bold : FontWeight.normal,
+                                      color: !isPickup ? Colors.white : AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setDlgState(() => isPickup = true),
+                            borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isPickup ? const Color(0xFF10B981) : Colors.transparent,
+                                borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                              ),
+                              alignment: Alignment.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.storefront_rounded, size: 15, color: isPickup ? Colors.white : AppTheme.textMuted),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '📦 Shop Pickup',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: isPickup ? FontWeight.bold : FontWeight.normal,
+                                      color: isPickup ? Colors.white : AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Select Runner Staff
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Select Runner Staff *', style: TextStyle(color: AppTheme.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+                      if (runnersFirst.isNotEmpty)
+                        GestureDetector(
+                          onTap: () => setDlgState(() => isCustomRunner = !isCustomRunner),
+                          child: Text(
+                            isCustomRunner ? 'Choose from Team' : '+ Custom Name',
+                            style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  if (!isCustomRunner && runnersFirst.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedRunnerEmail.isNotEmpty ? selectedRunnerEmail : runnersFirst.first.email,
+                      dropdownColor: const Color(0xFF131A2E),
+                      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixIcon: Icon(Icons.person_rounded, size: 18, color: Color(0xFFA78BFA)),
+                      ),
+                      items: runnersFirst.map((u) {
+                        final isRunner = u.isRunner || u.role.toLowerCase() == 'runner';
+                        return DropdownMenuItem(
+                          value: u.email,
+                          child: Row(
+                            children: [
+                              Text(u.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: isRunner ? const Color(0xFFA78BFA).withValues(alpha: 0.2) : Colors.white10,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isRunner ? '🏃 Runner' : u.role,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isRunner ? const Color(0xFFA78BFA) : AppTheme.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDlgState(() {
+                            selectedRunnerEmail = val;
+                            selectedRunnerName = runnersFirst.firstWhere((u) => u.email == val).name;
+                          });
+                        }
+                      },
+                    ),
+                  ] else ...[
+                    TextFormField(
+                      controller: customRunnerCtrl,
+                      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                      decoration: const InputDecoration(
+                        labelText: 'Runner Name',
+                        hintText: 'Enter runner name or phone',
+                        isDense: true,
+                        prefixIcon: Icon(Icons.person_outline_rounded, size: 18, color: Color(0xFFA78BFA)),
                       ),
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 14),
+
+                  // If Shop Pickup: Dealer Autocomplete
+                  if (isPickup) ...[
+                    Autocomplete<String>(
+                      initialValue: TextEditingValue(text: dealerName),
+                      optionsBuilder: (textVal) {
+                        if (textVal.text.isEmpty) return allDealers.map((d) => d.name);
+                        return allDealers
+                            .where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase()))
+                            .map((d) => d.name);
+                      },
+                      onSelected: (val) {
+                        final d = allDealers.where((e) => e.name == val).firstOrNull;
+                        setDlgState(() {
+                          dealerName = val;
+                          if (d != null) {
+                            final bName = d.buildingName?.trim() ?? '';
+                            final addr = d.address.trim();
+                            buildingCtrl.text = bName.isNotEmpty ? bName : addr;
+                            shopNoCtrl.text = d.shopNo?.trim() ?? '';
+                          }
+                        });
+                      },
+                      fieldViewBuilder: (ctx, controller, focus, onSub) {
+                        controller.addListener(() => dealerName = controller.text);
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focus,
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                          decoration: const InputDecoration(
+                            labelText: 'Dealer',
+                            hintText: 'e.g. Pro Lab, Caviar Technologies',
+                            isDense: true,
+                            prefixIcon: Icon(Icons.storefront_rounded, size: 18, color: Color(0xFF10B981)),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Building & Shop No
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: TextFormField(
+                          controller: buildingCtrl,
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                          decoration: InputDecoration(
+                            labelText: isPickup ? 'Building / Address' : 'Market Area / Building',
+                            hintText: 'e.g. Meghdoot Building',
+                            isDense: true,
+                            prefixIcon: const Icon(Icons.location_city_rounded, size: 18),
+                          ),
+                        ),
+                      ),
+                      if (isPickup) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: TextFormField(
+                            controller: shopNoCtrl,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
+                            decoration: const InputDecoration(
+                              labelText: 'Shop / Floor',
+                              hintText: 'e.g. 204',
+                              isDense: true,
+                              prefixIcon: Icon(Icons.room_rounded, size: 18),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            ElevatedButton(
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton.icon(
               onPressed: () async {
+                final runnerNameToSave = isCustomRunner
+                    ? customRunnerCtrl.text.trim()
+                    : selectedRunnerName;
+                final runnerIdToSave = isCustomRunner ? '' : selectedRunnerEmail;
+
+                if (runnerNameToSave.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please specify a runner name')),
+                  );
+                  return;
+                }
+
+                final finalBuilding = buildingCtrl.text.trim();
+                final finalShopNo = shopNoCtrl.text.trim();
+
                 Navigator.pop(ctx);
                 await viewModel.assignRunner(
                   requestId: req.id,
-                  runnerId: selectedRunnerEmail,
-                  runnerName: selectedRunnerName,
-                  dealerName: dealerName,
-                  building: building,
-                  shopNo: shopNo,
+                  runnerId: runnerIdToSave,
+                  runnerName: runnerNameToSave,
+                  dealerName: isPickup ? dealerName.trim() : null,
+                  building: finalBuilding,
+                  shopNo: isPickup ? (finalShopNo.isNotEmpty ? finalShopNo : null) : null,
                 );
+
+                // Build updated RequestOrder instance for instant FCM push notification
+                final updatedReq = req.copyWith(
+                  status: RequestOrder.statusRunnerAssigned,
+                  assignedRunnerId: runnerIdToSave,
+                  assignedRunnerName: runnerNameToSave,
+                  dealerName: isPickup ? dealerName.trim() : null,
+                  targetBuilding: finalBuilding,
+                  targetShopNo: isPickup ? (finalShopNo.isNotEmpty ? finalShopNo : null) : null,
+                );
+
+                // Send FCM push to runner's device(s)
+                unawaited(FcmPushSenderService.instance.sendRunnerTaskPush(
+                  request: updatedReq,
+                  runnerIdentifier: runnerIdToSave.isNotEmpty ? runnerIdToSave : runnerNameToSave,
+                ));
+
                 if (context.mounted) {
+                  final actionLabel = isPickup ? 'pickup at $dealerName' : 'finding in market';
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Assigned #${req.id} to $selectedRunnerName!'),
+                      content: Text('Assigned #${req.id} to $runnerNameToSave for $actionLabel! Push sent 📲'),
                       backgroundColor: AppTheme.success,
                     ),
                   );
                 }
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA78BFA)),
-              child: const Text('Assign Task'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFA78BFA),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Dispatch Task'),
             ),
           ],
         ),
@@ -1258,13 +1614,15 @@ class _RequestsViewState extends State<RequestsView> {
   }
 
   static void _showBroadcastDialog(BuildContext context, RequestOrder req) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _DealerInquiryBroadcastDialog(request: req),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DealerInquiryView(request: req),
+      ),
     );
   }
 
-  static void _showAddEditDialog(
+  static Future<void> _showAddEditDialog(
     BuildContext context, {
     RequestOrder? existingRequest,
     String? prefillName,
@@ -1274,7 +1632,7 @@ class _RequestsViewState extends State<RequestsView> {
     String? prefillDealer,
     String? prefillStatus,
     String? prefillEstimate,
-  }) {
+  }) async {
     final isEdit = existingRequest != null;
     final actionKey = isEdit ? 'canEdit' : 'canAdd';
     if (!UserPermissionService.canPerformModuleAction('requests', actionKey)) {
@@ -1287,7 +1645,7 @@ class _RequestsViewState extends State<RequestsView> {
       return;
     }
 
-    showAppModalDialog(
+    final createdOrder = await showAppModalDialog<RequestOrder?>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _RequestFormDialog(
@@ -1301,6 +1659,10 @@ class _RequestsViewState extends State<RequestsView> {
         prefillEstimate: prefillEstimate,
       ),
     );
+
+    if (createdOrder != null && context.mounted && !isEdit) {
+      _showBroadcastDialog(context, createdOrder);
+    }
   }
 
   static void _launchWhatsApp(RequestOrder r) {
@@ -1310,8 +1672,8 @@ class _RequestsViewState extends State<RequestsView> {
     WhatsAppService.launch(mobileNo: mobileNo, message: message);
   }
 
-  static void _duplicate(BuildContext context, RequestOrder r) {
-    showDialog(
+  static void _duplicate(BuildContext context, RequestOrder r) async {
+    final createdOrder = await showDialog<RequestOrder?>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _RequestFormDialog(
@@ -1324,6 +1686,10 @@ class _RequestsViewState extends State<RequestsView> {
         prefillEstimate: r.estimate,
       ),
     );
+
+    if (createdOrder != null && context.mounted) {
+      _showBroadcastDialog(context, createdOrder);
+    }
   }
 
   static void _convertToSale(BuildContext context, RequestOrder r) {
@@ -1522,22 +1888,14 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
     await viewModel.saveRequest(order);
 
     if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context, isEdit ? null : order);
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             isEdit ? 'Request updated successfully' : 'Request created successfully',
           ),
           backgroundColor: AppTheme.success,
-          action: !isEdit
-              ? SnackBarAction(
-                  label: '⚡ Dispatch Dealers',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    _RequestsViewState._showBroadcastDialog(context, order);
-                  },
-                )
-              : null,
         ),
       );
     }
@@ -1601,37 +1959,11 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
               enabled: isNameMod,
               decoration: InputDecoration(
                 labelText: 'Customer Name *',
-                suffixIcon: (isMobile &&
-                        _matchedCustomerProfile != null &&
+                suffixIcon: (_matchedCustomerProfile != null &&
                         _matchedCustomerProfile!.events.isNotEmpty)
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: TextButton.icon(
-                          onPressed: () => CustomerHistoryDialog.show(
-                            context,
-                            profile: _matchedCustomerProfile,
-                          ),
-                          icon: const Icon(Icons.history_rounded, size: 16),
-                          label: const Text(
-                            'History',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primaryLight,
-                            backgroundColor:
-                                AppTheme.primaryLight.withValues(alpha: 0.12),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                    ? CustomerHistoryBadge(
+                        profile: _matchedCustomerProfile,
+                        moduleKey: 'requests',
                       )
                     : null,
               ),
@@ -1653,10 +1985,6 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
-            if (isMobile ||
-                _matchedCustomerProfile == null ||
-                _matchedCustomerProfile!.events.isEmpty)
-              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 12),
           ],
 
@@ -1774,69 +2102,146 @@ class _RequestFormDialogState extends State<_RequestFormDialog> {
           ),
           const SizedBox(height: 12),
 
-          Row(
-            children: [
-              if (isDealerVis)
-                Expanded(
-                  child: Autocomplete<String>(
-                    initialValue: TextEditingValue(text: _dealerController.text),
-                    optionsBuilder: (textVal) {
-                      if (textVal.text.isEmpty) return dealers.map((d) => d.name);
-                      return dealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
-                    },
-                    onSelected: (val) => _dealerController.text = val,
-                    fieldViewBuilder: (ctx, controller, focus, onSub) {
-                      controller.addListener(() => _dealerController.text = controller.text);
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focus,
-                        readOnly: !isDealerMod,
-                        enabled: isDealerMod,
-                        decoration: const InputDecoration(
-                          labelText: 'Dealer Name / Sourced Vendor',
+          if (isMobile) ...[
+            if (isDealerVis)
+              Autocomplete<String>(
+                initialValue: TextEditingValue(text: _dealerController.text),
+                optionsBuilder: (textVal) {
+                  if (textVal.text.isEmpty) return dealers.map((d) => d.name);
+                  return dealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
+                },
+                onSelected: (val) => _dealerController.text = val,
+                fieldViewBuilder: (ctx, controller, focus, onSub) {
+                  controller.addListener(() => _dealerController.text = controller.text);
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focus,
+                    readOnly: !isDealerMod,
+                    enabled: isDealerMod,
+                    decoration: const InputDecoration(
+                      labelText: 'Dealer Name / Sourced Vendor',
+                    ),
+                  );
+                },
+              ),
+            if (isDealerVis && isStatusVis) const SizedBox(height: 12),
+            if (isStatusVis)
+              Builder(
+                builder: (context) {
+                  final list = UserPermissionService.getAllowedSelectableStatuses('requests');
+                  final List<String> selectableList = List.from(list);
+                  if (_status.isNotEmpty && !selectableList.any((e) => e.trim().toLowerCase() == _status.trim().toLowerCase())) {
+                    if ((_status.toLowerCase() == 'complete' || _status.toLowerCase() == 'completed') &&
+                        selectableList.any((e) => e.toLowerCase() == 'complete' || e.toLowerCase() == 'completed')) {
+                      _status = selectableList.firstWhere((e) => e.toLowerCase() == 'complete' || e.toLowerCase() == 'completed');
+                    } else {
+                      selectableList.add(_status);
+                    }
+                  }
+                  final match = selectableList.firstWhere(
+                    (s) => s.trim().toLowerCase() == _status.trim().toLowerCase() ||
+                           ((s.trim().toLowerCase() == 'complete' || s.trim().toLowerCase() == 'completed') &&
+                            (_status.trim().toLowerCase() == 'complete' || _status.trim().toLowerCase() == 'completed')),
+                    orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
+                  );
+                  final effectiveStatus = match;
+                  return DropdownButtonFormField<String>(
+                    initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Status'),
+                    dropdownColor: const Color(0xFF131A2E),
+                    onChanged: isStatusMod
+                        ? (val) {
+                            if (val != null) setState(() => _status = val);
+                          }
+                        : null,
+                    items: selectableList.map((st) {
+                      return DropdownMenuItem(
+                        value: st,
+                        child: Text(
+                          st,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       );
-                    },
+                    }).toList(),
+                  );
+                },
+              ),
+          ] else
+            Row(
+              children: [
+                if (isDealerVis)
+                  Expanded(
+                    child: Autocomplete<String>(
+                      initialValue: TextEditingValue(text: _dealerController.text),
+                      optionsBuilder: (textVal) {
+                        if (textVal.text.isEmpty) return dealers.map((d) => d.name);
+                        return dealers.where((d) => d.name.toLowerCase().contains(textVal.text.toLowerCase())).map((d) => d.name);
+                      },
+                      onSelected: (val) => _dealerController.text = val,
+                      fieldViewBuilder: (ctx, controller, focus, onSub) {
+                        controller.addListener(() => _dealerController.text = controller.text);
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focus,
+                          readOnly: !isDealerMod,
+                          enabled: isDealerMod,
+                          decoration: const InputDecoration(
+                            labelText: 'Dealer Name / Sourced Vendor',
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              if (isDealerVis && isStatusVis) const SizedBox(width: 12),
-              if (isStatusVis)
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final list = UserPermissionService.getAllowedSelectableStatuses('requests');
-                      final List<String> selectableList = List.from(list);
-                      final match = selectableList.firstWhere(
-                        (s) => s.trim().toLowerCase() == _status.trim().toLowerCase(),
-                        orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
-                      );
-                      final effectiveStatus = match;
-                      return DropdownButtonFormField<String>(
-                        initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
-                        isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        dropdownColor: const Color(0xFF131A2E),
-                        onChanged: isStatusMod
-                            ? (val) {
-                                if (val != null) setState(() => _status = val);
-                              }
-                            : null,
-                        items: selectableList.map((st) {
-                          return DropdownMenuItem(
-                            value: st,
-                            child: Text(
-                              st,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          );
-                        }).toList(),
-                      );
-                    },
+                if (isDealerVis && isStatusVis) const SizedBox(width: 12),
+                if (isStatusVis)
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        final list = UserPermissionService.getAllowedSelectableStatuses('requests');
+                        final List<String> selectableList = List.from(list);
+                        if (_status.isNotEmpty && !selectableList.any((e) => e.trim().toLowerCase() == _status.trim().toLowerCase())) {
+                          if ((_status.toLowerCase() == 'complete' || _status.toLowerCase() == 'completed') &&
+                              selectableList.any((e) => e.toLowerCase() == 'complete' || e.toLowerCase() == 'completed')) {
+                            _status = selectableList.firstWhere((e) => e.toLowerCase() == 'complete' || e.toLowerCase() == 'completed');
+                          } else {
+                            selectableList.add(_status);
+                          }
+                        }
+                        final match = selectableList.firstWhere(
+                          (s) => s.trim().toLowerCase() == _status.trim().toLowerCase() ||
+                                 ((s.trim().toLowerCase() == 'complete' || s.trim().toLowerCase() == 'completed') &&
+                                  (_status.trim().toLowerCase() == 'complete' || _status.trim().toLowerCase() == 'completed')),
+                          orElse: () => selectableList.isNotEmpty ? selectableList.first : 'Pending',
+                        );
+                        final effectiveStatus = match;
+                        return DropdownButtonFormField<String>(
+                          initialValue: effectiveStatus.isNotEmpty ? effectiveStatus : (selectableList.isNotEmpty ? selectableList.first : null),
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Status'),
+                          dropdownColor: const Color(0xFF131A2E),
+                          onChanged: isStatusMod
+                              ? (val) {
+                                  if (val != null) setState(() => _status = val);
+                                }
+                              : null,
+                          items: selectableList.map((st) {
+                            return DropdownMenuItem(
+                              value: st,
+                              child: Text(
+                                st,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 12),
 
           if (isEstimateVis) ...[
@@ -1993,337 +2398,632 @@ class _RequestListItem {
         statusCount = null;
 }
 
-class _DealerInquiryBroadcastDialog extends StatefulWidget {
-  final RequestOrder request;
+class _DealerInquiriesTrackerSection extends StatefulWidget {
+  final String requestId;
+  final double scaleFactor;
 
-  const _DealerInquiryBroadcastDialog({required this.request});
+  const _DealerInquiriesTrackerSection({
+    required this.requestId,
+    this.scaleFactor = 1.0,
+  });
 
   @override
-  State<_DealerInquiryBroadcastDialog> createState() =>
-      _DealerInquiryBroadcastDialogState();
+  State<_DealerInquiriesTrackerSection> createState() =>
+      _DealerInquiriesTrackerSectionState();
 }
 
-class _DealerInquiryBroadcastDialogState
-    extends State<_DealerInquiryBroadcastDialog> {
-  late List<DealerRecommendation> _recommendations;
-  late final Set<String> _selectedDealerIds;
-  bool _isDispatching = false;
-  late final ItemClassification _classification;
+class _DealerInquiriesTrackerSectionState
+    extends State<_DealerInquiriesTrackerSection> {
+  List<DealerInquiryItem> _inquiries = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    final repo = context.read<ShopRepository>();
-    final dealers = repo.getDealers();
-    final orders = repo.getPurchaseOrders();
-
-    _classification = ItemCategoryDetector.classify(widget.request.item);
-    _recommendations = DealerRecommendationService.getRecommendations(
-      itemText: widget.request.item,
-      allDealers: dealers,
-      purchaseOrders: orders,
-      getPurchaseItems: (id) => repo.getPurchaseOrderItems(id),
-    );
-
-    // Pre-select top 4 recommended dealers by default
-    _selectedDealerIds = _recommendations.take(4).map((r) => r.dealer.id).toSet();
+    _fetchInquiries();
   }
 
-  void _manualLaunch(Dealer d) {
-    String phone = d.mobileNo!.replaceAll(RegExp(r'[^0-9]'), '');
-    if (phone.length == 10) phone = '91$phone';
-    final msg = Uri.encodeComponent(
-      'Hi ${d.name}, Perfect Solution inquiry: Do you have "${widget.request.item}" in stock? Please share availability and best price rate.',
-    );
-    launchUrl(
-      Uri.parse('https://wa.me/$phone?text=$msg'),
-      mode: LaunchMode.externalApplication,
-    );
-  }
-
-  Future<void> _dispatchInquiries() async {
-    if (_selectedDealerIds.isEmpty) return;
-    setState(() => _isDispatching = true);
-
-    try {
-      final selectedDealers = _recommendations
-          .where((r) => _selectedDealerIds.contains(r.dealer.id))
-          .map((r) => r.dealer)
-          .toList();
-
-      final count = await DealerInquiryService.enqueueInquiries(
-        requestId: widget.request.id,
-        itemText: widget.request.item,
-        photoUrl: widget.request.photoList.firstOrNull,
-        targetDealers: selectedDealers,
-      );
-
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.bolt_rounded, color: Colors.amber, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '⚡ Enqueued $count WhatsApp inquiries! Server is dispatching in background.',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF065F46),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isDispatching = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Server queue error ($e). Use individual WhatsApp buttons or start shop-server.',
-            ),
-            backgroundColor: Colors.deepOrange,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+  Future<void> _fetchInquiries() async {
+    final list =
+        await DealerInquiryService.getInquiriesForRequest(widget.requestId);
+    if (mounted) {
+      setState(() {
+        _inquiries = list;
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF0F1524),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Colors.white12),
+    final scale = widget.scaleFactor;
+
+    if (_isLoading) {
+      return const SizedBox(
+        height: 24,
+        child: Center(
+          child: SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (_inquiries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final quotesWithPrice = _inquiries
+        .where((i) => i.quoteAmount != null && i.quoteAmount! > 0)
+        .toList();
+    final priceCount = quotesWithPrice.length;
+    final hasPrices = priceCount > 0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF131A2E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasPrices
+              ? const Color(0xFF10B981).withValues(alpha: 0.35)
+              : Colors.white.withValues(alpha: 0.08),
+        ),
       ),
-      title: Row(
+      padding: EdgeInsets.all(10 * scale),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.campaign_rounded, color: Color(0xFFF59E0B), size: 20),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Intelligent Dealer Procurement',
-              style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: 540,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Classification & Detected Part Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B).withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF22D3EE).withValues(alpha: 0.3)),
+          Row(
+            children: [
+              Icon(Icons.mark_chat_read_rounded,
+                  size: 16 * scale, color: const Color(0xFF22D3EE)),
+              SizedBox(width: 8 * scale),
+              Text(
+                'Dealer WhatsApp Inquiries (${_inquiries.length})',
+                style: TextStyle(
+                  color: const Color(0xFF22D3EE),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.5 * scale,
+                ),
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF22D3EE)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _classification.summary,
-                          style: const TextStyle(
-                            color: Color(0xFF22D3EE),
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                          ),
+              const Spacer(),
+              InkWell(
+                onTap: _fetchInquiries,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.refresh_rounded,
+                          size: 13 * scale, color: AppTheme.textMuted),
+                      SizedBox(width: 4 * scale),
+                      Text(
+                        'Refresh',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 11 * scale,
                         ),
-                        Text(
-                          'Inquiring: "${widget.request.item}"',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (widget.request.photoList.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Row(
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8 * scale),
+
+          // ── Beautiful Quotes Button with number of prices arrived directly on button ──
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showQuotesModal(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: hasPrices
+                        ? [
+                            const Color(0xFF064E3B).withValues(alpha: 0.7),
+                            const Color(0xFF065F46).withValues(alpha: 0.4),
+                          ]
+                        : [
+                            const Color(0xFF1E293B).withValues(alpha: 0.6),
+                            const Color(0xFF0F172A).withValues(alpha: 0.8),
+                          ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: hasPrices
+                        ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                        : Colors.white.withValues(alpha: 0.1),
+                    width: 1.2,
+                  ),
+                  boxShadow: hasPrices
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : [],
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 12 * scale,
+                  vertical: 10 * scale,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(7 * scale),
+                      decoration: BoxDecoration(
+                        color: hasPrices
+                            ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                            : Colors.white.withValues(alpha: 0.06),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        hasPrices
+                            ? Icons.price_check_rounded
+                            : Icons.hourglass_top_rounded,
+                        color: hasPrices
+                            ? const Color(0xFF34D399)
+                            : AppTheme.textMuted,
+                        size: 18 * scale,
+                      ),
+                    ),
+                    SizedBox(width: 10 * scale),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.photo_outlined, size: 12, color: Colors.white70),
-                          SizedBox(width: 4),
-                          Text('Photo Attached', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                          Text(
+                            hasPrices ? 'Dealer Price Quotes' : 'Awaiting Dealer Quotes',
+                            style: TextStyle(
+                              color: hasPrices ? Colors.white : AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12.5 * scale,
+                            ),
+                          ),
+                          SizedBox(height: 2 * scale),
+                          Text(
+                            hasPrices
+                                ? 'Tap to view received dealer prices'
+                                : '${_inquiries.length} ${_inquiries.length == 1 ? "inquiry" : "inquiries"} sent • Waiting for replies',
+                            style: TextStyle(
+                              color: hasPrices ? const Color(0xFF6EE7B7) : AppTheme.textMuted,
+                              fontSize: 11 * scale,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 8 * scale),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10 * scale,
+                        vertical: 5 * scale,
+                      ),
+                      decoration: BoxDecoration(
+                        color: hasPrices
+                            ? const Color(0xFF10B981)
+                            : Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: hasPrices
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasPrices) ...[
+                            Icon(Icons.check_circle_rounded,
+                                color: Colors.white, size: 12 * scale),
+                            SizedBox(width: 4 * scale),
+                          ],
+                          Text(
+                            '$priceCount ${priceCount == 1 ? "Price" : "Prices"} Arrived',
+                            style: TextStyle(
+                              color: hasPrices ? Colors.white : AppTheme.textSecondary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11 * scale,
+                            ),
+                          ),
+                          SizedBox(width: 4 * scale),
+                          Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            color: hasPrices ? Colors.white70 : AppTheme.textMuted,
+                            size: 9 * scale,
+                          ),
                         ],
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showQuotesModal(BuildContext context) {
+    final quotesWithPrice = _inquiries
+        .where((i) => i.quoteAmount != null && i.quoteAmount! > 0)
+        .toList()
+      ..sort((a, b) => a.quoteAmount!.compareTo(b.quoteAmount!));
+    final pendingQuotes = _inquiries
+        .where((i) => i.quoteAmount == null || i.quoteAmount! <= 0)
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          backgroundColor: const Color(0xFF131A2E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 600),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.price_check_rounded,
+                            color: Color(0xFF34D399), size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Dealer Price Quotes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              '${quotesWithPrice.length} of ${_inquiries.length} dealers quoted a price',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            color: AppTheme.textMuted),
+                        onPressed: () => Navigator.pop(ctx),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Divider(
+                      color: Colors.white.withValues(alpha: 0.08), height: 1),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        if (quotesWithPrice.isNotEmpty) ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded,
+                                  color: Color(0xFF34D399), size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                'ARRIVED PRICES (${quotesWithPrice.length}) - BEST RATE FIRST',
+                                style: const TextStyle(
+                                  color: Color(0xFF34D399),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.5,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          for (final inq in quotesWithPrice) ...[
+                            _buildQuoteDetailCard(inq),
+                            const SizedBox(height: 8),
+                          ],
+                        ],
+                        if (pendingQuotes.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule_rounded,
+                                  color: Colors.amber, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                'AWAITING REPLIES (${pendingQuotes.length})',
+                                style: const TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10.5,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          for (final inq in pendingQuotes) ...[
+                            _buildPendingInquiryCard(inq),
+                            const SizedBox(height: 6),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+          ),
+        );
+      },
+    );
+  }
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildQuoteDetailCard(DealerInquiryItem inq) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF10B981).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      inq.dealerName,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    if (inq.dealerPhone.isNotEmpty)
+                      Text(
+                        inq.dealerPhone,
+                        style: const TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  '₹${inq.quoteAmount!.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Color(0xFF34D399),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (inq.quoteNotes != null && inq.quoteNotes!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                inq.quoteNotes!,
+                style: const TextStyle(
+                  color: Color(0xFFFBBF24),
+                  fontSize: 11.5,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (inq.dealerPhone.isNotEmpty) ...[
+                InkWell(
+                  onTap: () {
+                    final clean =
+                        inq.dealerPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                    launchUrl(Uri.parse('tel:$clean'));
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.call_rounded,
+                            size: 12, color: AppTheme.primaryLight),
+                        SizedBox(width: 4),
+                        Text(
+                          'Call',
+                          style: TextStyle(
+                            color: AppTheme.primaryLight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    String clean =
+                        inq.dealerPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                    if (clean.length == 10) clean = '91$clean';
+                    launchUrl(
+                      Uri.parse('https://wa.me/$clean'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.chat_bubble_rounded,
+                            size: 12, color: Color(0xFF25D366)),
+                        SizedBox(width: 4),
+                        Text(
+                          'WhatsApp',
+                          style: TextStyle(
+                            color: Color(0xFF25D366),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPendingInquiryCard(DealerInquiryItem inq) {
+    final isSent = inq.status == 'sent';
+    final isSending = inq.status == 'sending';
+    final isFailed = inq.status == 'failed';
+
+    final statusColor = isSent
+        ? const Color(0xFF10B981)
+        : (isSending
+            ? const Color(0xFFF59E0B)
+            : (isFailed ? Colors.redAccent : Colors.white54));
+
+    final statusText = isSent
+        ? 'Sent'
+        : (isSending
+            ? 'Sending...'
+            : (isFailed ? 'Failed' : 'Queued'));
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Top Matched Dealers (Auto-Ranked):',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                Text(
+                  inq.dealerName,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
                 ),
                 Text(
-                  '${_selectedDealerIds.length} of ${_recommendations.length} selected',
-                  style: const TextStyle(color: Color(0xFF22D3EE), fontSize: 11.5, fontWeight: FontWeight.bold),
+                  inq.dealerPhone,
+                  style: const TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 10.5,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-
-            // Dealer list
-            _recommendations.isEmpty
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.0),
-                    child: Center(
-                      child: Text('No dealers with mobile numbers found in directory.', style: TextStyle(color: AppTheme.textMuted)),
-                    ),
-                  )
-                : SizedBox(
-                    height: 300,
-                    child: ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: _recommendations.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
-                      itemBuilder: (context, idx) {
-                        final rec = _recommendations[idx];
-                        final isSelected = _selectedDealerIds.contains(rec.dealer.id);
-
-                        return Container(
-                          color: isSelected ? Colors.white.withValues(alpha: 0.03) : Colors.transparent,
-                          child: CheckboxListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            activeColor: const Color(0xFF10B981),
-                            value: isSelected,
-                            onChanged: (val) {
-                              setState(() {
-                                if (val == true) {
-                                  _selectedDealerIds.add(rec.dealer.id);
-                                } else {
-                                  _selectedDealerIds.remove(rec.dealer.id);
-                                }
-                              });
-                            },
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    rec.dealer.name,
-                                    style: const TextStyle(
-                                      color: AppTheme.textPrimary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                                if (rec.isTopMatch)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF22D3EE).withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      '⭐ TOP MATCH',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        color: Color(0xFF22D3EE),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: rec.matchReasons.map((reason) {
-                                  final isFrequent = reason.startsWith('⭐');
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: isFrequent
-                                          ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
-                                          : Colors.white.withValues(alpha: 0.05),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      reason,
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        color: isFrequent ? const Color(0xFFFBBF24) : AppTheme.textMuted,
-                                        fontWeight: isFrequent ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                            secondary: IconButton(
-                              icon: const Icon(Icons.open_in_new, color: Color(0xFF22D3EE), size: 18),
-                              tooltip: 'Open individual WhatsApp link',
-                              onPressed: () => _manualLaunch(rec.dealer),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
-        ),
-        ElevatedButton.icon(
-          onPressed: _selectedDealerIds.isEmpty || _isDispatching ? null : _dispatchInquiries,
-          icon: _isDispatching
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.bolt_rounded, size: 18),
-          label: Text(_isDispatching ? 'Enqueuing...' : '⚡ Auto-Dispatch (${_selectedDealerIds.length})'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF10B981),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
-        ),
-      ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              statusText,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+

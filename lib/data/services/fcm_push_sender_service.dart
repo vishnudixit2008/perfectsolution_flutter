@@ -4,6 +4,7 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/call_model.dart';
 import '../models/app_user.dart';
+import '../models/request_order.dart';
 
 class FcmPushSenderService {
   static final FcmPushSenderService instance = FcmPushSenderService._internal();
@@ -306,4 +307,82 @@ class FcmPushSenderService {
       return [];
     }
   }
+
+  /// Sends a high-priority Runner Task Push to the assigned runner's device(s)
+  Future<void> sendRunnerTaskPush({
+    required RequestOrder request,
+    required String runnerIdentifier,
+  }) async {
+    final cleanRunner = runnerIdentifier.trim();
+    if (cleanRunner.isEmpty || cleanRunner == 'N/A') return;
+
+    try {
+      final tokens = await _getTargetTokens(cleanRunner);
+      if (tokens.isEmpty) {
+        debugPrint('FcmPushSenderService: No registered device tokens found for runner: $cleanRunner');
+        return;
+      }
+
+      final client = await _getAuthClient();
+      if (client == null) return;
+
+      final isPickup = request.dealerName != null && request.dealerName!.trim().isNotEmpty;
+      final title = isPickup
+          ? '📦 Pickup: ${request.dealerName}'
+          : '🔍 Find in Market: ${request.item}';
+      final body = isPickup
+          ? '${request.item} • ${request.targetBuilding ?? "Nehru Place"}${request.targetShopNo != null && request.targetShopNo!.isNotEmpty ? " (${request.targetShopNo})" : ""}'
+          : 'Target: ${request.targetBuilding ?? "Nehru Place Market"}${request.estimate != null && request.estimate!.isNotEmpty ? " • ${request.estimate}" : ""}';
+
+      final url = Uri.parse('https://fcm.googleapis.com/v1/projects/$_projectId/messages:send');
+
+      for (final token in tokens) {
+        final payload = {
+          "message": {
+            "token": token,
+            "notification": {
+              "title": title,
+              "body": body,
+            },
+            "data": {
+              "type": "runner_task",
+              "request_id": request.id,
+              "item": request.item,
+              "customer_name": request.customerName,
+              "dealer_name": request.dealerName ?? "",
+              "building": request.targetBuilding ?? "",
+              "shop_no": request.targetShopNo ?? "",
+              "estimate": request.estimate ?? "",
+              "photo": request.photo ?? "",
+              "is_pickup": isPickup ? "true" : "false",
+            },
+            "android": {
+              "priority": "high",
+              "direct_boot_ok": true,
+              "notification": {
+                "channel_id": "call_alerts_v4",
+                "sound": "default",
+                "default_vibrate_timings": true,
+              }
+            }
+          }
+        };
+
+        final response = await client.post(
+          url,
+          headers: {'Content-Type': 'application/json; charset=utf-8'},
+          body: jsonEncode(payload),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint('FcmPushSenderService: Successfully sent runner push to token (${token.substring(0, 10)}...)');
+        } else {
+          debugPrint('FcmPushSenderService: Failed to send runner push: ${response.statusCode} - ${response.body}');
+        }
+      }
+    } catch (e) {
+      debugPrint('FcmPushSenderService: Error sending runner push: $e');
+    }
+  }
 }
+

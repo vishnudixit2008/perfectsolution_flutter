@@ -15,6 +15,7 @@ import 'kiosk_overlay_helper.dart';
 import 'user_permission_service.dart';
 import 'ui_preferences_service.dart';
 import '../../ui/shared/dialogs/call_alert_dialog.dart';
+import '../../ui/features/requests/views/runner_tasks_view.dart';
 
 /// Top-level background message handler for FCM
 @pragma('vm:entry-point')
@@ -320,6 +321,8 @@ class FcmService {
         );
         KioskOverlayHelper.bringAppToFront();
       }
+    } else if (type == 'runner_task') {
+      _handleRunnerTaskNotification(message);
     }
   }
 
@@ -337,6 +340,8 @@ class FcmService {
           _triggerCallAlertModal(call);
         });
       }
+    } else if (type == 'runner_task') {
+      _navigateToRunnerTasks();
     }
   }
 
@@ -346,6 +351,11 @@ class FcmService {
       try {
         final data = jsonDecode(payload);
         if (data is Map) {
+          final type = data['type']?.toString();
+          if (type == 'runner_task') {
+            _navigateToRunnerTasks();
+            return;
+          }
           final call = _parseCallFromData(Map<String, dynamic>.from(data));
           if (call != null) {
             // Delay to allow the MainActivity to fully come to foreground
@@ -358,6 +368,42 @@ class FcmService {
         debugPrint('FcmService: Error handling notification tap: $e');
       }
     }
+  }
+
+  Future<void> _handleRunnerTaskNotification(RemoteMessage message) async {
+    final data = message.data;
+    final title = message.notification?.title ?? data['title']?.toString() ?? '🏃 New Runner Task';
+    final body = message.notification?.body ?? data['body']?.toString() ?? 'You have been assigned a task';
+    final payload = jsonEncode(data);
+
+    const androidDetails = AndroidNotificationDetails(
+      'call_alerts_v4',
+      'Call Assignment Alerts',
+      channelDescription: 'Alerts and notifications for assignments',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+    const details = NotificationDetails(android: androidDetails);
+    final id = int.tryParse(data['request_id']?.toString() ?? '') ?? DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    await _localNotifications.show(id, title, body, details, payload: payload);
+  }
+
+  void _navigateToRunnerTasks() {
+    int attempts = 0;
+    Timer.periodic(const Duration(milliseconds: 200), (timer) {
+      attempts++;
+      final context = navigatorKey?.currentContext;
+      if (context != null && context.mounted) {
+        timer.cancel();
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const RunnerTasksView()),
+        );
+      } else if (attempts >= 40) {
+        timer.cancel();
+      }
+    });
   }
 
   /// Displays the full-screen alert dialog on top of the UI with guaranteed context mount polling

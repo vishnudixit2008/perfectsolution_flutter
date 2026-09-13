@@ -165,10 +165,12 @@ class _AppHeaderSyncButtonState extends State<AppHeaderSyncButton> {
           onLongPress: () => _showSyncOptionsDialog(context),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: statusColor.withValues(alpha: 0.35),
                 width: 1,

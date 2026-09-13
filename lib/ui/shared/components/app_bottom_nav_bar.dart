@@ -18,6 +18,7 @@ class AppBottomNavBar extends StatefulWidget {
 class _AppBottomNavBarState extends State<AppBottomNavBar> {
   final ScrollController _scrollController = ScrollController();
   static const double _tabWidth = 80.0;
+  static const int _maxCenteredTabs = 5;
 
   static const List<Map<String, dynamic>> allTabs = [
     {'title': 'Calls', 'icon': Icons.phone_callback_rounded, 'index': 0, 'module': 'calls'},
@@ -28,7 +29,8 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
     {'title': 'Requests', 'icon': Icons.help_outline_rounded, 'index': 5, 'module': 'requests'},
     {'title': 'Purchases', 'icon': Icons.shopping_cart_rounded, 'index': 6, 'module': 'purchases'},
     {'title': 'Dealers', 'icon': Icons.storefront_rounded, 'index': 7, 'module': 'dealers'},
-    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 8, 'module': 'settings'},
+    {'title': 'My Tasks', 'icon': Icons.directions_run_rounded, 'index': 8, 'module': 'runner'},
+    {'title': 'Settings', 'icon': Icons.tune_rounded, 'index': 9, 'module': 'settings'},
   ];
 
   @override
@@ -57,10 +59,18 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
   }
 
   List<Map<String, dynamic>> _getVisibleTabs() {
-    return allTabs.where((item) {
+    final tabs = allTabs.where((item) {
       final moduleKey = item['module'] as String;
       return UserPermissionService.canAccessPage(moduleKey);
     }).toList();
+
+    // Guarantee Settings is always the very last tab on the bottom bar
+    final settingsIndex = tabs.indexWhere((t) => t['module'] == 'settings');
+    if (settingsIndex != -1 && settingsIndex != tabs.length - 1) {
+      final settingsTab = tabs.removeAt(settingsIndex);
+      tabs.add(settingsTab);
+    }
+    return tabs;
   }
 
   @override
@@ -69,9 +79,19 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
     super.dispose();
   }
 
+  void _onTabTap(int idx) {
+    if (idx == 3) {
+      try {
+        context.read<PricelistViewModel>().resetSortAndFilters();
+      } catch (_) {}
+    }
+    context.read<NavigationViewModel>().setIndex(idx);
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleTabs = _getVisibleTabs();
+    final bool useCentered = visibleTabs.length <= _maxCenteredTabs;
 
     return RepaintBoundary(
       child: Container(
@@ -95,62 +115,82 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
           top: false,
           child: SizedBox(
             height: 58,
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  controller: _scrollController,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Row(
-                    children: visibleTabs.map((item) {
-                      final int idx = item['index'] as int;
-                      final bool isActive = widget.currentIndex == idx;
-
-                      return _TelegramLiquidTabItem(
-                        title: item['title'] as String,
-                        icon: item['icon'] as IconData,
-                        isActive: isActive,
-                        width: _tabWidth,
-                        onTap: () {
-                          if (idx == 3) {
-                            try {
-                              context.read<PricelistViewModel>().resetSortAndFilters();
-                            } catch (_) {}
-                          }
-                          context.read<NavigationViewModel>().setIndex(idx);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-
-                // Subtle edge fade mask on right edge
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: 14,
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF0F1322).withValues(alpha: 0.0),
-                            const Color(0xFF0F1322),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: useCentered
+                ? _buildCenteredTabs(visibleTabs)
+                : _buildScrollableTabs(visibleTabs),
           ),
         ),
       ),
+    );
+  }
+
+  /// Evenly distributed tabs for ≤5 tabs — centered and professional
+  Widget _buildCenteredTabs(List<Map<String, dynamic>> visibleTabs) {
+    return Row(
+      children: visibleTabs.map((item) {
+        final int idx = item['index'] as int;
+        final bool isActive = widget.currentIndex == idx;
+
+        return Expanded(
+          child: _TelegramLiquidTabItem(
+            title: item['title'] as String,
+            icon: item['icon'] as IconData,
+            isActive: isActive,
+            width: double.infinity,
+            onTap: () => _onTabTap(idx),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Scrollable tabs for >5 tabs — existing behavior with right edge fade
+  Widget _buildScrollableTabs(List<Map<String, dynamic>> visibleTabs) {
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: visibleTabs.map((item) {
+              final int idx = item['index'] as int;
+              final bool isActive = widget.currentIndex == idx;
+
+              return _TelegramLiquidTabItem(
+                title: item['title'] as String,
+                icon: item['icon'] as IconData,
+                isActive: isActive,
+                width: _tabWidth,
+                onTap: () => _onTabTap(idx),
+              );
+            }).toList(),
+          ),
+        ),
+
+        // Subtle edge fade mask on right edge
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 14,
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF0F1322).withValues(alpha: 0.0),
+                    const Color(0xFF0F1322),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -185,13 +225,11 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
   @override
   void initState() {
     super.initState();
-    // 420ms duration gives eyes enough time to clearly appreciate the smooth liquid pop
     _popController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
 
-    // Liquid Horizontal Elastic Pop-Out: 0.0 -> 1.16 -> 1.0 with juicy spring overshoot
     _scaleXAnimation = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.16).chain(
@@ -207,7 +245,6 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
       ),
     ]).animate(_popController);
 
-    // Liquid Vertical Elastic Pop-Out: 0.0 -> 1.12 -> 1.0
     _scaleYAnimation = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.12).chain(
@@ -223,7 +260,6 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
       ),
     ]).animate(_popController);
 
-    // Smooth early opacity fade in
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _popController,
@@ -258,7 +294,7 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
     final inactiveColor = const Color(0xFF8E8E93);
 
     return SizedBox(
-      width: widget.width,
+      width: widget.width.isFinite ? widget.width : null,
       height: 58,
       child: BouncyPressable(
         scaleFactor: 0.92,
@@ -267,14 +303,12 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ── Localized Liquid Pop-Out Capsule & Icon ───────────────
             SizedBox(
               height: 30,
               width: 58,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // ── Pop-Out Capsule from Behind the Button ──────────
                   AnimatedBuilder(
                     animation: _popController,
                     builder: (context, child) {
@@ -308,7 +342,6 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
                     ),
                   ),
 
-                  // ── Animated Icon with Elastic Scale & Color Morph ──
                   TweenAnimationBuilder<double>(
                     tween: Tween<double>(
                       begin: widget.isActive ? 1.0 : 1.06,
@@ -343,34 +376,30 @@ class _TelegramLiquidTabItemState extends State<_TelegramLiquidTabItem>
             ),
             const SizedBox(height: 3),
 
-            // ── Responsive Text Label ─────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: SizedBox(
-                width: widget.width - 8,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: TweenAnimationBuilder<Color?>(
-                    tween: ColorTween(
-                      begin: widget.isActive ? inactiveColor : activeColor,
-                      end: widget.isActive ? activeColor : inactiveColor,
-                    ),
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, textColor, _) {
-                      return Text(
-                        widget.title,
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
-                          letterSpacing: widget.isActive ? 0.1 : 0.0,
-                          color: textColor,
-                        ),
-                      );
-                    },
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(
+                    begin: widget.isActive ? inactiveColor : activeColor,
+                    end: widget.isActive ? activeColor : inactiveColor,
                   ),
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, textColor, _) {
+                    return Text(
+                      widget.title,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w500,
+                        letterSpacing: widget.isActive ? 0.1 : 0.0,
+                        color: textColor,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

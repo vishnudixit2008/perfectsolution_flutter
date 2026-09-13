@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../../../data/models/dealer.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/smart_search_utils.dart';
 
 class DealersViewModel extends ChangeNotifier {
   final ShopRepository _repository;
@@ -50,22 +51,9 @@ class DealersViewModel extends ChangeNotifier {
         }
       }
       if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final nameMatch = d.name.toLowerCase().contains(q);
-        final contactMatch = (d.contactPerson ?? '').toLowerCase().contains(q);
-        final mobileMatch = (d.mobileNo ?? '').toLowerCase().contains(q);
-        final bldgMatch = (d.buildingName ?? '').toLowerCase().contains(q);
-        final addrMatch = d.address.toLowerCase().contains(q);
-        final prodMatch = (d.products ?? '').toLowerCase().contains(q);
-        final catMatch = (d.category ?? '').toLowerCase().contains(q);
-
-        return nameMatch ||
-            contactMatch ||
-            mobileMatch ||
-            bldgMatch ||
-            addrMatch ||
-            prodMatch ||
-            catMatch;
+        final combined =
+            '${d.name} ${d.contactPerson ?? ""} ${d.mobileNo ?? ""} ${d.buildingName ?? ""} ${d.address} ${d.products ?? ""} ${d.category ?? ""}';
+        return SmartSearchUtils.matchesQuery(combined, _searchQuery);
       }
       return true;
     }).toList();

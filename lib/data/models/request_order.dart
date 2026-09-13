@@ -3,35 +3,35 @@ import '../../ui/shared/photo_attachment_widget.dart';
 class RequestOrder {
   static const String statusInquirySent = 'Inquiry Sent';
   static const String statusCustomerApproved = 'Customer Approved';
-  static const String statusRunnerAssigned = 'Runner Assigned';
+  static const String statusRunnerAssigned = 'Assigned to runner';
   static const String statusCollected = 'Collected';
-  static const String statusCompleted = 'Completed';
+  static const String statusCompleted = 'Complete';
 
   static const List<String> allStatuses = [
-    statusInquirySent,
-    statusCustomerApproved,
-    statusRunnerAssigned,
-    statusCollected,
-    statusCompleted,
+    'Pending',
+    'Assigned to runner',
+    'Received',
+    'HOLD',
+    'Complete',
   ];
 
   static String normalizeStatus(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return statusInquirySent;
+    if (raw == null || raw.trim().isEmpty) return 'Pending';
     final s = raw.trim().toLowerCase();
+    if (s == 'complete' || s == 'completed' || s == 'done') {
+      return 'Complete';
+    }
+    if (s == 'assigned to runner' || s == 'runner assigned' || s == 'runner_assigned') {
+      return 'Assigned to runner';
+    }
     if (s == 'pending' || s == 'inquiry' || s == 'inquiry sent' || s == 'inquiry_sent') {
-      return statusInquirySent;
-    }
-    if (s == 'approved' || s == 'customer approved' || s == 'customer_approved') {
-      return statusCustomerApproved;
-    }
-    if (s == 'assigned' || s == 'runner assigned' || s == 'runner_assigned' || s == 'runner') {
-      return statusRunnerAssigned;
+      return 'Pending';
     }
     if (s == 'received' || s == 'collected' || s == 'picked up' || s == 'picked_up') {
-      return statusCollected;
+      return 'Received';
     }
-    if (s == 'complete' || s == 'completed' || s == 'done') {
-      return statusCompleted;
+    if (s == 'hold') {
+      return 'HOLD';
     }
     return raw.trim();
   }

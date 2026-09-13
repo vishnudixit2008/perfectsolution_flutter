@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../../data/models/call_model.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/smart_search_utils.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
@@ -167,7 +168,7 @@ class _CallsViewState extends State<CallsView> {
             UserPermissionService.isOnlyAssignedRestricted('calls');
 
         // Apply local filtering
-        final query = _searchController.text.trim().toLowerCase();
+        final query = _searchController.text.trim();
         final filteredCalls = viewModel.calls.where((c) {
           if (!UserPermissionService.isEntryVisible(
             moduleKey: 'calls',
@@ -176,16 +177,10 @@ class _CallsViewState extends State<CallsView> {
           )) {
             return false;
           }
-          final matchesSearch =
-              c.name.toLowerCase().contains(query) ||
-              (c.mobileNo?.toLowerCase().contains(query) ?? false) ||
-              (c.query?.toLowerCase().contains(query) ?? false) ||
-              (c.address?.toLowerCase().contains(query) ?? false) ||
-              (c.status.toLowerCase().contains(query)) ||
-              (c.assignedTo.toLowerCase().contains(query)) ||
-              UserPermissionService.formatStaffName(c.assignedTo)
-                  .toLowerCase()
-                  .contains(query);
+          final staffFormatted = UserPermissionService.formatStaffName(c.assignedTo);
+          final combined =
+              '${c.name} ${c.mobileNo ?? ""} ${c.query ?? ""} ${c.address ?? ""} ${c.status} ${c.assignedTo} $staffFormatted';
+          final matchesSearch = SmartSearchUtils.matchesQuery(combined, query);
 
           final matchesStatus = _selectedStatus == 'All' ||
               c.status.trim().toLowerCase() == _selectedStatus.trim().toLowerCase();
@@ -206,12 +201,12 @@ class _CallsViewState extends State<CallsView> {
           return matchesSearch && matchesStatus && matchesAssigned;
         }).toList();
 
-        // Sort by date descending (newest calls first), tie-break with ID descending
+        // Sort by date descending (newest calls first), tie-break with updatedAt and ID descending
         filteredCalls.sort((a, b) {
-          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-          final dateComp = dayB.compareTo(dayA);
+          final dateComp = b.date.compareTo(a.date);
           if (dateComp != 0) return dateComp;
+          final updateComp = b.updatedAt.compareTo(a.updatedAt);
+          if (updateComp != 0) return updateComp;
           return b.id.compareTo(a.id);
         });
 
@@ -460,10 +455,10 @@ class _CallsViewState extends State<CallsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-        final dateComp = dayB.compareTo(dayA);
+        final dateComp = b.date.compareTo(a.date);
         if (dateComp != 0) return dateComp;
+        final updateComp = b.updatedAt.compareTo(a.updatedAt);
+        if (updateComp != 0) return updateComp;
         return b.id.compareTo(a.id);
       });
     }
@@ -830,7 +825,7 @@ class _CallsViewState extends State<CallsView> {
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 152),
         itemCount: listEntries.length,
         itemBuilder: (context, index) {
           final item = listEntries[index];
@@ -1168,11 +1163,16 @@ class _CallsViewState extends State<CallsView> {
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: call.mobileNo!,
-                onValueTap: () => CustomerHistoryDialog.show(
-                  context,
-                  phone: call.mobileNo,
-                ),
-                valueTooltip: 'View customer history for ${call.mobileNo}',
+                onValueTap: UserPermissionService.canViewCustomerHistory('calls')
+                    ? () => CustomerHistoryDialog.show(
+                        context,
+                        phone: call.mobileNo,
+                        moduleKey: 'calls',
+                      )
+                    : null,
+                valueTooltip: UserPermissionService.canViewCustomerHistory('calls')
+                    ? 'View customer history for ${call.mobileNo}'
+                    : null,
                 trailing: InlineCallButton(
                   phone: call.mobileNo!,
                   scaleFactor: scale,
@@ -1747,37 +1747,11 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               enabled: isNameMod,
               style: const TextStyle(color: AppTheme.textPrimary),
               decoration: _buildInputDecoration('Customer Name *').copyWith(
-                suffixIcon: (isMobile &&
-                        _matchedCustomerProfile != null &&
+                suffixIcon: (_matchedCustomerProfile != null &&
                         _matchedCustomerProfile!.events.isNotEmpty)
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: TextButton.icon(
-                          onPressed: () => CustomerHistoryDialog.show(
-                            context,
-                            profile: _matchedCustomerProfile,
-                          ),
-                          icon: const Icon(Icons.history_rounded, size: 16),
-                          label: const Text(
-                            'History',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primaryLight,
-                            backgroundColor: AppTheme.primaryLight
-                                .withValues(alpha: 0.12),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                    ? CustomerHistoryBadge(
+                        profile: _matchedCustomerProfile,
+                        moduleKey: 'calls',
                       )
                     : null,
               ),
@@ -1796,10 +1770,6 @@ class _CallFormDialogState extends State<_CallFormDialog> {
               keyboardType: TextInputType.phone,
               decoration: _buildInputDecoration('Mobile Number'),
             ),
-            if (isMobile ||
-                _matchedCustomerProfile == null ||
-                _matchedCustomerProfile!.events.isEmpty)
-              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 16),
           ],
           if (isAddressVis) ...[

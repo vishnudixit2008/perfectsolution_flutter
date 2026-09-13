@@ -182,8 +182,9 @@ class ItemCategoryDetector {
       'laserjet', 'ink tank', 'pickup roller', 'teflon', 'fuser film', '88a'
     ],
     ItemCategory.cablesAndJacks: [
-      'dc jack', 'charging jack', 'screen cable', 'edp cable', 'lvds cable',
-      'hdd cable', 'battery cable', 'power button cable', 'flex cable'
+      'dc jack', 'dcjack', 'dc-jack', 'dc pin', 'dcpin', 'power jack', 'powerjack',
+      'charging jack', 'charging pin', 'power socket', 'screen cable', 'edp cable',
+      'lvds cable', 'hdd cable', 'battery cable', 'power button cable', 'flex cable'
     ],
     ItemCategory.accessories: [
       'mouse', 'headphone', 'bag', 'sleeve', 'cleaning kit', 'hub',
@@ -282,22 +283,22 @@ class ItemCategoryDetector {
         searchKeywords.addAll(['motherboard', 'board', 'chip', 'ic']);
         break;
       case ItemCategory.chargers:
-        searchKeywords.addAll(['charger', 'adapter', 'power']);
+        searchKeywords.addAll(['charger', 'adapter', 'adaptor', 'power supply', 'power']);
         break;
       case ItemCategory.hingesAndBody:
-        searchKeywords.addAll(['hinge', 'body', 'cover']);
+        searchKeywords.addAll(['hinge', 'body', 'cover', 'c-panel', 'palmrest']);
         break;
       case ItemCategory.coolingFans:
-        searchKeywords.addAll(['fan', 'cooling']);
+        searchKeywords.addAll(['fan', 'cooling', 'heatsink']);
         break;
       case ItemCategory.ramAndStorage:
-        searchKeywords.addAll(['ram', 'ssd', 'nvme']);
+        searchKeywords.addAll(['ram', 'ssd', 'nvme', 'storage']);
         break;
       case ItemCategory.printers:
         searchKeywords.addAll(['printer', 'toner', 'cartridge']);
         break;
       case ItemCategory.cablesAndJacks:
-        searchKeywords.addAll(['cable', 'jack', 'dc jack']);
+        searchKeywords.addAll(['cable', 'jack', 'dc jack', 'dcjack', 'power jack', 'charging jack', 'dc pin']);
         break;
       default:
         break;
@@ -305,6 +306,18 @@ class ItemCategoryDetector {
 
     for (final token in specTokens) {
       searchKeywords.add(token.toLowerCase());
+    }
+
+    // Extract individual clean words from raw text (ignoring common stop words)
+    final cleanWords = rawText
+        .toLowerCase()
+        .replaceAll(RegExp(r'[,/|;•\-_()]'), ' ')
+        .split(RegExp(r'\s+'));
+    const stopWords = {'for', 'with', 'and', 'the', 'new', 'old', 'original', 'compatible', 'laptop'};
+    for (final w in cleanWords) {
+      if (w.length >= 3 && !stopWords.contains(w)) {
+        searchKeywords.add(w);
+      }
     }
 
     return ItemClassification(

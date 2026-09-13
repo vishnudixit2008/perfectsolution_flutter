@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../../data/models/replacement.dart';
 import '../../../../data/repositories/shop_repository.dart';
+import '../../../../data/services/smart_search_utils.dart';
 import '../../../../data/services/supabase_sync_service.dart';
 import '../../../../data/services/ui_preferences_service.dart';
 import '../../../../data/services/whatsapp_service.dart';
@@ -164,7 +165,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
         final bool isDesktop = screenWidth >= 800;
 
         // Filtering
-        final query = _searchController.text.trim().toLowerCase();
+        final query = _searchController.text.trim();
         final filtered = viewModel.replacements.where((r) {
           if (!UserPermissionService.isEntryVisible(
             moduleKey: 'replacements',
@@ -174,25 +175,17 @@ class _ReplacementsViewState extends State<ReplacementsView> {
             return false;
           }
           if (query.isEmpty) return true;
-          final jobMatch = r.jobNo.toLowerCase().contains(query);
-          final nameMatch = r.name.toLowerCase().contains(query);
-          final itemMatch = r.item.toLowerCase().contains(query);
-          final mobileMatch =
-              r.mobileNo?.toLowerCase().contains(query) ?? false;
-          final statusMatch = r.status.toLowerCase().contains(query);
-          return jobMatch ||
-              nameMatch ||
-              itemMatch ||
-              mobileMatch ||
-              statusMatch;
+          final combined =
+              '${r.jobNo} ${r.name} ${r.item} ${r.mobileNo ?? ""} ${r.status} ${r.assignedTo ?? ""}';
+          return SmartSearchUtils.matchesQuery(combined, query);
         }).toList();
 
-        // Sort by date descending (newest replacements first), tie-break with jobNo descending
+        // Sort by date descending (newest replacements first), tie-break with updatedAt and jobNo descending
         filtered.sort((a, b) {
-          final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-          final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-          final dateComp = dayB.compareTo(dayA);
+          final dateComp = b.date.compareTo(a.date);
           if (dateComp != 0) return dateComp;
+          final updateComp = b.updatedAt.compareTo(a.updatedAt);
+          if (updateComp != 0) return updateComp;
           return b.jobNo.compareTo(a.jobNo);
         });
 
@@ -334,10 +327,10 @@ class _ReplacementsViewState extends State<ReplacementsView> {
 
     for (final list in grouped.values) {
       list.sort((a, b) {
-        final dayA = DateTime(a.date.year, a.date.month, a.date.day);
-        final dayB = DateTime(b.date.year, b.date.month, b.date.day);
-        final dateComp = dayB.compareTo(dayA);
+        final dateComp = b.date.compareTo(a.date);
         if (dateComp != 0) return dateComp;
+        final updateComp = b.updatedAt.compareTo(a.updatedAt);
+        if (updateComp != 0) return updateComp;
         return b.jobNo.compareTo(a.jobNo);
       });
     }
@@ -596,7 +589,7 @@ class _ReplacementsViewState extends State<ReplacementsView> {
       },
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 152),
         itemCount: listEntries.length,
         itemBuilder: (context, index) {
           final item = listEntries[index];
@@ -775,11 +768,16 @@ class _ReplacementsViewState extends State<ReplacementsView> {
               ScaledInfoRow(
                 label: 'Mobile Number',
                 value: repl.mobileNo!,
-                onValueTap: () => CustomerHistoryDialog.show(
-                  context,
-                  phone: repl.mobileNo,
-                ),
-                valueTooltip: 'View customer history for ${repl.mobileNo}',
+                onValueTap: UserPermissionService.canViewCustomerHistory('replacements')
+                    ? () => CustomerHistoryDialog.show(
+                        context,
+                        phone: repl.mobileNo,
+                        moduleKey: 'replacements',
+                      )
+                    : null,
+                valueTooltip: UserPermissionService.canViewCustomerHistory('replacements')
+                    ? 'View customer history for ${repl.mobileNo}'
+                    : null,
                 trailing: InlineCallButton(
                   phone: repl.mobileNo!,
                   scaleFactor: scale,
@@ -1518,37 +1516,11 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               enabled: isNameMod,
               decoration: InputDecoration(
                 labelText: 'Customer Name *',
-                suffixIcon: (isMobile &&
-                        _matchedCustomerProfile != null &&
+                suffixIcon: (_matchedCustomerProfile != null &&
                         _matchedCustomerProfile!.events.isNotEmpty)
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: TextButton.icon(
-                          onPressed: () => CustomerHistoryDialog.show(
-                            context,
-                            profile: _matchedCustomerProfile,
-                          ),
-                          icon: const Icon(Icons.history_rounded, size: 16),
-                          label: const Text(
-                            'History',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.primaryLight,
-                            backgroundColor:
-                                AppTheme.primaryLight.withValues(alpha: 0.12),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                    ? CustomerHistoryBadge(
+                        profile: _matchedCustomerProfile,
+                        moduleKey: 'replacements',
                       )
                     : null,
               ),
@@ -1570,10 +1542,6 @@ class _ReplacementFormDialogState extends State<_ReplacementFormDialog> {
               ),
               keyboardType: TextInputType.phone,
             ),
-            if (isMobile ||
-                _matchedCustomerProfile == null ||
-                _matchedCustomerProfile!.events.isEmpty)
-              CustomerLookupBanner(profile: _matchedCustomerProfile),
             const SizedBox(height: 12),
           ],
 

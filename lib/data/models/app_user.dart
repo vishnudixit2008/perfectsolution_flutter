@@ -97,6 +97,7 @@ class AppUser {
       permanentAdminEmails.contains(email.toLowerCase().trim());
 
   bool get isAdmin => isPermanentAdmin(email);
+  bool get isRunner => role.toLowerCase() == 'runner';
 
 
   static const List<String> modules = [
@@ -128,6 +129,7 @@ class AppUser {
       'canAdd': 'Can Add New Calls',
       'canEdit': 'Can Edit Calls',
       'canDelete': 'Can Delete Calls',
+      'canViewCustomerHistory': 'Can View Customer History',
       'canSendWhatsapp': 'Can Send WhatsApp Message',
       'canDuplicate': 'Can Duplicate Call Record',
       'canTransferInward': 'Can Enter in Inward',
@@ -140,6 +142,7 @@ class AppUser {
       'canAdd': 'Can Add New Inward Jobs',
       'canEdit': 'Can Edit Repair Jobs',
       'canDelete': 'Can Delete Repair Jobs',
+      'canViewCustomerHistory': 'Can View Customer History',
       'canPrint': 'Can Print / Share Receipt',
       'canSendWhatsapp': 'Can Send WhatsApp Updates',
       'canDuplicate': 'Can Duplicate Inward Job',
@@ -152,6 +155,7 @@ class AppUser {
       'canAdd': 'Can Add Replacement Record',
       'canEdit': 'Can Edit Replacement Record',
       'canDelete': 'Can Delete Replacement Record',
+      'canViewCustomerHistory': 'Can View Customer History',
       'canSendWhatsapp': 'Can Send WhatsApp Message',
       'canDuplicate': 'Can Duplicate Record',
       'canConvertToSale': 'Can Convert to POS Sale',
@@ -172,6 +176,7 @@ class AppUser {
       'canAdd': 'Can Perform POS Checkout',
       'canEdit': 'Can Edit Sales Invoice',
       'canDelete': 'Can Void / Delete Invoice',
+      'canViewCustomerHistory': 'Can View Customer History',
       'canPrint': 'Can Print A5 PDF Invoice',
       'canApplyDiscount': 'Can Apply Checkout Discount',
       'canVerifyStock': 'Can Verify & Deduct Stock',
@@ -182,6 +187,7 @@ class AppUser {
       'canAdd': 'Can Add Customer Request',
       'canEdit': 'Can Edit Request',
       'canDelete': 'Can Delete Request',
+      'canViewCustomerHistory': 'Can View Customer History',
       'canSendWhatsapp': 'Can Send WhatsApp Message',
       'canDuplicate': 'Can Duplicate Record',
       'canConvertToSale': 'Can Convert Request to POS Sale',
@@ -200,6 +206,7 @@ class AppUser {
       'canAdd': 'Can Record Stock-In Purchase',
       'canEdit': 'Can Edit Purchase Order',
       'canDelete': 'Can Delete Purchase Order',
+      'canViewCustomerHistory': 'Can View Supplier / Customer History',
       'canDuplicate': 'Can Duplicate Purchase Order',
       'canConvertToSale': 'Can Convert to POS Sale',
       'canManageStatus': 'Can Confirm / Revert Purchase Status',

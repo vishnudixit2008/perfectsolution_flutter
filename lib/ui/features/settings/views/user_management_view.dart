@@ -593,13 +593,27 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
                     style: TextStyle(color: AppTheme.textPrimary),
                   ),
                 ),
+                DropdownMenuItem(
+                  value: 'runner',
+                  child: Text(
+                    'Market Runner (Sourcing & Pickups)',
+                    style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w600),
+                  ),
+                ),
               ],
               onChanged: (val) {
-                if (val != null) setState(() => role = val);
+                if (val != null) {
+                  setState(() {
+                    role = val;
+                    if (val == 'runner') {
+                      _applyPreset('runner');
+                    }
+                  });
+                }
               },
             ),
 
-            if (role == 'employee') ...[
+            if (role == 'employee' || role == 'runner') ...[
               const SizedBox(height: 20),
 
               // ── Quick Presets ─────────────────────────────────
@@ -613,6 +627,8 @@ class _UserPermissionsPageState extends State<_UserPermissionsPage>
                       'Full Access', 'full', AppTheme.success),
                   _buildPresetChip('Standard Staff', 'standard',
                       AppTheme.primaryLight),
+                  _buildPresetChip('Market Runner', 'runner',
+                      const Color(0xFF38BDF8)),
                   _buildPresetChip(
                       'View Only', 'readonly', AppTheme.warning),
                   _buildPresetChip('Hide Financials', 'hide_financials',
@@ -1042,9 +1058,22 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                               style:
                                   TextStyle(color: AppTheme.textPrimary)),
                         ),
+                        DropdownMenuItem(
+                          value: 'runner',
+                          child: Text('Market Runner (Sourcing & Pickups)',
+                              style:
+                                  TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w600)),
+                        ),
                       ],
                       onChanged: (val) {
-                        if (val != null) setState(() => role = val);
+                        if (val != null) {
+                          setState(() {
+                            role = val;
+                            if (val == 'runner') {
+                              _applyPreset('runner');
+                            }
+                          });
+                        }
                       },
                     ),
                   ),
@@ -1052,7 +1081,7 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
               ),
               const SizedBox(height: 16),
 
-              if (role == 'employee') ...[
+              if (role == 'employee' || role == 'runner') ...[
                 // Global Presets Toolbar
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -1081,6 +1110,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog>
                               'Full Access', 'full', AppTheme.success),
                           _buildPresetChip('Standard Staff', 'standard',
                               AppTheme.primaryLight),
+                          _buildPresetChip('Market Runner', 'runner',
+                              const Color(0xFF38BDF8)),
                           _buildPresetChip(
                               'View Only', 'readonly', AppTheme.warning),
                           _buildPresetChip('Hide Financials',
@@ -1609,6 +1640,36 @@ mixin _UserPermissionsLogic<T extends StatefulWidget> on State<T> {
             }
           }
           fieldAccess[m] = current;
+        }
+      } else if (preset == 'runner') {
+        role = 'runner';
+        for (var m in AppUser.modules) {
+          // Runner by default only gets "My Tasks" tab (via canAccessRunnerMode).
+          // Admin can manually toggle on requests/dealers page access if needed.
+          pageAccess[m] = false;
+          final actions = AppUser.moduleActions[m] ?? {};
+          if (m == 'requests') {
+            pageActionAccess[m] = {
+              for (var k in actions.keys)
+                k: k == 'canView' ||
+                    k == 'canAccessRunnerMode' ||
+                    k == 'canMarkCollected' ||
+                    k == 'canSendWhatsapp'
+            };
+          } else if (m == 'dealers') {
+            pageActionAccess[m] = {
+              for (var k in actions.keys) k: k == 'canView'
+            };
+          } else {
+            pageActionAccess[m] = {for (var k in actions.keys) k: false};
+          }
+          final fields = AppUser.moduleFields[m] ?? {};
+          fieldAccess[m] = {
+            for (var f in fields.keys)
+              f: (f == 'totalAmount' || f == 'advance' || f == 'estimate')
+                  ? FieldPermission.readOnly()
+                  : FieldPermission.allTrue()
+          };
         }
       }
     });
