@@ -59,6 +59,64 @@ class Dealer {
           if (phrase.contains('touchpad')) tokens.add('trackpad');
           if (phrase.contains('motherboard')) tokens.addAll(['mboard', 'mainboard']);
           if (phrase.contains('fan')) tokens.add('cooling');
+          final isBodySpecialist = phrase.contains('body') ||
+              phrase.contains('casing') ||
+              phrase.contains('hinge') ||
+              phrase.contains('fabrication') ||
+              phrase.contains('panel') ||
+              phrase.contains('abcd') ||
+              phrase.contains('abh') ||
+              phrase.contains('bezel') ||
+              phrase.contains('palmrest') ||
+              phrase.contains('touchpad');
+          if (isBodySpecialist) {
+            tokens.addAll([
+              'laptop body parts',
+              'laptop body',
+              'body parts',
+              'body',
+              'casing',
+              'fabrication',
+              'housing',
+              'chassis',
+              'hinge',
+              'hinges',
+              'hing',
+              'screen hinge',
+              'ab',
+              'abh',
+              'abcd',
+              'abcdh',
+              'cd',
+              'abc',
+              'bcd',
+              'bc',
+              'a,b,c,d',
+              'a panel',
+              'b panel',
+              'c panel',
+              'd panel',
+              'h panel',
+              'ab panel',
+              'cd panel',
+              'top cover',
+              'top panel',
+              'top pannel',
+              'back cover',
+              'back lid',
+              'screen lid',
+              'bezel',
+              'bezzel',
+              'front bezel',
+              'palmrest',
+              'touchpad',
+              'trackpad',
+              'base',
+              'bottom base',
+              'bottom cover',
+              'lower case',
+            ]);
+          }
         }
       }
 
@@ -81,6 +139,15 @@ class Dealer {
   }
 
   factory Dealer.fromJson(Map<String, dynamic> json) {
+    var rawProducts = json['products']?.toString();
+    if (rawProducts != null &&
+        RegExp(r'\b(abcd|a[\s,]*b[\s,]*c[\s,]*d)\b', caseSensitive: false).hasMatch(rawProducts)) {
+      rawProducts = rawProducts
+          .replaceAll(RegExp(r'(,\s*)?a\s*,\s*b\s*,\s*c\s*,\s*d', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\babcd\b', caseSensitive: false), 'laptop body parts')
+          .trim();
+    }
+
     return Dealer(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
@@ -92,7 +159,7 @@ class Dealer {
       address: json['address']?.toString() ?? '',
       city: json['city']?.toString() ?? 'New Delhi',
       category: json['category']?.toString(),
-      products: json['products']?.toString(),
+      products: rawProducts,
       googleMapsUrl: json['google_maps_url']?.toString(),
       notes: json['notes']?.toString(),
       rating: json['rating'] is num

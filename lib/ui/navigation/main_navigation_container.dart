@@ -224,19 +224,6 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     }
   }
 
-  final List<Widget> _views = [
-    const CallsView(),
-    const InwardRepairsView(),
-    const ReplacementsView(),
-    const PricelistView(),
-    const SalesView(),
-    const RequestsView(),
-    const PurchasesView(),
-    const DealersView(),
-    const RunnerTasksView(), // index 8
-    const SettingsView(), // index 9 (Settings is always last)
-  ];
-
   final List<Map<String, dynamic>> _navItems = [
     {'title': 'Calls', 'icon': Icons.phone_callback_rounded, 'index': 0, 'module': 'calls'},
     {'title': 'Inward Repairs', 'icon': Icons.build_rounded, 'index': 1, 'module': 'inward'},
@@ -391,9 +378,8 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.sizeOf(context).width;
     final bool isDesktop = screenWidth >= 750;
-    final int currentIndex = context.select<NavigationViewModel, int>(
-      (vm) => vm.currentIndex,
-    );
+    final navVm = context.watch<NavigationViewModel>();
+    final int currentIndex = navVm.currentIndex;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1A),
@@ -412,9 +398,10 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   isDesktop ? 16.0 : 0.0,
                 ),
                 child: _LazyIndexedStack(
-                  index: currentIndex.clamp(0, _views.length - 1),
-                  count: _views.length,
-                  builder: (i) => _buildActiveView(i),
+                  index: currentIndex.clamp(0, _navItems.length - 1),
+                  count: _navItems.length,
+                  revisions: navVm.tabRevisions,
+                  builder: (i) => _buildActiveView(i, navVm.getTabRevision(i)),
                 ),
               ),
             ),
@@ -460,7 +447,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     }
   }
 
-  Widget _buildActiveView(int currentIndex) {
+  Widget _buildActiveView(int currentIndex, int revision) {
     if (currentIndex < 0 || currentIndex >= _navItems.length) {
       return _buildAccessDeniedWidget('Module');
     }
@@ -469,7 +456,31 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     if (!UserPermissionService.canAccessPage(moduleKey)) {
       return _buildAccessDeniedWidget(item['title'] as String);
     }
-    return _views[currentIndex];
+    final key = ValueKey('tab_${currentIndex}_$revision');
+    switch (currentIndex) {
+      case NavigationViewModel.calls:
+        return CallsView(key: key);
+      case NavigationViewModel.inward:
+        return InwardRepairsView(key: key);
+      case NavigationViewModel.replacement:
+        return ReplacementsView(key: key);
+      case NavigationViewModel.pricelist:
+        return PricelistView(key: key);
+      case NavigationViewModel.sales:
+        return SalesView(key: key);
+      case NavigationViewModel.request:
+        return RequestsView(key: key);
+      case NavigationViewModel.purchase:
+        return PurchasesView(key: key);
+      case NavigationViewModel.dealers:
+        return DealersView(key: key);
+      case NavigationViewModel.runner:
+        return RunnerTasksView(key: key);
+      case NavigationViewModel.settings:
+        return SettingsView(key: key);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildAccessDeniedWidget(String moduleTitle) {
@@ -767,12 +778,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
                   title: item['title'] as String,
                   isActive: isActive,
                   onTap: () {
-                    if (navIndex == 3) {
-                      try {
-                        context.read<PricelistViewModel>().resetSortAndFilters();
-                      } catch (_) {}
-                    }
-                    context.read<NavigationViewModel>().setIndex(navIndex);
+                    context.read<NavigationViewModel>().setIndex(navIndex, resetView: true);
                   },
                 );
               },
@@ -926,11 +932,13 @@ class _LazyIndexedStack extends StatefulWidget {
   final int index;
   final int count;
   final Widget Function(int) builder;
+  final Map<int, int>? revisions;
 
   const _LazyIndexedStack({
     required this.index,
     required this.count,
     required this.builder,
+    this.revisions,
   });
 
   @override
@@ -1056,12 +1064,26 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack>
   @override
   void didUpdateWidget(covariant _LazyIndexedStack oldWidget) {
     super.didUpdateWidget(oldWidget);
+    bool activeTabReset = false;
+    if (widget.revisions != null) {
+      for (final entry in widget.revisions!.entries) {
+        final oldRev = oldWidget.revisions?[entry.key] ?? 0;
+        if (entry.value != oldRev) {
+          _cache.remove(entry.key);
+          if (entry.key == widget.index) {
+            activeTabReset = true;
+          }
+        }
+      }
+    }
     if (oldWidget.index != widget.index) {
       _previousIndex = oldWidget.index;
       _activeIndex = widget.index;
       final isForward = widget.index >= oldWidget.index;
       _setupAnimations(isForward: isForward);
       _ctrl.forward(from: 0.0);
+    } else if (activeTabReset) {
+      setState(() {});
     }
   }
 

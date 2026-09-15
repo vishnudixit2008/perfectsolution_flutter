@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../shared/components/app_toast.dart';
 import '../../../../data/models/customer_profile.dart';
 import '../../../../data/models/request_order.dart';
 import '../../../../data/repositories/shop_repository.dart';
@@ -2416,21 +2418,63 @@ class _DealerInquiriesTrackerSectionState
     extends State<_DealerInquiriesTrackerSection> {
   List<DealerInquiryItem> _inquiries = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
+  RealtimeChannel? _realtimeSubscription;
 
   @override
   void initState() {
     super.initState();
     _fetchInquiries();
+    _setupRealtime();
   }
 
-  Future<void> _fetchInquiries() async {
+  void _setupRealtime() {
+    _realtimeSubscription = DealerInquiryService.subscribeToRequestInquiries(
+      requestId: widget.requestId,
+      onStatusUpdate: (updatedItem) {
+        if (!mounted) return;
+        setState(() {
+          final idx = _inquiries.indexWhere((i) => i.id == updatedItem.id);
+          if (idx >= 0) {
+            _inquiries[idx] = updatedItem;
+          } else {
+            _inquiries.add(updatedItem);
+          }
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _realtimeSubscription?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _fetchInquiries({bool showFeedback = false}) async {
+    if (!mounted) return;
+    setState(() => _isRefreshing = true);
     final list =
         await DealerInquiryService.getInquiriesForRequest(widget.requestId);
     if (mounted) {
       setState(() {
         _inquiries = list;
         _isLoading = false;
+        _isRefreshing = false;
       });
+      if (showFeedback) {
+        final prices = list
+            .where((i) => i.quoteAmount != null && i.quoteAmount! > 0)
+            .length;
+        AppToast.show(
+          context,
+          title: 'Dealer Inquiries',
+          message: prices > 0
+              ? '$prices dealer price ${prices == 1 ? "quote" : "quotes"} arrived!'
+              : 'Refreshed. Waiting for dealer price replies...',
+          type: prices > 0 ? AppToastType.success : AppToastType.info,
+        );
+      }
     }
   }
 
@@ -2489,24 +2533,49 @@ class _DealerInquiriesTrackerSectionState
                 ),
               ),
               const Spacer(),
-              InkWell(
-                onTap: _fetchInquiries,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.refresh_rounded,
-                          size: 13 * scale, color: AppTheme.textMuted),
-                      SizedBox(width: 4 * scale),
-                      Text(
-                        'Refresh',
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 11 * scale,
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _isRefreshing
+                      ? null
+                      : () => _fetchInquiries(showFeedback: true),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isRefreshing) ...[
+                          SizedBox(
+                            width: 12 * scale,
+                            height: 12 * scale,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF22D3EE),
+                            ),
+                          ),
+                          SizedBox(width: 5 * scale),
+                        ] else ...[
+                          Icon(Icons.refresh_rounded,
+                              size: 13 * scale,
+                              color: const Color(0xFF22D3EE)),
+                          SizedBox(width: 4 * scale),
+                        ],
+                        Text(
+                          _isRefreshing ? 'Refreshing...' : 'Refresh',
+                          style: TextStyle(
+                            color: _isRefreshing
+                                ? const Color(0xFF22D3EE)
+                                : AppTheme.textMuted,
+                            fontSize: 11 * scale,
+                            fontWeight: _isRefreshing
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -2659,10 +2728,22 @@ class _DealerInquiriesTrackerSectionState
   }
 
   void _showQuotesModal(BuildContext context) {
+    double getEffectiveQuote(DealerInquiryItem item) {
+      final amt = item.quoteAmount ?? 0;
+      final n = (item.quoteNotes ?? '').toLowerCase();
+      final hasGst = n.contains('+gst') ||
+          n.contains('+ gst') ||
+          n.contains('+18%') ||
+          n.contains('+ 18%') ||
+          n.contains('gst extra') ||
+          RegExp(r'\d+\+').hasMatch(item.quoteNotes ?? '');
+      return hasGst ? amt * 1.18 : amt;
+    }
+
     final quotesWithPrice = _inquiries
         .where((i) => i.quoteAmount != null && i.quoteAmount! > 0)
         .toList()
-      ..sort((a, b) => a.quoteAmount!.compareTo(b.quoteAmount!));
+      ..sort((a, b) => getEffectiveQuote(a).compareTo(getEffectiveQuote(b)));
     final pendingQuotes = _inquiries
         .where((i) => i.quoteAmount == null || i.quoteAmount! <= 0)
         .toList();
@@ -2795,6 +2876,17 @@ class _DealerInquiriesTrackerSectionState
   }
 
   Widget _buildQuoteDetailCard(DealerInquiryItem inq) {
+    final notesLower = (inq.quoteNotes ?? '').toLowerCase();
+    final isPlusGst = notesLower.contains('+gst') ||
+        notesLower.contains('+ gst') ||
+        notesLower.contains('+18%') ||
+        notesLower.contains('+ 18%') ||
+        notesLower.contains('gst extra') ||
+        RegExp(r'\d+\+').hasMatch(inq.quoteNotes ?? '');
+
+    final baseAmount = inq.quoteAmount ?? 0;
+    final totalWithGst = (baseAmount * 1.18).round();
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -2832,27 +2924,118 @@ class _DealerInquiriesTrackerSectionState
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
+              InkWell(
+                onTap: () => _showEnterPriceDialog(context, inq),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                    ),
                   ),
-                ),
-                child: Text(
-                  '₹${inq.quoteAmount!.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    color: Color(0xFF34D399),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '₹${baseAmount.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          color: Color(0xFF34D399),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (isPlusGst) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF59E0B)
+                                .withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: 0.6),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: const Text(
+                            '+ GST',
+                            style: TextStyle(
+                              color: Color(0xFFFBBF24),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 5),
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 13,
+                        color: Color(0xFF34D399),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
+          if (isPlusGst) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_long_rounded,
+                      size: 14, color: Color(0xFFFBBF24)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppTheme.textSecondary,
+                        ),
+                        children: [
+                          const TextSpan(text: 'Base: '),
+                          TextSpan(
+                            text: '₹${baseAmount.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const TextSpan(text: '  •  Total with 18% GST: '),
+                          TextSpan(
+                            text: '₹$totalWithGst',
+                            style: const TextStyle(
+                              color: Color(0xFF34D399),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (inq.quoteNotes != null && inq.quoteNotes!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Container(
@@ -2976,52 +3159,452 @@ class _DealerInquiriesTrackerSectionState
             ? 'Sending...'
             : (isFailed ? 'Failed' : 'Queued'));
 
+    final hasNotes = inq.quoteNotes != null && inq.quoteNotes!.trim().isNotEmpty;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: hasNotes
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.05),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  inq.dealerName,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      inq.dealerName,
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      inq.dealerPhone,
+                      style: const TextStyle(
+                        color: AppTheme.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  inq.dealerPhone,
-                  style: const TextStyle(
-                    color: AppTheme.textMuted,
-                    fontSize: 10.5,
+              ),
+              const SizedBox(width: 8),
+              // Enter Price Button
+              InkWell(
+                onTap: () => _showEnterPriceDialog(context, inq),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, size: 13, color: Color(0xFF34D399)),
+                      SizedBox(width: 3),
+                      Text(
+                        'Enter Price',
+                        style: TextStyle(
+                          color: Color(0xFF34D399),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (hasNotes) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded,
+                      size: 13, color: Color(0xFFFBBF24)),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      inq.quoteNotes!,
+                      style: const TextStyle(
+                        color: Color(0xFFFBBF24),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (inq.dealerPhone.isNotEmpty) ...[
+                InkWell(
+                  onTap: () {
+                    final clean =
+                        inq.dealerPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+                    launchUrl(Uri.parse('tel:$clean'));
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppTheme.primaryLight.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.call_rounded,
+                            size: 11, color: AppTheme.primaryLight),
+                        SizedBox(width: 4),
+                        Text(
+                          'Call',
+                          style: TextStyle(
+                            color: AppTheme.primaryLight,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () {
+                    String clean =
+                        inq.dealerPhone.replaceAll(RegExp(r'[^0-9]'), '');
+                    if (clean.length == 10) clean = '91$clean';
+                    launchUrl(
+                      Uri.parse('https://wa.me/$clean'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.chat_bubble_rounded,
+                            size: 11, color: Color(0xFF25D366)),
+                        SizedBox(width: 4),
+                        Text(
+                          'WhatsApp',
+                          style: TextStyle(
+                            color: Color(0xFF25D366),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEnterPriceDialog(BuildContext context, DealerInquiryItem inq) {
+    final priceCtrl = TextEditingController(
+      text: inq.quoteAmount != null && inq.quoteAmount! > 0
+          ? inq.quoteAmount!.toStringAsFixed(0)
+          : '',
+    );
+    final rawNotes = inq.quoteNotes ?? '';
+    final existingNotesLower = rawNotes.toLowerCase();
+    bool isPlusGst = existingNotesLower.contains('+gst') ||
+        existingNotesLower.contains('+ gst') ||
+        existingNotesLower.contains('+18%') ||
+        RegExp(r'\d+\+').hasMatch(rawNotes);
+
+    String cleanNotes = rawNotes;
+    cleanNotes = cleanNotes.replaceFirst(RegExp(r'^Replied:\s*'), '');
+    cleanNotes = cleanNotes.replaceFirst(RegExp(r'^Quoted:\s*₹?\d+\+?\s*'), '');
+    cleanNotes = cleanNotes.replaceFirst(RegExp(r'\(\+18% GST -> Total: ₹\d+\)\s*'), '');
+    cleanNotes = cleanNotes.replaceAll(RegExp(r'^\(|\)$'), '').trim();
+
+    final notesCtrl = TextEditingController(text: cleanNotes);
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          backgroundColor: const Color(0xFF131A2E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          title: Row(
+            children: [
+              const Icon(Icons.price_change_rounded,
+                  color: Color(0xFF10B981), size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Record Price for ${inq.dealerName}',
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: priceCtrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                onChanged: (_) => setDlgState(() {}),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Quoted Price (₹) *',
+                  prefixText: '₹ ',
+                  prefixStyle: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  hintText: 'e.g. 400',
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF10B981)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // + 18% GST toggle
+              InkWell(
+                onTap: () => setDlgState(() => isPlusGst = !isPlusGst),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isPlusGst
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.03),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isPlusGst
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.4)
+                          : Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Checkbox(
+                          value: isPlusGst,
+                          activeColor: const Color(0xFFF59E0B),
+                          checkColor: Colors.black,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          onChanged: (val) =>
+                              setDlgState(() => isPlusGst = val ?? false),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '+ 18% GST (Tax Extra)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (isPlusGst &&
+                                double.tryParse(priceCtrl.text.trim()) !=
+                                    null &&
+                                (double.tryParse(priceCtrl.text.trim()) ?? 0) >
+                                    0) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                'Total with GST: ₹${((double.tryParse(priceCtrl.text.trim()) ?? 0) * 1.18).round()}',
+                                style: const TextStyle(
+                                  color: Color(0xFF34D399),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesCtrl,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Notes (Optional)',
+                  hintText: 'e.g. In stock, OEM original',
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.05),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dlgCtx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textMuted)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final val = double.tryParse(priceCtrl.text.trim());
+                      if (val == null || val <= 0) {
+                        AppToast.show(
+                          context,
+                          title: 'Invalid Price',
+                          message: 'Please enter a valid amount greater than 0',
+                          type: AppToastType.error,
+                        );
+                        return;
+                      }
+                      setDlgState(() => isSaving = true);
+                      final userNote = notesCtrl.text.trim().isNotEmpty
+                          ? notesCtrl.text.trim()
+                          : null;
+                      final baseAmount = val;
+                      final totalWithGst = (baseAmount * 1.18).round();
+                      final gstTag = isPlusGst ? ' (+18% GST -> Total: ₹$totalWithGst)' : '';
+                      final noteExtra = userNote != null ? ' ($userNote)' : '';
+                      final finalNotes = 'Quoted: ₹${baseAmount.toStringAsFixed(0)}${isPlusGst ? '+' : ''}$gstTag$noteExtra';
+
+                      final ok = await DealerInquiryService.updateQuote(
+                        inquiryId: inq.id,
+                        quoteAmount: baseAmount,
+                        quoteNotes: finalNotes,
+                      );
+                      if (dlgCtx.mounted) Navigator.pop(dlgCtx);
+                      if (ok) {
+                        await _fetchInquiries(showFeedback: true);
+                      } else {
+                        if (context.mounted) {
+                          AppToast.show(
+                            context,
+                            title: 'Save Failed',
+                            message: 'Could not update dealer quote in cloud',
+                            type: AppToastType.error,
+                          );
+                        }
+                      }
+                    },
+              icon: isSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_rounded, size: 16),
+              label: Text(isSaving ? 'Saving...' : 'Save Price'),
+            ),
+          ],
+        ),
       ),
     );
   }

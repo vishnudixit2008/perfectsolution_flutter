@@ -131,8 +131,11 @@ class _SalesViewState extends State<SalesView> {
     _loadSavedColumnWidths();
     _customerPhoneController.addListener(_onSalesPhoneChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SalesViewModel>().loadCatalog();
-      context.read<RecentSalesViewModel>().loadSales();
+      if (mounted) {
+        context.read<SalesViewModel>().clearCart();
+        context.read<SalesViewModel>().loadCatalog();
+        context.read<RecentSalesViewModel>().loadSales();
+      }
     });
   }
 
@@ -1279,19 +1282,6 @@ class _SalesViewState extends State<SalesView> {
                       flex: 2,
                       child: _buildCheckoutSection(context, cartVM, recentVM),
                     ),
-                    if (_matchedCustomerProfile != null &&
-                        _matchedCustomerProfile!.events.isNotEmpty) ...[
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: CustomerHistorySidePanel(
-                          profile: _matchedCustomerProfile!,
-                          showCloseButton: true,
-                          onClose: () =>
-                              setState(() => _matchedCustomerProfile = null),
-                        ),
-                      ),
-                    ],
                   ],
                 )
               : SingleChildScrollView(

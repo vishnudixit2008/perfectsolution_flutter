@@ -178,6 +178,25 @@ class SupabaseSyncService extends ChangeNotifier {
       _isInitialized = true;
       _setStatus(SyncStatus.synced, 'Connected to Cloud');
 
+      // Proactively refresh auth session if restored session has an expired JWT.
+      // This prevents the Realtime WebSocket from being rejected with InvalidJWTToken.
+      try {
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session != null && session.isExpired) {
+          if (kDebugMode) {
+            print('[SupabaseSync] Restored session token is expired, refreshing before Realtime connection...');
+          }
+          await Supabase.instance.client.auth.refreshSession().timeout(const Duration(seconds: 4));
+          if (kDebugMode) {
+            print('[SupabaseSync] Session token refreshed successfully');
+          }
+        }
+      } catch (authErr) {
+        if (kDebugMode) {
+          print('[SupabaseSync] Startup session refresh notice: $authErr');
+        }
+      }
+
       // Subscribe to real-time WebSocket changes (debounced)
       _subscribeRealtime(localDb);
 
@@ -601,13 +620,31 @@ class SupabaseSyncService extends ChangeNotifier {
               _setStatus(SyncStatus.synced, 'Live Synced');
             }
             unawaited(flushOfflineQueue(localDb));
-            unawaited(syncAllTablesFromCloud(localDb, forceDelta: true));
+            unawaited(syncAllTablesFromCloud(localDb));
           } else if (status == RealtimeSubscribeStatus.closed ||
               status == RealtimeSubscribeStatus.channelError ||
               status == RealtimeSubscribeStatus.timedOut) {
             _isRealtimeSubscribed = false;
+            final errStr = error?.toString() ?? '';
+            final isJwtExpired = errStr.contains('InvalidJWTToken') || errStr.contains('Token has expired');
+
             if (kDebugMode) {
               print('Supabase Realtime connection dropped: $status (error: $error). Reconnecting with backoff...');
+            }
+
+            if (isJwtExpired) {
+              // Token expired: silently trigger session refresh and re-subscribe immediately once refreshed
+              if (kDebugMode) print('Supabase Realtime: Token expired, refreshing session and reconnecting...');
+              unawaited(Supabase.instance.client.auth.refreshSession().then((_) {
+                if (_isInitialized) {
+                  _reconnectTimer?.cancel();
+                  _isReconnecting = false;
+                  _subscribeRealtime(localDb);
+                }
+              }).catchError((e) {
+                if (kDebugMode) print('Realtime auth refresh error: $e');
+              }));
+              return;
             }
 
             _setStatus(SyncStatus.offline, 'Server Offline');
@@ -856,6 +893,7 @@ class SupabaseSyncService extends ChangeNotifier {
   }
 
   DateTime? _lastFullSyncTime;
+  bool _isSyncRunning = false;
 
   // ─── Cloud → Local Sync ────────────────────────────────────────────────────
   /// Fetches authoritative data from Supabase and mirrors into local Hive.
@@ -864,6 +902,12 @@ class SupabaseSyncService extends ChangeNotifier {
   Future<void> syncAllTablesFromCloud(LocalDatabaseService localDb, {bool force = false, bool forceDelta = false}) async {
     if (!_isInitialized) return;
 
+    // Concurrency guard: avoid launching parallel sync operations
+    if (_isSyncRunning) {
+      if (kDebugMode) print('Sync skipped: another cloud sync is already in progress');
+      return;
+    }
+
     // Throttling: If synced less than 15s ago and neither force nor forceDelta, skip to save egress
     final now = DateTime.now();
     if (!force && !forceDelta && _lastFullSyncTime != null && now.difference(_lastFullSyncTime!).inSeconds < 15) {
@@ -871,6 +915,7 @@ class SupabaseSyncService extends ChangeNotifier {
       return;
     }
 
+    _isSyncRunning = true;
     try {
       _setStatus(SyncStatus.syncing, 'Syncing changes from cloud...');
       final client = Supabase.instance.client;
@@ -1428,6 +1473,8 @@ class SupabaseSyncService extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) print('Sync from cloud error: $e');
       _setStatus(SyncStatus.error, 'Sync Error: $e');
+    } finally {
+      _isSyncRunning = false;
     }
   }
 

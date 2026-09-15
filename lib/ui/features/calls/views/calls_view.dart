@@ -131,7 +131,13 @@ class _CallsViewState extends State<CallsView> {
     super.initState();
     _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CallsViewModel>().loadCalls();
+      if (mounted) {
+        final vm = context.read<CallsViewModel>();
+        vm.setSearchQuery('');
+        vm.setSelectedStatus('All');
+        vm.setSelectedAssigned('All');
+        vm.loadCalls();
+      }
     });
   }
 

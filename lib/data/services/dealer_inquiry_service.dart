@@ -172,4 +172,29 @@ class DealerInquiryService {
       return null;
     }
   }
+
+  /// Updates or manually records a quote amount & notes for an inquiry
+  static Future<bool> updateQuote({
+    required String inquiryId,
+    required double quoteAmount,
+    String? quoteNotes,
+  }) async {
+    try {
+      final client = Supabase.instance.client;
+      final data = <String, dynamic>{
+        'quote_amount': quoteAmount,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      if (quoteNotes != null) {
+        data['quote_notes'] = quoteNotes;
+      }
+      await client.from('dealer_inquiry_queue').update(data).eq('id', inquiryId);
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating dealer inquiry quote: $e');
+      }
+      return false;
+    }
+  }
 }

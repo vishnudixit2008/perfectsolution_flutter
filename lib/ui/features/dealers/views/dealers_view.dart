@@ -99,6 +99,7 @@ class _DealersViewState extends State<DealersView> {
   static const List<String> defaultCategories = [
     'Distributor',
     'Laptop Accessories',
+    'Laptop Body & Hinges',
     'Motherboards',
     'Cables',
     'Printers & Parts',
@@ -127,6 +128,7 @@ class _DealersViewState extends State<DealersView> {
   static Color _getCategoryColor(String category) {
     final c = category.toLowerCase().trim();
     if (c.contains('distributor')) return const Color(0xFF818CF8); // Indigo
+    if (c.contains('body') || c.contains('hinge') || c.contains('panel')) return const Color(0xFFFB923C); // Warm Orange
     if (c.contains('laptop') || c.contains('accessories')) return const Color(0xFF38BDF8); // Sky Blue
     if (c.contains('chip') || c.contains('repair')) return const Color(0xFFFBBF24); // Amber
     if (c.contains('motherboard')) return const Color(0xFFA78BFA); // Violet
@@ -591,8 +593,6 @@ class _DealersViewState extends State<DealersView> {
     Dealer dealer,
     double productsColWidth,
   ) {
-    final hasMobile = dealer.mobileNo != null && dealer.mobileNo!.trim().isNotEmpty;
-
     return InkWell(
       onTap: () => _showDetailDialog(context, dealer, viewModel),
       hoverColor: Colors.white.withValues(alpha: 0.03),
@@ -647,9 +647,8 @@ class _DealersViewState extends State<DealersView> {
                 (dealer.mobileNo != null && dealer.mobileNo!.trim().isNotEmpty)
                     ? dealer.mobileNo!
                     : '—',
-                style: TextStyle(
-                  color: hasMobile ? AppTheme.primaryLight : AppTheme.textSecondary,
-                  fontWeight: hasMobile ? FontWeight.w600 : FontWeight.normal,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
                   fontSize: 13,
                 ),
                 maxLines: 1,
@@ -1094,7 +1093,14 @@ class _DealerAddEditDialogState extends State<DealerAddEditDialog> {
     final shopNo = _shopNoController.text.trim();
     final fullAddress = _fullAddressController.text.trim();
     final category = _categoryController.text.trim();
-    final products = _productsController.text.trim();
+    final rawProducts = _productsController.text.trim();
+    var normalizedProducts = rawProducts;
+    if (RegExp(r'\b(abcd|a[\s,]*b[\s,]*c[\s,]*d)\b', caseSensitive: false).hasMatch(normalizedProducts)) {
+      normalizedProducts = normalizedProducts
+          .replaceAll(RegExp(r'(,\s*)?a\s*,\s*b\s*,\s*c\s*,\s*d', caseSensitive: false), '')
+          .replaceAll(RegExp(r'\babcd\b', caseSensitive: false), 'Laptop Body Parts')
+          .trim();
+    }
     final notes = _notesController.text.trim();
 
     final city = (building.toLowerCase().contains('noida') || fullAddress.toLowerCase().contains('noida'))
@@ -1117,7 +1123,7 @@ class _DealerAddEditDialogState extends State<DealerAddEditDialog> {
       address: fullAddress.isEmpty ? '$building, Nehru Place, New Delhi' : fullAddress,
       city: city,
       category: category.isEmpty ? 'General' : category,
-      products: products.isEmpty ? null : products,
+      products: normalizedProducts.isEmpty ? null : normalizedProducts,
       googleMapsUrl: mapsUrl,
       notes: notes.isEmpty ? null : notes,
       rating: widget.existingDealer?.rating ?? 5.0,
@@ -1779,11 +1785,11 @@ class DealerProductSuggestionHelper {
     'Motherboards',
     'Adapters',
     'RAM/SSD',
+    'Laptop Body Parts',
     'Hinges',
     'Fans',
     'Printers',
     'Cartridges & Toners',
-    'Body Panels',
     'DC Power Jacks',
     'Touchpads',
     'Speakers',
@@ -1872,7 +1878,7 @@ class DealerProductSuggestionHelper {
       case ItemCategory.chargers:
         return 'Adapters';
       case ItemCategory.hingesAndBody:
-        return 'Hinges & Body';
+        return 'Laptop Body Parts';
       case ItemCategory.coolingFans:
         return 'Fans';
       case ItemCategory.ramAndStorage:
@@ -1891,6 +1897,16 @@ class DealerProductSuggestionHelper {
   static String _normalizeTag(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return '';
+    final lower = trimmed.toLowerCase();
+    if (lower == 'abcd' ||
+        lower == 'a,b,c,d' ||
+        lower == 'a, b, c, d' ||
+        lower == 'abh' ||
+        lower == 'abcdh' ||
+        lower == 'ab/cd panels' ||
+        lower == 'laptop body') {
+      return 'Laptop Body Parts';
+    }
     // Skip if mostly numbers or pure specs like "15.6" or "40pin"
     if (RegExp(r'^\d+(\.\d+)?(pin|gb|tb|ghz|v|w|mah)?$', caseSensitive: false).hasMatch(trimmed)) {
       return '';

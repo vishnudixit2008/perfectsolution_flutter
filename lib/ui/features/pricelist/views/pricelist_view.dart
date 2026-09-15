@@ -69,7 +69,10 @@ class _PricelistViewState extends State<PricelistView> {
     super.initState();
     _loadSavedColumnWidths();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PricelistViewModel>().loadItems();
+      if (mounted) {
+        context.read<PricelistViewModel>().resetSortAndFilters();
+        context.read<PricelistViewModel>().loadItems();
+      }
     });
   }
 

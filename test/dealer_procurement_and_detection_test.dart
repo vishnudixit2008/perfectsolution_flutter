@@ -49,6 +49,54 @@ void main() {
       expect(res.brand, 'Lenovo');
       expect(res.specTokens, contains('65W'));
     });
+
+    test('Correctly detects Laptop Body trade shorthand (ABH, ABCD, ABCDH, CD, Panels)', () {
+      final res1 = ItemCategoryDetector.classify('Dell 3511 ABH');
+      expect(res1.category, ItemCategory.hingesAndBody);
+      expect(res1.brand, 'Dell');
+      expect(res1.searchKeywords, contains('abh'));
+
+      final res2 = ItemCategoryDetector.classify('HP 15-da ABCD');
+      expect(res2.category, ItemCategory.hingesAndBody);
+      expect(res2.brand, 'HP');
+      expect(res2.searchKeywords, contains('abcd'));
+
+      final res3 = ItemCategoryDetector.classify('Lenovo V15 ABCDH');
+      expect(res3.category, ItemCategory.hingesAndBody);
+      expect(res3.brand, 'Lenovo');
+      expect(res3.searchKeywords, contains('abcdh'));
+
+      final res4 = ItemCategoryDetector.classify('Acer Aspire CD');
+      expect(res4.category, ItemCategory.hingesAndBody);
+      expect(res4.brand, 'Acer');
+
+      final res5 = ItemCategoryDetector.classify('Dell 3511 top cover');
+      expect(res5.category, ItemCategory.hingesAndBody);
+
+      final res6 = ItemCategoryDetector.classify('HP top pannel');
+      expect(res6.category, ItemCategory.hingesAndBody);
+
+      final res7 = ItemCategoryDetector.classify('Lenovo bezzel');
+      expect(res7.category, ItemCategory.hingesAndBody);
+
+      final res8 = ItemCategoryDetector.classify('Acer bottom base');
+      expect(res8.category, ItemCategory.hingesAndBody);
+
+      final res9 = ItemCategoryDetector.classify('Asus hinge');
+      expect(res9.category, ItemCategory.hingesAndBody);
+
+      final res10 = ItemCategoryDetector.classify('Dell touchpad');
+      expect(res10.category, ItemCategory.hingesAndBody);
+    });
+
+    test('Dealer.fromJson automatically normalizes legacy abcd and a,b,c,d into Laptop Body Parts', () {
+      final d = Dealer.fromJson({
+        'id': 'd-test',
+        'name': 'Test Dealer',
+        'products': 'keyboard,fan,abcd,display cable,a,b,c,d',
+      });
+      expect(d.products, 'keyboard,fan,laptop body parts,display cable');
+    });
   });
 
   group('DealerRecommendationService Tests', () {
@@ -80,7 +128,41 @@ void main() {
         category: 'General',
         products: 'cables, screws, thermal paste',
       ),
+      Dealer(
+        id: 'dlr-4',
+        name: 'Nehru Place Casing Hub',
+        mobileNo: '9844444444',
+        address: 'Nehru Place',
+        buildingName: 'Deepak Building',
+        category: 'Laptop Body & Hinges',
+        products: 'Laptop Body Parts, Hinges',
+      ),
     ];
+
+    test('Ranks Casing Hub #1 for ABCDH, top cover, top pannel, bezzel, base, hinge, and touchpad', () {
+      final queries = [
+        'Dell 3511 ABCDH',
+        'HP 15-da ABCD',
+        'Dell 3511 ABH',
+        'HP 15-da top cover',
+        'Lenovo top pannel',
+        'Acer bezzel',
+        'Asus bottom base',
+        'HP laptop hinge',
+        'Dell Inspiron touchpad',
+      ];
+
+      for (final q in queries) {
+        final rec = DealerRecommendationService.getRecommendations(
+          itemText: q,
+          allDealers: dealers,
+          purchaseOrders: const [],
+          getPurchaseItems: (_) => const [],
+        );
+        expect(rec.isNotEmpty, true, reason: 'Failed for query: $q');
+        expect(rec.first.dealer.id, 'dlr-4', reason: 'dlr-4 should be #1 for query: $q');
+      }
+    });
 
     test('Ranks Battery World #1 when Battery is requested', () {
       final recommendations = DealerRecommendationService.getRecommendations(

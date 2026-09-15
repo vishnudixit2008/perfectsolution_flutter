@@ -17,12 +17,26 @@ class NavigationViewModel extends ChangeNotifier {
   // Pre-filled data to pass between modules
   Map<String, dynamic>? _pendingPrefillData;
 
+  final Map<int, int> _tabRevisions = {};
+
   int get currentIndex => _currentIndex;
   Map<String, dynamic>? get pendingPrefillData => _pendingPrefillData;
+  Map<int, int> get tabRevisions => Map.unmodifiable(_tabRevisions);
 
-  void setIndex(int index, {Map<String, dynamic>? prefillData}) {
+  int getTabRevision(int index) => _tabRevisions[index] ?? 0;
+
+  void resetTab(int index) {
+    _tabRevisions[index] = (_tabRevisions[index] ?? 0) + 1;
+    notifyListeners();
+  }
+
+  void setIndex(int index, {Map<String, dynamic>? prefillData, bool resetView = false}) {
+    final bool sameTab = _currentIndex == index;
     _currentIndex = index;
     _pendingPrefillData = prefillData;
+    if (resetView || (sameTab && prefillData == null)) {
+      _tabRevisions[index] = (_tabRevisions[index] ?? 0) + 1;
+    }
     notifyListeners();
   }
 

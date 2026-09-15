@@ -166,8 +166,18 @@ class ItemCategoryDetector {
       '4.5mm', 'barrel pin', 'power cord'
     ],
     ItemCategory.hingesAndBody: [
-      'hinge', 'hinges', 'hing pair', 'body', 'a cover', 'b cover', 'c cover',
-      'd cover', 'top cover', 'bottom base', 'bezel', 'front bezel', 'back cover'
+      'hinge', 'hinges', 'hing', 'hing pair', 'screen hinge',
+      'body', 'laptop body', 'laptop body parts', 'body parts',
+      'casing', 'chassis', 'housing', 'fabrication',
+      'top cover', 'top panel', 'top pannel', 'back cover', 'back lid', 'screen cover', 'screen lid',
+      'bezel', 'bezzel', 'front bezel', 'screen bezel',
+      'base', 'bottom base', 'bottom cover', 'bottom case', 'lower case',
+      'palmrest', 'touchpad', 'trackpad', 'touchpad housing',
+      'a cover', 'b cover', 'c cover', 'd cover',
+      'a panel', 'b panel', 'c panel', 'd panel', 'h panel',
+      'panel a', 'panel b', 'panel c', 'panel d',
+      'ab panel', 'cd panel', 'a pannel', 'b pannel', 'c pannel', 'd pannel',
+      'a,b,c,d', 'a, b, c, d', 'abcdh'
     ],
     ItemCategory.coolingFans: [
       'fan', 'cpu fan', 'gpu fan', 'cooling fan', 'heatsink', 'heat sink',
@@ -214,6 +224,25 @@ class ItemCategoryDetector {
     ItemCategory bestCategory = ItemCategory.general;
     int maxMatches = 0;
 
+    // Check trade shorthand for laptop body panels (e.g. ABCDH, ABCD, ABH, CD, ABC)
+    final bodyShorthandRegex = RegExp(
+      r'\b(abcdh|abcd|abh|abc|bcd|ab|cd|bc)\b|\b(a[\s,]+b[\s,]+c[\s,]+d)\b',
+      caseSensitive: false,
+    );
+    final hasBodyShorthand = bodyShorthandRegex.hasMatch(lower);
+
+    final bodyPanelRegex = RegExp(
+      r'\b([abcdh]|ab|cd|bc)\s*p[a]?nnel\b|\bp[a]?nnel\s*([abcdh])\b',
+      caseSensitive: false,
+    );
+    final hasBodyPanel = bodyPanelRegex.hasMatch(lower);
+
+    final specificBodyPartRegex = RegExp(
+      r'\b(top\s*p[a]?nnel|top\s*cover|back\s*lid|screen\s*lid|bezzel|bezel|palmrest|touchpad|trackpad|bottom\s*base|bottom\s*cover|base|hinges?)\b',
+      caseSensitive: false,
+    );
+    final hasSpecificBodyPart = specificBodyPartRegex.hasMatch(lower);
+
     for (final entry in _categoryKeywords.entries) {
       int matches = 0;
       for (final keyword in entry.value) {
@@ -222,6 +251,10 @@ class ItemCategoryDetector {
           final weight = keyword.length > 5 ? 2 : 1;
           matches += weight;
         }
+      }
+      if (entry.key == ItemCategory.hingesAndBody &&
+          (hasBodyShorthand || hasBodyPanel || hasSpecificBodyPart)) {
+        matches += 8; // Strong boost for body trade shorthand & named body parts
       }
       if (matches > maxMatches) {
         maxMatches = matches;
@@ -286,7 +319,51 @@ class ItemCategoryDetector {
         searchKeywords.addAll(['charger', 'adapter', 'adaptor', 'power supply', 'power']);
         break;
       case ItemCategory.hingesAndBody:
-        searchKeywords.addAll(['hinge', 'body', 'cover', 'c-panel', 'palmrest']);
+        searchKeywords.addAll([
+          'laptop body parts',
+          'laptop body',
+          'body parts',
+          'body',
+          'casing',
+          'fabrication',
+          'housing',
+          'chassis',
+          'hinge',
+          'hinges',
+          'hing',
+          'screen hinge',
+          'ab',
+          'abh',
+          'abcd',
+          'abcdh',
+          'cd',
+          'abc',
+          'bcd',
+          'bc',
+          'a,b,c,d',
+          'a panel',
+          'b panel',
+          'c panel',
+          'd panel',
+          'h panel',
+          'ab panel',
+          'cd panel',
+          'top cover',
+          'top panel',
+          'top pannel',
+          'back cover',
+          'back lid',
+          'screen lid',
+          'bezel',
+          'bezzel',
+          'front bezel',
+          'palmrest',
+          'touchpad',
+          'trackpad',
+          'base',
+          'bottom base',
+          'bottom cover',
+        ]);
         break;
       case ItemCategory.coolingFans:
         searchKeywords.addAll(['fan', 'cooling', 'heatsink']);
@@ -304,6 +381,16 @@ class ItemCategoryDetector {
         break;
     }
 
+    if (hasBodyShorthand) {
+      final shorthandMatch = bodyShorthandRegex.firstMatch(lower);
+      if (shorthandMatch != null) {
+        final token = shorthandMatch.group(0)!.toUpperCase();
+        if (!specTokens.contains(token)) {
+          specTokens.add(token);
+        }
+      }
+    }
+
     for (final token in specTokens) {
       searchKeywords.add(token.toLowerCase());
     }
@@ -315,7 +402,7 @@ class ItemCategoryDetector {
         .split(RegExp(r'\s+'));
     const stopWords = {'for', 'with', 'and', 'the', 'new', 'old', 'original', 'compatible', 'laptop'};
     for (final w in cleanWords) {
-      if (w.length >= 3 && !stopWords.contains(w)) {
+      if ((w.length >= 3 || w == 'ab' || w == 'cd' || w == 'bc') && !stopWords.contains(w)) {
         searchKeywords.add(w);
       }
     }

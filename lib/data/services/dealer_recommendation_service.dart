@@ -148,6 +148,22 @@ class DealerRecommendationService {
       // D. Dealer Rating Boost
       score += (dealer.rating * 2.0);
 
+      // E. Category Specialization Boost for Body Parts
+      if (classification.category == ItemCategory.hingesAndBody) {
+        final dealsInBody = dealerTokens.contains('laptop body parts') ||
+            dealerTokens.contains('body') ||
+            dealerTokens.contains('casing') ||
+            dealerTokens.contains('hinge') ||
+            dealerTokens.contains('hinges') ||
+            (dealer.category != null && dealer.category!.toLowerCase().contains('body'));
+        if (dealsInBody) {
+          score += 40.0;
+          if (!reasons.any((r) => r.contains('Body') || r.contains('Deals in'))) {
+            reasons.add('💻 Laptop Body Specialist');
+          }
+        }
+      }
+
       // F. Recency Bonus
       if (stats?.lastDate != null) {
         final daysAgo = DateTime.now().difference(stats!.lastDate!).inDays;

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
 import '../../core/motion/motion.dart';
 import '../../navigation/navigation_view_model.dart';
-import '../../features/pricelist/view_models/pricelist_view_model.dart';
 import '../../../data/services/user_permission_service.dart';
 
 class AppBottomNavBar extends StatefulWidget {
@@ -80,12 +79,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
   }
 
   void _onTabTap(int idx) {
-    if (idx == 3) {
-      try {
-        context.read<PricelistViewModel>().resetSortAndFilters();
-      } catch (_) {}
-    }
-    context.read<NavigationViewModel>().setIndex(idx);
+    context.read<NavigationViewModel>().setIndex(idx, resetView: true);
   }
 
   @override

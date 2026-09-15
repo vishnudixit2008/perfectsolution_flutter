@@ -55,9 +55,10 @@ class _DealerInquiryViewState extends State<DealerInquiryView> {
     final dealers = repo.getDealers();
     final orders = repo.getPurchaseOrders();
 
-    _classification = ItemCategoryDetector.classify(widget.request.item);
+    final itemText = widget.request.item;
+    _classification = ItemCategoryDetector.classify(itemText);
     _recommendations = DealerRecommendationService.getRecommendations(
-      itemText: widget.request.item,
+      itemText: itemText,
       allDealers: dealers,
       purchaseOrders: orders,
       getPurchaseItems: (id) => repo.getPurchaseOrderItems(id),
@@ -132,10 +133,16 @@ class _DealerInquiryViewState extends State<DealerInquiryView> {
           .where((d) => _selectedDealerIds.contains(d.id))
           .toList();
 
+      final allPhotos = widget.request.photoList
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+      final photoUrlsJoined = allPhotos.isNotEmpty ? allPhotos.join(';') : null;
+
       final count = await DealerInquiryService.enqueueInquiries(
         requestId: widget.request.id,
         itemText: _messageController.text.trim(),
-        photoUrl: widget.request.photoList.firstOrNull,
+        photoUrl: photoUrlsJoined,
         targetDealers: selectedDealers,
       );
 
@@ -1174,31 +1181,86 @@ class _DealerInquiryViewState extends State<DealerInquiryView> {
           ),
           const Spacer(),
           // Broadcast button
-          SizedBox(
-            height: isMobile ? 38 : 44,
-            child: ElevatedButton.icon(
-              onPressed: (count > 0 && !_isDispatching) ? _dispatchInquiries : null,
-              icon: _isDispatching
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Icon(Icons.bolt_rounded, size: isMobile ? 18 : 20),
-              label: Text(
-                _isDispatching
-                    ? 'Sending...'
-                    : isMobile
-                        ? 'Broadcast ($count)'
-                        : '⚡ Broadcast to $count Dealers',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 12 : 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.white12,
-                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18, vertical: 0),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: (count > 0 && !_isDispatching) ? _dispatchInquiries : null,
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: isMobile ? 38 : 44,
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 20),
+                decoration: BoxDecoration(
+                  gradient: (count > 0 && !_isDispatching)
+                      ? const LinearGradient(
+                          colors: [Color(0xFF10B981), Color(0xFF059669)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: (count > 0 && !_isDispatching)
+                      ? null
+                      : Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (count > 0 && !_isDispatching)
+                        ? const Color(0xFF34D399).withValues(alpha: 0.4)
+                        : Colors.white.withValues(alpha: 0.06),
+                    width: 1,
+                  ),
+                  boxShadow: (count > 0 && !_isDispatching)
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_isDispatching) ...[
+                      const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Broadcasting...',
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ] else ...[
+                      Icon(
+                        Icons.bolt_rounded,
+                        size: isMobile ? 18 : 20,
+                        color: count > 0 ? Colors.white : Colors.white38,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isMobile
+                            ? 'Broadcast ($count)'
+                            : 'Broadcast to $count ${count == 1 ? "Dealer" : "Dealers"}',
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 13,
+                          fontWeight: FontWeight.w600,
+                          color: count > 0 ? Colors.white : Colors.white38,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
