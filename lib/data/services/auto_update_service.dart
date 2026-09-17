@@ -138,6 +138,7 @@ class AutoUpdateService extends ChangeNotifier {
       final existingFile = await AppUpdateDownloader.resolveLocalFile(
         version: versionStatus.latestVersion,
         downloadUrl: versionStatus.downloadUrl,
+        buildNumber: versionStatus.latestBuildNumber,
       );
       if (await existingFile.exists() && await existingFile.length() > 0) {
         // File is already on disk — skip download, go straight to ready state
@@ -168,6 +169,7 @@ class AutoUpdateService extends ChangeNotifier {
       final file = await _downloader.downloadUpdate(
         downloadUrl: versionStatus.downloadUrl,
         version: versionStatus.latestVersion,
+        buildNumber: versionStatus.latestBuildNumber,
         onProgress: (progress) {
           _downloadProgress = progress;
           notifyListeners();

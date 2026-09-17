@@ -11,6 +11,7 @@ class AppVersionStatus {
   final String downloadUrl;
   final String releaseNotes;
   final bool hasUpdate;
+  final int latestBuildNumber;
 
   AppVersionStatus({
     required this.currentVersion,
@@ -20,6 +21,7 @@ class AppVersionStatus {
     required this.downloadUrl,
     required this.releaseNotes,
     required this.hasUpdate,
+    this.latestBuildNumber = 0,
   });
 }
 
@@ -138,6 +140,7 @@ class UpdateCheckService {
           downloadUrl: downloadUrl,
           releaseNotes: releaseNotes,
           hasUpdate: hasNewerVersion,
+          latestBuildNumber: latestBuild,
         );
       }
     } catch (e) {

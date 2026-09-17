@@ -82,6 +82,7 @@ class AppUpdateDownloader {
   Future<File> downloadUpdate({
     required String downloadUrl,
     required String version,
+    int? buildNumber,
     required void Function(DownloadProgress) onProgress,
     int maxRetries = 3,
   }) async {
@@ -90,8 +91,12 @@ class AppUpdateDownloader {
     // Determine target local filename and directory
     final String extension = _getFileExtension(downloadUrl);
     final Directory targetDir = await _getTargetDirectory();
-    final String localFileName = 'PerfectSolution_v${version}_update$extension';
+    final String buildSuffix = (buildNumber != null && buildNumber > 0) ? '_b$buildNumber' : '';
+    final String localFileName = 'PerfectSolution_v$version${buildSuffix}_update$extension';
     final File localFile = File('${targetDir.path}/$localFileName');
+
+    // Clean up any old update files to save disk and prevent conflict
+    await cleanupOldUpdateFiles(keepFileName: localFileName);
 
     int attempt = 0;
     while (attempt < maxRetries) {
@@ -361,16 +366,41 @@ class AppUpdateDownloader {
     return await getTemporaryDirectory();
   }
 
+  /// Cleans up any stale update installers left behind by older versions
+  static Future<void> cleanupOldUpdateFiles({String? keepFileName}) async {
+    try {
+      final targetDir = await _getTargetDirectory();
+      if (await targetDir.exists()) {
+        final list = targetDir.listSync();
+        for (final entity in list) {
+          if (entity is File) {
+            final name = entity.uri.pathSegments.isNotEmpty ? entity.uri.pathSegments.last : '';
+            if (name.startsWith('PerfectSolution_v') &&
+                (name.endsWith('.exe') || name.endsWith('.apk') || name.endsWith('.dmg'))) {
+              if (keepFileName == null || name != keepFileName) {
+                try {
+                  await entity.delete();
+                } catch (_) {}
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   /// Returns the expected local [File] for a given [version] and [downloadUrl].
   /// Use this to check if a previous session already downloaded the update,
   /// so we can skip re-downloading and go straight to readyToRelaunch.
   static Future<File> resolveLocalFile({
     required String version,
     required String downloadUrl,
+    int? buildNumber,
   }) async {
     final extension = _getFileExtension(downloadUrl);
     final targetDir = await _getTargetDirectory();
-    final localFileName = 'PerfectSolution_v${version}_update$extension';
+    final buildSuffix = (buildNumber != null && buildNumber > 0) ? '_b$buildNumber' : '';
+    final localFileName = 'PerfectSolution_v$version${buildSuffix}_update$extension';
     return File('${targetDir.path}/$localFileName');
   }
 }

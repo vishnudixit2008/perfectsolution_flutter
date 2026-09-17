@@ -91,6 +91,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       final downloadedFile = await _downloader.downloadUpdate(
         downloadUrl: widget.status.downloadUrl,
         version: widget.status.latestVersion,
+        buildNumber: widget.status.latestBuildNumber,
         onProgress: (DownloadProgress p) {
           if (!mounted) return;
           setState(() {
