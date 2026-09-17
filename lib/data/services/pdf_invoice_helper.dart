@@ -1,6 +1,8 @@
+import 'dart:isolate';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -54,37 +56,118 @@ class InvoiceLayoutConfig {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PDF build function (runs on main isolate — the pdf package is pure Dart
-// and completes in <100ms for a typical invoice, so no isolate needed).
+// Plain-Dart parameter bundle — all fields are sendable across isolates.
+// Main isolate populates this; background isolate consumes it.
 // ─────────────────────────────────────────────────────────────────────────────
+class _PdfParams {
+  // Sale fields
+  final int invoiceNo;
+  final int saleDateMs;          // DateTime.millisecondsSinceEpoch
+  final String? customerName;
+  final String? customerNumber;
+  final double totalAmount;
+  final double discount;
+  final double advance;
+  final String paymentMode;
 
-Future<Uint8List> _buildPdf(
+  // Items — each item is a simple map of primitives
+  final List<Map<String, dynamic>> items;
+
+  // Computed / config strings
+  final String upiVpa;
+  final String reviewUrl;
+  final String pageSize;
+  final double marginTB;
+  final double marginLR;
+  final bool showHeader;
+  final bool showQr;
+
+  // Font bytes (loaded on main isolate via rootBundle, passed as Uint8List)
+  final Uint8List? arialRoundedBytes;
+  final Uint8List? bookmanBytes;
+  final Uint8List? interBytes;
+
+  _PdfParams({
+    required this.invoiceNo,
+    required this.saleDateMs,
+    this.customerName,
+    this.customerNumber,
+    required this.totalAmount,
+    required this.discount,
+    required this.advance,
+    required this.paymentMode,
+    required this.items,
+    required this.upiVpa,
+    required this.reviewUrl,
+    required this.pageSize,
+    required this.marginTB,
+    required this.marginLR,
+    required this.showHeader,
+    required this.showQr,
+    this.arialRoundedBytes,
+    this.bookmanBytes,
+    this.interBytes,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orchestrator — runs on the MAIN isolate.
+// Loads fonts & Hive data here (rootBundle & Hive are not available in
+// background isolates), bundles everything into a _PdfParams, then offloads
+// the actual CPU-heavy PDF build to a background isolate via Isolate.run().
+// ─────────────────────────────────────────────────────────────────────────────
+bool _isValidTtfBytes(Uint8List bytes) {
+  if (bytes.length < 12) return false;
+  final b0 = bytes[0], b1 = bytes[1], b2 = bytes[2], b3 = bytes[3];
+  // 0x00010000 (TrueType), 0x74727565 ('true'), 0x4F54544F ('OTTO')
+  return (b0 == 0 && b1 == 1 && b2 == 0 && b3 == 0) ||
+      (b0 == 0x74 && b1 == 0x72 && b2 == 0x75 && b3 == 0x65) ||
+      (b0 == 0x4F && b1 == 0x54 && b2 == 0x54 && b3 == 0x4F);
+}
+
+final Map<String, Uint8List?> _fontCache = {};
+
+Future<Uint8List?> _loadFontBytes(String assetPath) async {
+  if (_fontCache.containsKey(assetPath)) return _fontCache[assetPath];
+
+  // 1. Try direct disk read (always has latest font on desktop without lock)
+  try {
+    final f = File(assetPath);
+    if (f.existsSync()) {
+      final bytes = f.readAsBytesSync();
+      if (_isValidTtfBytes(bytes)) {
+        _fontCache[assetPath] = bytes;
+        return bytes;
+      }
+    }
+  } catch (_) {}
+
+  // 2. Fall back to Flutter rootBundle asset
+  try {
+    final bd = await rootBundle.load(assetPath);
+    final bytes = bd.buffer.asUint8List(bd.offsetInBytes, bd.lengthInBytes);
+    if (_isValidTtfBytes(bytes)) {
+      _fontCache[assetPath] = bytes;
+      return bytes;
+    }
+  } catch (_) {}
+
+  _fontCache[assetPath] = null;
+  return null;
+}
+
+Future<Uint8List> _generatePdfBytes(
   Sale sale,
   List<SaleItem> items,
   String? activeUpiId,
   InvoiceLayoutConfig config,
 ) async {
-  pw.Font? regularFont;
-  pw.Font? boldFont;
-  try {
-    regularFont = await PdfGoogleFonts.robotoRegular();
-    boldFont = await PdfGoogleFonts.robotoBold();
-  } catch (_) {
-    regularFont = pw.Font.helvetica();
-    boldFont = pw.Font.helveticaBold();
-  }
+  // 1. Load validated fonts (rootBundle & disk checks run on main isolate).
+  final arialRoundedBytes = await _loadFontBytes('assets/fonts/ARLRDBD.TTF');
+  final bookmanBytes = await _loadFontBytes('assets/fonts/BOOKOSB.TTF');
+  final interBytes = await _loadFontBytes('assets/fonts/Inter-Variable.ttf');
 
-  final theme = pw.ThemeData.withFont(
-    base: regularFont,
-    bold: boldFont,
-  );
-
-  final formattedDate = DateFormat('dd/MM/yy · hh:mma').format(sale.saleDate);
-  final String upiVpa = activeUpiId ?? '9810207643@okbizaxis';
-  final String upiUrl =
-      'upi://pay?pa=$upiVpa&am=${sale.dueAmount > 0 ? sale.dueAmount.toStringAsFixed(2) : sale.totalAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20${sale.invoiceNo}';
-
-  // Determine Google Review URL
+  // 2. Read Hive settings (Hive only works on main isolate).
   String reviewUrl = config.reviewUrl ?? '';
   if (reviewUrl.isEmpty) {
     String listingKey = 'perfect_solution';
@@ -96,88 +179,253 @@ Future<Uint8List> _buildPdf(
         }
       }
     } catch (_) {}
-    if (listingKey == 'laptop_repairing') {
-      reviewUrl = 'https://g.page/r/CXHBpmozvG4AEBM/review';
-    } else {
-      reviewUrl = 'https://g.page/r/CaqZxhuvkW-7EBM/review';
-    }
+    reviewUrl = listingKey == 'laptop_repairing'
+        ? 'https://g.page/r/CXHBpmozvG4AEBM/review'
+        : 'https://g.page/r/CaqZxhuvkW-7EBM/review';
   }
 
-  final displayItems = items.isNotEmpty
-      ? items
+  // 3. Serialize Sale & SaleItems to plain maps (isolate-safe).
+  final itemMaps = items
+      .map((it) => {
+            'itemDescription': it.itemDescription ?? '',
+            'notes': it.notes ?? '',
+            'quantity': it.quantity,
+            'itemPrice': it.itemPrice,
+            'customPrice': it.customPrice,
+            'totalAmount': it.totalAmount,
+          })
+      .toList();
+
+  final params = _PdfParams(
+    invoiceNo: sale.invoiceNo,
+    saleDateMs: sale.saleDate.millisecondsSinceEpoch,
+    customerName: sale.customerName,
+    customerNumber: sale.customerNumber,
+    totalAmount: sale.totalAmount,
+    discount: sale.discount,
+    advance: sale.advance,
+    paymentMode: sale.paymentMode,
+    items: itemMaps,
+    upiVpa: activeUpiId ?? '9810207643@okbizaxis',
+    reviewUrl: reviewUrl,
+    pageSize: config.pageSize,
+    marginTB: config.marginTB,
+    marginLR: config.marginLR,
+    showHeader: config.showHeader,
+    showQr: config.showQr,
+    arialRoundedBytes: arialRoundedBytes,
+    bookmanBytes: bookmanBytes,
+    interBytes: interBytes,
+  );
+
+  // 4. Run the heavy PDF build in a background isolate — UI stays responsive.
+  return Isolate.run(() => _buildPdf(params));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF build function — runs in a BACKGROUND isolate.
+// Must not use rootBundle, Hive, or any Flutter-engine-bound APIs.
+// All data arrives via the _PdfParams bundle.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<Uint8List> _buildPdf(_PdfParams p) async {
+  // Reconstruct fonts from bytes supplied by the main isolate.
+  pw.Font regularFont = pw.Font.helvetica();
+  pw.Font boldFont = pw.Font.helveticaBold();
+  pw.Font? arialRoundedBold;
+  pw.Font? bookmanBold;
+  pw.Font? interFont;
+
+  if (p.arialRoundedBytes != null && _isValidTtfBytes(p.arialRoundedBytes!)) {
+    try {
+      arialRoundedBold = pw.Font.ttf(ByteData.sublistView(p.arialRoundedBytes!));
+    } catch (_) {}
+  }
+  if (p.bookmanBytes != null && _isValidTtfBytes(p.bookmanBytes!)) {
+    try {
+      bookmanBold = pw.Font.ttf(ByteData.sublistView(p.bookmanBytes!));
+    } catch (_) {}
+  }
+  if (p.interBytes != null && _isValidTtfBytes(p.interBytes!)) {
+    try {
+      interFont = pw.Font.ttf(ByteData.sublistView(p.interBytes!));
+    } catch (_) {}
+  }
+  arialRoundedBold ??= boldFont;
+  bookmanBold ??= boldFont;
+
+  final theme = pw.ThemeData.withFont(
+    base: regularFont,
+    bold: boldFont,
+    fontFallback: [
+      ?interFont,
+      bookmanBold,
+    ],
+  );
+
+  final saleDate = DateTime.fromMillisecondsSinceEpoch(p.saleDateMs);
+  final formattedDate = DateFormat('dd/MM/yy · hh:mma').format(saleDate);
+  final String upiUrl =
+      'upi://pay?pa=${p.upiVpa}&am=${p.totalAmount.toStringAsFixed(2)}&cu=INR&tn=Invoice%20${p.invoiceNo}';
+
+  // Build page format from params (no InvoiceLayoutConfig in isolate).
+  final PdfPageFormat pageFormat;
+  switch (p.pageSize) {
+    case 'A4': pageFormat = PdfPageFormat.a4; break;
+    case 'Thermal80': pageFormat = PdfPageFormat(80 * PdfPageFormat.mm, 297 * PdfPageFormat.mm); break;
+    default: pageFormat = PdfPageFormat.a5;
+  }
+  final marginV = p.marginTB * PdfPageFormat.mm;
+  final marginH = p.marginLR * PdfPageFormat.mm;
+
+  // Build display items list from plain maps.
+  final rawItems = p.items;
+  final displayItems = rawItems.isNotEmpty
+      ? rawItems
       : [
-          SaleItem(
-            id: '1',
-            invoiceNo: sale.invoiceNo,
-            lineType: 'Product',
-            itemDescription: 'Sale Order Items',
-            quantity: 1,
-            itemPrice: sale.totalAmount,
-            totalAmount: sale.totalAmount,
-          ),
+          {
+            'itemDescription': 'Sale Order Items',
+            'notes': '',
+            'quantity': 1,
+            'itemPrice': p.totalAmount,
+            'customPrice': null,
+            'totalAmount': p.totalAmount,
+          }
         ];
 
   final pdf = pw.Document(compress: true);
 
   pdf.addPage(
     pw.Page(
-      pageFormat: config.pdfPageFormat,
-      margin: pw.EdgeInsets.symmetric(
-        vertical: config.marginTBPts,
-        horizontal: config.marginLRPts,
-      ),
+      pageFormat: pageFormat,
+      margin: pw.EdgeInsets.symmetric(vertical: marginV, horizontal: marginH),
       theme: theme,
       build: (pw.Context context) {
         return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             // ── Top Header ───────────────────────────────────────────────────
-            if (config.showHeader) ...[
+            if (p.showHeader) ...[
               pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'PERFECT SOLUTION',
-                        style: pw.TextStyle(
-                          fontSize: 16,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.black,
-                          letterSpacing: 0.5,
+                  // Left: F-13 Box Badge (Compound Typography: Arial Rounded MT Bold for "F-" + Bookman Old Style for "13")
+                  pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.black, width: 3.2),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(7)),
+                    ),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: pw.Row(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'F-',
+                          style: pw.TextStyle(
+                            font: arialRoundedBold,
+                            fontSize: 32,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                          ),
                         ),
-                      ),
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        'R E P A I R  ·  S A L E S  ·  S U P P O R T',
-                        style: pw.TextStyle(
-                          fontSize: 6,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey700,
-                          letterSpacing: 1.2,
+                        pw.Text(
+                          '13',
+                          style: pw.TextStyle(
+                            font: bookmanBold,
+                            fontSize: 34,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  pw.SizedBox(width: 10),
+
+                  // Middle: Business details
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text(
+                          'PERFECT SOLUTION',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2.5),
+                        pw.Text(
+                          'R E P A I R   ·   S A L E S   ·   S U P P O R T',
+                          style: pw.TextStyle(
+                            fontSize: 6.2,
+                            fontWeight: pw.FontWeight.bold,
+                            color: const PdfColor(0.2, 0.25, 0.3),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        pw.SizedBox(height: 3.5),
+                        pw.Text(
+                          'F-13, SKY PLAZA, SHRI RADHA SKY GARDEN,',
+                          style: pw.TextStyle(
+                            fontSize: 6.8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        pw.Text(
+                          'SECTOR 16B, GREATER NOIDA WEST',
+                          style: pw.TextStyle(
+                            fontSize: 6.8,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Right: Estimate # & Phones
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    mainAxisSize: pw.MainAxisSize.min,
                     children: [
                       pw.Text(
                         'ESTIMATE',
                         style: pw.TextStyle(
-                          fontSize: 7,
+                          fontSize: 7.0,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey600,
+                          color: const PdfColor(0.4, 0.4, 0.4),
                           letterSpacing: 1.2,
                         ),
                       ),
-                      pw.SizedBox(height: 1),
                       pw.Text(
-                        '#${sale.invoiceNo}',
+                        '#${p.invoiceNo}',
                         style: pw.TextStyle(
-                          fontSize: 14,
+                          fontSize: 18,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.black,
+                        ),
+                      ),
+                      pw.SizedBox(height: 3),
+                      pw.Text(
+                        '9810207643',
+                        style: pw.TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.black,
+                        ),
+                      ),
+                      pw.Text(
+                        '9212117643',
+                        style: pw.TextStyle(
+                          fontSize: 8.5,
                           fontWeight: pw.FontWeight.bold,
                           color: PdfColors.black,
                         ),
@@ -186,35 +434,9 @@ Future<Uint8List> _buildPdf(
                   ),
                 ],
               ),
-              pw.SizedBox(height: 5),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: pw.CrossAxisAlignment.center,
-                children: [
-                  pw.Expanded(
-                    child: pw.Text(
-                      'F-13, SKY PLAZA, SHRI RADHA SKY GARDEN, SECTOR 16B, GREATER NOIDA WEST',
-                      style: const pw.TextStyle(
-                        fontSize: 5.8,
-                        color: PdfColors.grey700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(width: 8),
-                  pw.Text(
-                    '9810207643 · 9212117643',
-                    style: const pw.TextStyle(
-                      fontSize: 5.8,
-                      color: PdfColors.grey700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 5),
-              pw.Divider(thickness: 0.75, color: PdfColors.grey400),
               pw.SizedBox(height: 6),
+              pw.Container(height: 1.2, color: PdfColors.black),
+              pw.SizedBox(height: 8),
             ],
 
             // ── Billed To & Date / Time ──────────────────────────────────────
@@ -231,28 +453,31 @@ Future<Uint8List> _buildPdf(
                         fontSize: 6.8,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.grey800,
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
-                      sale.customerName?.trim().isNotEmpty == true
-                          ? sale.customerName!
-                          : 'Walk-in Customer',
+                      p.customerName?.trim().isNotEmpty == true
+                          ? p.customerName!.toUpperCase()
+                          : 'WALK-IN CUSTOMER',
                       style: pw.TextStyle(
                         fontSize: 9.5,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.black,
                       ),
                     ),
-                    if (sale.customerNumber != null &&
-                        sale.customerNumber!.trim().isNotEmpty) ...[
+                    if (p.customerNumber != null &&
+                        p.customerNumber!.trim().isNotEmpty) ...[
                       pw.SizedBox(height: 1),
                       pw.Text(
-                        sale.customerNumber!.startsWith('+')
-                            ? sale.customerNumber!
-                            : '+91${sale.customerNumber}',
-                        style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey800),
+                        p.customerNumber!.startsWith('+')
+                            ? p.customerNumber!
+                            : '+91${p.customerNumber}',
+                        style: const pw.TextStyle(
+                          fontSize: 7.5,
+                          color: PdfColors.grey800,
+                        ),
                       ),
                     ],
                   ],
@@ -266,7 +491,7 @@ Future<Uint8List> _buildPdf(
                         fontSize: 6.8,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.grey800,
-                        letterSpacing: 0.4,
+                        letterSpacing: 0.5,
                       ),
                     ),
                     pw.SizedBox(height: 2),
@@ -282,277 +507,211 @@ Future<Uint8List> _buildPdf(
                 ),
               ],
             ),
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 10),
 
-            // ── Table Header Bar (Soft Charcoal Header) ─────────────────────
-            pw.Container(
-              decoration: const pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFF2D3748),
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(3)),
-              ),
-              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-              child: pw.Row(
-                children: [
-                  pw.Expanded(
-                    flex: 5,
-                    child: pw.Text(
-                      'DESCRIPTION OF GOODS',
-                      style: pw.TextStyle(
-                        fontSize: 6.5,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+            // ── Items Table (Exact Layout & Column Widths) ───────────────────
+            pw.Table(
+              columnWidths: const {
+                0: pw.FlexColumnWidth(5.6),
+                1: pw.FlexColumnWidth(1.2),
+                2: pw.FlexColumnWidth(1.8),
+                3: pw.FlexColumnWidth(1.8),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(
+                    color: PdfColor(0.14, 0.17, 0.22),
+                    borderRadius: pw.BorderRadius.all(pw.Radius.circular(3)),
                   ),
-                  pw.SizedBox(
-                    width: 35,
-                    child: pw.Text(
-                      'QTY',
-                      style: pw.TextStyle(
-                        fontSize: 6.5,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: pw.TextAlign.center,
-                    ),
-                  ),
-                  pw.SizedBox(
-                    width: 65,
-                    child: pw.Text(
-                      'UNIT PRICE',
-                      style: pw.TextStyle(
-                        fontSize: 6.5,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: pw.TextAlign.right,
-                    ),
-                  ),
-                  pw.SizedBox(
-                    width: 65,
-                    child: pw.Text(
-                      'AMOUNT',
-                      style: pw.TextStyle(
-                        fontSize: 6.5,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.white,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: pw.TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Items Table Rows ─────────────────────────────────────────────
-            ...displayItems.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final item = entry.value;
-              final desc = item.itemDescription?.trim() ?? 'Line Item';
-              final notes = item.notes?.trim();
-              final qty = item.quantity;
-              final price = item.activePrice;
-              final amt = item.totalAmount > 0 ? item.totalAmount : (qty * price);
-              final isEven = idx % 2 == 0;
-
-              // Parse primary title vs sub-details (e.g. Serial numbers, notes or newline)
-              String primaryTitle = desc;
-              String? subDetails;
-              if (desc.contains('\n')) {
-                final split = desc.split('\n');
-                primaryTitle = split.first.trim();
-                subDetails = split.sublist(1).join('\n').trim();
-              } else if (desc.contains(' - S/N:')) {
-                final split = desc.split(' - S/N:');
-                primaryTitle = split.first.trim();
-                subDetails = 'S/N: ${split[1].trim()}';
-              } else if (notes != null && notes.isNotEmpty) {
-                subDetails = notes;
-              }
-
-              return pw.Container(
-                decoration: pw.BoxDecoration(
-                  color: isEven ? PdfColors.white : PdfColor.fromHex('#F8F9FA'),
-                  border: const pw.Border(
-                    bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5),
-                  ),
-                ),
-                padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Expanded(
-                      flex: 5,
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            primaryTitle,
-                            style: pw.TextStyle(
-                              fontSize: 7.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.black,
-                            ),
-                          ),
-                          if (subDetails != null && subDetails.isNotEmpty) ...[
-                            pw.SizedBox(height: 1),
-                            pw.Text(
-                              subDetails,
-                              style: const pw.TextStyle(
-                                fontSize: 6,
-                                color: PdfColors.grey700,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    pw.SizedBox(
-                      width: 35,
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                       child: pw.Text(
-                        '$qty',
-                        style: const pw.TextStyle(fontSize: 7.5),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    ),
-                    pw.SizedBox(
-                      width: 65,
-                      child: pw.Text(
-                        '₹ ${price.toStringAsFixed(2)}',
-                        style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey800),
-                        textAlign: pw.TextAlign.right,
-                      ),
-                    ),
-                    pw.SizedBox(
-                      width: 65,
-                      child: pw.Text(
-                        '₹ ${amt.toStringAsFixed(2)}',
+                        'DESCRIPTION OF GOODS',
                         style: pw.TextStyle(
-                          fontSize: 7.5,
+                          fontSize: 7.2,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.black,
+                          color: PdfColors.white,
+                          letterSpacing: 0.6,
                         ),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                      child: pw.Text(
+                        'QTY',
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(
+                          fontSize: 7.2,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      child: pw.Text(
+                        'UNIT PRICE',
                         textAlign: pw.TextAlign.right,
+                        style: pw.TextStyle(
+                          fontSize: 7.2,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      child: pw.Text(
+                        'AMOUNT',
+                        textAlign: pw.TextAlign.right,
+                        style: pw.TextStyle(
+                          fontSize: 7.2,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                          letterSpacing: 0.6,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            }),
+                ...displayItems.map((item) {
+                  final desc = (item['itemDescription'] as String?)?.trim() ?? 'Line Item';
+                  final notes = (item['notes'] as String?)?.trim();
+                  final qty = item['quantity'] as int;
+                  final customPrice = item['customPrice'] as double?;
+                  final price = customPrice ?? (item['itemPrice'] as double);
+                  final rawAmt = item['totalAmount'] as double;
+                  final amt = rawAmt > 0 ? rawAmt : (qty * price);
+
+                  String primaryTitle = desc;
+                  String? subDetails;
+                  if (desc.contains('\n')) {
+                    final split = desc.split('\n');
+                    primaryTitle = split.first.trim();
+                    subDetails = split.sublist(1).join('\n').trim();
+                  } else if (desc.contains(' - S/N:')) {
+                    final split = desc.split(' - S/N:');
+                    primaryTitle = split.first.trim();
+                    subDetails = 'S/N: ${split[1].trim()}';
+                  } else if (notes != null && notes.isNotEmpty) {
+                    subDetails = notes;
+                  }
+
+                  return pw.TableRow(
+                    decoration: const pw.BoxDecoration(
+                      border: pw.Border(
+                        bottom: pw.BorderSide(color: PdfColor.fromInt(0xFFE5E7EB), width: 0.8),
+                      ),
+                    ),
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              primaryTitle.toUpperCase(),
+                              style: pw.TextStyle(
+                                fontSize: 8.0,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.black,
+                              ),
+                            ),
+                            if (subDetails != null && subDetails.isNotEmpty) ...[
+                              pw.SizedBox(height: 0.8),
+                              pw.Text(
+                                subDetails,
+                                style: const pw.TextStyle(
+                                  fontSize: 5.8,
+                                  color: PdfColors.grey700,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3.5),
+                        child: pw.Text(
+                          '$qty',
+                          textAlign: pw.TextAlign.center,
+                          style: pw.TextStyle(
+                            fontSize: 8.0,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3.5),
+                        child: pw.Text(
+                          '₹ ${price.toStringAsFixed(2)}',
+                          textAlign: pw.TextAlign.right,
+                          style: const pw.TextStyle(
+                            fontSize: 8.0,
+                            color: PdfColors.black,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3.5),
+                        child: pw.Text(
+                          '₹ ${amt.toStringAsFixed(2)}',
+                          textAlign: pw.TextAlign.right,
+                          style: pw.TextStyle(
+                            fontSize: 8.0,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
 
             // ── Totals Section ───────────────────────────────────────────────
             (() {
               final double itemsSubtotal = displayItems.fold(
                 0.0,
-                (sum, it) => sum + (it.totalAmount > 0 ? it.totalAmount : (it.quantity * it.activePrice)),
+                (sum, it) {
+                  final itAmt = it['totalAmount'] as double;
+                  final itQty = it['quantity'] as int;
+                  final itCustom = it['customPrice'] as double?;
+                  final itPrice = itCustom ?? (it['itemPrice'] as double);
+                  return sum + (itAmt > 0 ? itAmt : (itQty * itPrice));
+                },
               );
 
-              return pw.Column(
-                children: [
-                  pw.SizedBox(height: 8),
-                  pw.Align(
-                    alignment: pw.Alignment.centerRight,
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        if (sale.discount > 0 || sale.advance > 0)
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
-                            child: pw.Row(
-                              mainAxisSize: pw.MainAxisSize.min,
-                              children: [
-                                pw.Text(
-                                  'SUBTOTAL: ',
-                                  style: pw.TextStyle(
-                                    fontSize: 7.5,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey700,
-                                  ),
-                                ),
-                                pw.Text(
-                                  '₹ ${itemsSubtotal.toStringAsFixed(2)}',
-                                  style: pw.TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey900,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (sale.discount > 0)
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
-                            child: pw.Row(
-                              mainAxisSize: pw.MainAxisSize.min,
-                              children: [
-                                pw.Text(
-                                  'DISCOUNT: ',
-                                  style: pw.TextStyle(
-                                    fontSize: 7.5,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey600,
-                                  ),
-                                ),
-                                pw.Text(
-                                  '- ₹ ${sale.discount.toStringAsFixed(2)}',
-                                  style: pw.TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.red700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (sale.advance > 0)
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 1),
-                            child: pw.Row(
-                              mainAxisSize: pw.MainAxisSize.min,
-                              children: [
-                                pw.Text(
-                                  'ADVANCE PAID: ',
-                                  style: pw.TextStyle(
-                                    fontSize: 7.5,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey600,
-                                  ),
-                                ),
-                                pw.Text(
-                                  '- ₹ ${sale.advance.toStringAsFixed(2)}',
-                                  style: pw.TextStyle(
-                                    fontSize: 8,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.green700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+              return pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                child: pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      if (p.discount > 0 || p.advance > 0)
                         pw.Padding(
-                          padding: const pw.EdgeInsets.only(top: 3, bottom: 2),
+                          padding: const pw.EdgeInsets.symmetric(vertical: 1),
                           child: pw.Row(
                             mainAxisSize: pw.MainAxisSize.min,
                             children: [
                               pw.Text(
-                                'GRAND TOTAL',
+                                'SUBTOTAL: ',
                                 style: pw.TextStyle(
-                                  fontSize: 8.5,
+                                  fontSize: 7.8,
                                   fontWeight: pw.FontWeight.bold,
-                                  color: PdfColors.black,
-                                  letterSpacing: 0.5,
+                                  color: PdfColors.grey700,
                                 ),
                               ),
-                              pw.SizedBox(width: 14),
                               pw.Text(
-                                '₹ ${sale.totalAmount.toStringAsFixed(2)}',
+                                '₹ ${itemsSubtotal.toStringAsFixed(2)}',
                                 style: pw.TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: 8.5,
                                   fontWeight: pw.FontWeight.bold,
                                   color: PdfColors.black,
                                 ),
@@ -560,160 +719,355 @@ Future<Uint8List> _buildPdf(
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      if (p.discount > 0)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                          child: pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                'DISCOUNT: ',
+                                style: pw.TextStyle(
+                                  fontSize: 7.8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey700,
+                                ),
+                              ),
+                              pw.Text(
+                                '- ₹ ${p.discount.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.red700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (p.advance > 0)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 1),
+                          child: pw.Row(
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                'ADVANCE PAID: ',
+                                style: pw.TextStyle(
+                                  fontSize: 7.8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.grey700,
+                                ),
+                              ),
+                              pw.Text(
+                                '- ₹ ${p.advance.toStringAsFixed(2)}',
+                                style: pw.TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.green700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 2, bottom: 2),
+                        child: pw.Row(
+                          mainAxisSize: pw.MainAxisSize.min,
+                          children: [
+                            pw.Text(
+                              'GRAND TOTAL',
+                              style: pw.TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.black,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            pw.SizedBox(width: 28),
+                            pw.Text(
+                              '₹ ${p.totalAmount.toStringAsFixed(2)}',
+                              style: pw.TextStyle(
+                                fontSize: 16,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               );
             })(),
-            pw.SizedBox(height: 6),
+            pw.SizedBox(height: 5),
 
-            // ── Dynamic Payment & Review Row (Aligned horizontally on baseline) ─────
+            // ── Dynamic Payment & Review Row (Symmetrical matching boxes) ───
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 // Left: Google Review Card
-                pw.Container(
-                  width: 145,
-                  padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor.fromHex('#F4F8FF'),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                    border: pw.Border.all(
-                      color: PdfColor.fromHex('#D0E2FF'),
-                      width: 0.6,
+                pw.Expanded(
+                  child: pw.Container(
+                    height: 88,
+                    margin: const pw.EdgeInsets.only(right: 7),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: const PdfColor(0.75, 0.78, 0.82), width: 1.0),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                     ),
-                  ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
-                    children: [
-                      // Google Logo Styled Text
-                      pw.Row(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        children: [
-                          pw.Text('G', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4285F4'))),
-                          pw.Text('o', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#EA4335'))),
-                          pw.Text('o', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#FBBC05'))),
-                          pw.Text('g', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4285F4'))),
-                          pw.Text('l', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#34A853'))),
-                          pw.Text('e', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#EA4335'))),
-                        ],
-                      ),
-                      pw.SizedBox(height: 3),
-                      _buildQr(reviewUrl, 46),
-                      pw.SizedBox(height: 3),
-                      pw.Row(
-                        mainAxisSize: pw.MainAxisSize.min,
-                        crossAxisAlignment: pw.CrossAxisAlignment.center,
-                        children: [
-                          _buildVectorStar(size: 6.5),
-                          pw.SizedBox(width: 2.5),
-                          pw.Text(
-                            'Rate Us & Review',
-                            style: pw.TextStyle(
-                              fontSize: 6.5,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.black,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColor(0.14, 0.17, 0.22),
+                            borderRadius: pw.BorderRadius.only(
+                              topLeft: pw.Radius.circular(5),
+                              topRight: pw.Radius.circular(5),
                             ),
                           ),
-                        ],
-                      ),
-                      pw.SizedBox(height: 1),
-                      pw.Text(
-                        'Get a free Cleaner or Mouse Pad',
-                        style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey800),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                      pw.Text(
-                        'completely free',
-                        style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey800),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                      pw.SizedBox(height: 1),
-                      pw.Text(
-                        'Scan to leave a review',
-                        style: const pw.TextStyle(fontSize: 4.5, color: PdfColors.grey500),
-                        textAlign: pw.TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Right: UPI Payment Card
-                if (config.showQr)
-                  pw.Container(
-                    width: 145,
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        // Spacer to match Google logo height so QR codes are horizontally aligned
-                        pw.SizedBox(height: 13),
-                        _buildQr(upiUrl, 46),
-                        pw.SizedBox(height: 3),
-                        pw.Text(
-                          'Pay via UPI',
-                          style: pw.TextStyle(
-                            fontSize: 7,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.black,
+                          child: pw.Center(
+                            child: pw.Text(
+                              'SCAN TO RATE US ON GOOGLE',
+                              style: pw.TextStyle(
+                                fontSize: 6.5,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
                           ),
                         ),
-                        pw.SizedBox(height: 1),
-                        pw.Text(
-                          'Scan with any UPI app',
-                          style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
-                          textAlign: pw.TextAlign.center,
-                        ),
-                        pw.Text(
-                          'to pay instantly',
-                          style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
-                          textAlign: pw.TextAlign.center,
+                        pw.Expanded(
+                          child: pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                            child: pw.Column(
+                              mainAxisAlignment: pw.MainAxisAlignment.center,
+                              crossAxisAlignment: pw.CrossAxisAlignment.center,
+                              children: [
+                                _buildQr(p.reviewUrl, 40),
+                                pw.SizedBox(height: 2.0),
+                                pw.Row(
+                                  mainAxisSize: pw.MainAxisSize.min,
+                                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                  children: [
+                                    pw.Text(
+                                      'Rate Us ',
+                                      style: pw.TextStyle(
+                                        fontSize: 6.8,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.black,
+                                      ),
+                                    ),
+                                    ...List.generate(
+                                      5,
+                                      (_) => pw.Padding(
+                                        padding: const pw.EdgeInsets.symmetric(horizontal: 0.8),
+                                        child: _buildVectorStar(size: 5.5, color: const PdfColor(0.95, 0.75, 0.1)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                pw.SizedBox(height: 1.0),
+                                pw.Text(
+                                  'Get a Laptop Cleaner or Mouse Pad Free!',
+                                  style: pw.TextStyle(
+                                    fontSize: 5.2,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.black,
+                                  ),
+                                ),
+                                pw.SizedBox(height: 0.8),
+                                pw.Text(
+                                  'Scan with camera to rate us',
+                                  style: const pw.TextStyle(
+                                    fontSize: 4.6,
+                                    color: PdfColors.grey700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
+                ),
+
+                // Right: UPI Payment Card
+                if (p.showQr)
+                  pw.Expanded(
+                    child: pw.Container(
+                      height: 88,
+                      margin: const pw.EdgeInsets.only(left: 7),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: const PdfColor(0.75, 0.78, 0.82), width: 1.0),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                        children: [
+                          pw.Container(
+                            padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                            decoration: const pw.BoxDecoration(
+                              color: PdfColor(0.14, 0.17, 0.22),
+                              borderRadius: pw.BorderRadius.only(
+                                topLeft: pw.Radius.circular(5),
+                                topRight: pw.Radius.circular(5),
+                              ),
+                            ),
+                            child: pw.Center(
+                              child: pw.Text(
+                                'PAY VIA UPI',
+                                style: pw.TextStyle(
+                                  fontSize: 6.5,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.white,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Padding(
+                              padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                              child: pw.Column(
+                                mainAxisAlignment: pw.MainAxisAlignment.center,
+                                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                children: [
+                                  _buildQr(upiUrl, 40),
+                                  pw.SizedBox(height: 2.0),
+                                  pw.Text(
+                                    'Instant UPI Payment',
+                                    style: pw.TextStyle(
+                                      fontSize: 6.8,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.black,
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 1.0),
+                                  pw.Text(
+                                    'Scan with any UPI app to pay',
+                                    style: pw.TextStyle(
+                                      fontSize: 5.2,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: PdfColors.black,
+                                    ),
+                                  ),
+                                  pw.SizedBox(height: 0.8),
+                                  pw.Text(
+                                    'GPay · PhonePe · Paytm · UPI',
+                                    style: const pw.TextStyle(
+                                      fontSize: 4.6,
+                                      color: PdfColors.grey700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
-            pw.SizedBox(height: 6),
+            pw.SizedBox(height: 5),
 
             // ── Terms & Conditions ───────────────────────────────────────────
-            pw.Divider(thickness: 0.5, color: PdfColors.grey300),
-            pw.SizedBox(height: 3),
+            pw.Container(height: 1.2, color: const PdfColor(0.07, 0.09, 0.15)),
+            pw.SizedBox(height: 4),
             pw.Text(
               'T E R M S   &   C O N D I T I O N S',
               style: pw.TextStyle(
-                fontSize: 7.5,
+                fontSize: 7.2,
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.black,
-                letterSpacing: 0.8,
+                letterSpacing: 2.2,
               ),
             ),
-            pw.SizedBox(height: 2.5),
-            pw.Text(
-              '1. Warranty for new products/parts is provided solely by the respective Principal Company / Brand Service Center as per their policy.',
-              style: const pw.TextStyle(fontSize: 6.2, color: PdfColors.grey700),
+            pw.SizedBox(height: 4.5),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '1.  ',
+                  style: pw.TextStyle(
+                    fontSize: 5.8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    'Warranty for new products/parts is provided solely by the respective Principal Company / Brand Service Center as per their policy.',
+                    style: const pw.TextStyle(
+                      fontSize: 5.8,
+                      color: PdfColor(0.2, 0.25, 0.3),
+                      lineSpacing: 1.25,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 1.8),
-            pw.Text(
-              '2. Warranty stands VOID in case of Physical Damage, Liquid Damage, Electrical Burn / Short-Circuiting, or if the Serial Number / Warranty Sticker is missing, broken, or tampered with.',
-              style: const pw.TextStyle(fontSize: 6.2, color: PdfColors.grey700),
+            pw.SizedBox(height: 2.0),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '2.  ',
+                  style: pw.TextStyle(
+                    fontSize: 5.8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    'Warranty stands VOID in case of Physical Damage, Liquid Damage, Electrical Burn / Short-Circuiting, or if the Serial Number / Warranty Sticker is missing, broken, or tampered with.',
+                    style: const pw.TextStyle(
+                      fontSize: 5.8,
+                      color: PdfColor(0.2, 0.25, 0.3),
+                      lineSpacing: 1.25,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 1.8),
-            pw.Text(
-              '3. Original bill is required for any warranty claims.',
-              style: const pw.TextStyle(fontSize: 6.2, color: PdfColors.grey700),
+            pw.SizedBox(height: 2.0),
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '3.  ',
+                  style: pw.TextStyle(
+                    fontSize: 5.8,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.black,
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    'Original bill is required for any warranty claims.',
+                    style: const pw.TextStyle(
+                      fontSize: 5.8,
+                      color: PdfColor(0.2, 0.25, 0.3),
+                      lineSpacing: 1.25,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 6),
+            pw.SizedBox(height: 8),
 
             // ── Final Center Footer ──────────────────────────────────────────
-            pw.Align(
-              alignment: pw.Alignment.center,
+            pw.Center(
               child: pw.Text(
                 'Thank you for your business!',
                 style: pw.TextStyle(
-                  fontSize: 7.5,
+                  fontSize: 8.5,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.black,
                 ),
@@ -791,18 +1145,17 @@ pw.Widget _buildQr(String data, double size) {
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 class PdfInvoiceHelper {
-  /// Generates the invoice PDF bytes on the calling isolate.
-  /// The [pdf] package is pure Dart and completes in < 100 ms for a typical
-  /// invoice, so no background isolate is needed. PDF generation is kicked off
-  /// immediately when the preview dialog opens so the user sees a short
-  /// loading spinner rather than any blocking delay.
+  /// Generates the invoice PDF bytes in a background isolate so the UI stays
+  /// responsive. Fonts and Hive settings are loaded on the main isolate first,
+  /// then all CPU-heavy work (layout, QR generation, PDF encoding) runs in a
+  /// separate isolate via [Isolate.run].
   static Future<Uint8List> generatePdfBytes({
     required Sale sale,
     required List<SaleItem> items,
     required String? activeUpiId,
     InvoiceLayoutConfig config = const InvoiceLayoutConfig(),
   }) {
-    return _buildPdf(sale, items, activeUpiId, config);
+    return _generatePdfBytes(sale, items, activeUpiId, config);
   }
 
   /// Writes invoice [pdfBytes] to a temporary file and opens it in the default OS PDF viewer
@@ -859,16 +1212,20 @@ class PdfInvoiceHelper {
         } catch (_) {}
       }
 
-      // On Windows: launches default OS PDF application (Edge, Acrobat, SumatraPDF, Chrome)
+      // On Windows: launches default OS PDF application instantly
       if (!kIsWeb && Platform.isWindows) {
         try {
-          final res = await Process.run('cmd.exe', ['/c', 'start', '', file.path], runInShell: true);
-          if (res.exitCode == 0) return true;
+          final uri = Uri.file(file.path);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+            return true;
+          }
         } catch (_) {}
 
         try {
-          final res = await Process.run('powershell', ['-c', 'Start-Process', '"${file.path}"']);
-          if (res.exitCode == 0) return true;
+          // Process.start returns immediately without blocking on cmd.exe or child process
+          await Process.start('cmd.exe', ['/c', 'start', '', file.path], runInShell: true);
+          return true;
         } catch (_) {}
       }
 
